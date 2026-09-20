@@ -1,0 +1,259 @@
+import { EmergencyProtocol } from '../types';
+
+export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
+  {
+    id: 'CARD-01',
+    code: 'AHA-ECC-2026-CARD',
+    title: 'Adult Out-of-Hospital Cardiac Arrest (OHCA)',
+    category: 'cardiac',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    clinicalSummary: 'Sudden loss of heart function, breathing, and consciousness. Time to CPR and defibrillation is the single greatest determinant of survival.',
+    immediateActions: [
+      'Position patient flat on the back on a firm, hard floor.',
+      'Place heel of one hand in the center of the chest; interlock fingers of the second hand.',
+      'Deliver continuous chest compressions at 100 to 120 BPM, at a depth of 2 to 2.4 inches (5-6 cm).',
+      'Allow complete chest recoil between compressions without leaning.',
+      'Retrieve and apply Automated External Defibrillator (AED) immediately upon arrival.'
+    ],
+    verbalResponseText: "Help is on the way. Put me on speaker and listen closely. Lay them flat on their back on the floor right now. Place your hands in the center of their chest. Push hard and fast to the beat of 'Stayin Alive'—about twice per second. Do not stop.",
+    cadenceBpm: 110,
+    criticalQuestions: [
+      'Is the patient breathing normally or only making gasping/snoring sounds (agonal breathing)?',
+      'Is an Automated External Defibrillator (AED) nearby in the building?'
+    ],
+    contraindications: [
+      'Do not stop compressions for more than 10 seconds.',
+      'Do not place soft pillows or mattresses underneath the patient during CPR.'
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Paramedic Rescue Engine + Battalion Medic',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['Lucas Mechanical CPR Device', 'Zoll X-Series Defibrillator', 'Intubation Kit']
+    },
+    keywords: [
+      'cardiac arrest', 'not breathing', 'heart attack', 'cpr', 'chest compressions',
+      'unconscious', 'no pulse', 'collapsed', 'passed out', 'chest pain', 'defibrillator', 'aed'
+    ],
+    citations: 'American Heart Association (AHA) 2026 Guidelines for CPR & ECC'
+  },
+  {
+    id: 'AIR-02',
+    code: 'AAP-ERC-2026-PEDI',
+    title: 'Pediatric & Infant Complete Airway Obstruction (Choking)',
+    category: 'airway',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    clinicalSummary: 'Foreign body airway obstruction in infants (< 1 year). Inability to cry, cough, or vocalize with cyanosis / blue discoloration.',
+    immediateActions: [
+      'Hold infant face down resting along your forearm, supporting head and jaw with your hand.',
+      'Keep infant head lower than the chest.',
+      'Deliver 5 firm, distinct back slaps between the shoulder blades using the heel of your hand.',
+      'Turn infant face up supported on your opposite forearm.',
+      'Deliver 5 quick chest thrusts along the lower half of the breastbone using two fingers.',
+      'Repeat 5 back slaps and 5 chest thrusts until object is expelled or infant becomes unresponsive.'
+    ],
+    verbalResponseText: "Emergency medics are rolling. Put your phone on speaker. Place your baby face down along your forearm, supporting their jaw. Keep their head lower than their body. Give five firm back slaps between their shoulder blades right now.",
+    cadenceBpm: 60,
+    criticalQuestions: [
+      'Can the infant make any coughing or crying sounds at all?',
+      'Are the baby’s lips turning blue or grey?'
+    ],
+    contraindications: [
+      'NEVER perform a blind finger sweep inside the infant’s mouth; it can push the obstruction deeper.',
+      'Do not shake the baby or hang upside down.'
+    ],
+    unitRecommendation: {
+      unitType: 'Pediatric Intensive Care Paramedic Unit (MICU)',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['Pediatric Magill Forceps', 'Video Laryngoscope (Miller 0/1)', 'Needle Cricothyrotomy Kit']
+    },
+    keywords: [
+      'baby choking', 'infant choking', 'toddler not breathing', 'swallowed object', 'blue lips',
+      'cant breathe', 'choking on food', 'silent crying', 'back slaps', 'airway blocked'
+    ],
+    citations: 'American Academy of Pediatrics (AAP) Pediatric Airway Emergency Standards 2026'
+  },
+  {
+    id: 'NEURO-03',
+    code: 'AHA-ASA-2026-STROKE',
+    title: 'Acute Ischemic Stroke & Large Vessel Occlusion (FAST)',
+    category: 'stroke',
+    triageLevel: 'ESI-2 (Emergent)',
+    clinicalSummary: 'Rapid-onset focal neurological deficit due to cerebral ischemia or hemorrhage. Every minute of delay results in the loss of 1.9 million neurons.',
+    immediateActions: [
+      'Establish Last Known Well (LKW) exact timestamp from family/bystanders.',
+      'Administer Cincinnati Prehospital Stroke Scale (CPSS): Facial droop, Arm drift, Slurred speech.',
+      'Keep patient resting flat with head elevated 15-30 degrees; maintain calm environment.',
+      'Do NOT administer food, water, or aspirin until swallowing screening is conducted.',
+      'Notify Comprehensive Stroke Center for immediate CT angiogram / mechanical thrombectomy activation.'
+    ],
+    verbalResponseText: "Paramedics are dispatched Code 3. Keep the patient sitting comfortably with their head elevated. Do not give them anything to eat, drink, or any aspirin. What exact time were they last acting completely normal?",
+    criticalQuestions: [
+      'What was the exact minute they were last known to be completely normal?',
+      'Can they smile evenly, or is one side of their face drooping?',
+      'Can they raise both arms together without one drifting down?'
+    ],
+    contraindications: [
+      'Do NOT administer aspirin or blood thinners prior to hospital non-contrast head CT.',
+      'Do NOT lower blood pressure precipitously unless > 220/120 mmHg.'
+    ],
+    unitRecommendation: {
+      unitType: 'Mobile Stroke Unit (MSU) with Tele-Neurology',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['Point-of-Care i-STAT Lab', 'Mobile CT Scanner', 'Tenecteplase (TNKase) Thrombolytic Kit']
+    },
+    keywords: [
+      'stroke', 'facial droop', 'slurred speech', 'arm weakness', 'sudden numbness',
+      'cant talk', 'paralyzed on one side', 'fast protocol', 'brain bleed', 'confusion', 'last known well'
+    ],
+    citations: 'AHA / American Stroke Association Guidelines for Early Management of Acute Stroke'
+  },
+  {
+    id: 'IMMUNO-04',
+    code: 'EAACI-WAO-2026-ANAPH',
+    title: 'Severe Anaphylactic Shock & Systemic Allergic Collapse',
+    category: 'anaphylaxis',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    clinicalSummary: 'Rapidly progressing, life-threatening multi-organ allergic reaction with airway compromise, wheezing, angioedema, and hypotension.',
+    immediateActions: [
+      'Administer Epinephrine autoinjector (0.3mg adult, 0.15mg child) immediately into mid-outer thigh.',
+      'Hold injector firmly in place for a full 3 seconds; massage injection site for 10 seconds.',
+      'Lay patient recumbent with legs elevated (do NOT stand or walk, which can trigger empty-ventricle arrest).',
+      'If wheezing and hypotension persist after 5 minutes, prepare second dose of Epinephrine.'
+    ],
+    verbalResponseText: "Ambulance is en route with sirens. If you have an EpiPen, inject it immediately into the outer middle thigh through their clothing. Hold it firmly for 3 full seconds. Keep them lying down with their legs elevated.",
+    criticalQuestions: [
+      'Is there swelling of the lips, tongue, or throat?',
+      'Do they have an auto-injector (EpiPen / Auvi-Q) available right now?'
+    ],
+    contraindications: [
+      'There are NO absolute contraindications to epinephrine in anaphylaxis.',
+      'Do not allow patient to suddenly stand or sit upright (triggers fatal blood pressure crash).'
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Emergency Rescue Unit',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['Nebulized Albuterol/Ipratropium', 'Intravenous Epinephrine (1:10,000)', 'Video Glidescope']
+    },
+    keywords: [
+      'allergic reaction', 'epipen', 'peanut allergy', 'throat closing', 'swollen tongue',
+      'hives', 'cant breathe allergic', 'anaphylaxis', 'bee sting', 'wheezing', 'severe allergy'
+    ],
+    citations: 'World Allergy Organization (WAO) Anaphylaxis Guidelines 2026'
+  },
+  {
+    id: 'TOX-05',
+    code: 'CDC-SAMHSA-2026-OPIOID',
+    title: 'Opioid Toxicity & Synthetic Fentanyl Respiratory Depression',
+    category: 'trauma',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    clinicalSummary: 'Pinpoint pupils, cyanosis, and severe central hypoventilation (< 6 breaths/min) due to synthetic opioid or fentanyl overdose.',
+    immediateActions: [
+      'Administer Naloxone (Narcan) 4mg nasal spray into one nostril immediately.',
+      'If patient does not resume normal spontaneous respirations in 2-3 minutes, administer second 4mg dose in opposite nostril.',
+      'Perform rescue breathing: 1 breath every 5 seconds until patient breathes independently.',
+      'Place in recovery position (on their side) if vomiting occurs.'
+    ],
+    verbalResponseText: "Emergency responders are dispatched. If you have Narcan nasal spray, spray one full dose into their nose right now. If they are not breathing, give them one rescue breath every five seconds until medics arrive.",
+    criticalQuestions: [
+      'Are their lips or fingertips blue or purple?',
+      'Do you have Narcan / Naloxone nasal spray nearby?'
+    ],
+    contraindications: [
+      'Do not submerge patient in cold water or induce vomiting.',
+      'Do not leave patient unattended; fentanyl effects often outlast naloxone.'
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Paramedic Quick Response Vehicle',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['Multi-Dose Naloxone Kit', 'Bag-Valve Mask (BVM) with PEEP', 'End-Tidal CO2 Detector']
+    },
+    keywords: [
+      'overdose', 'narcan', 'fentanyl', 'not waking up', 'blue face', 'opioid',
+      'heroin', 'shallow breathing', 'pinpoint pupils', 'unresponsive drug'
+    ],
+    citations: 'CDC Emergency Guidelines on Illicit Synthetic Opioid Resuscitation 2026'
+  }
+];
+
+export const EMERGENCY_SCENARIOS = [
+  {
+    id: 'scen_cardiac',
+    title: 'Adult Cardiac Arrest (58M)',
+    tagline: 'Sudden collapse at desk, gasping sounds, no pulse detected',
+    iconName: 'Activity',
+    callerProfile: 'Colleague calling from office floor',
+    callerSpeechTranscript: "My boss just collapsed out of nowhere! He was at his desk and suddenly fell out of his chair. He's making weird snoring gasping sounds and his eyes are rolled back! He won't answer me! What do I do?!",
+    callerLocation: {
+      address: '742 Market Street, Floor 14',
+      city: 'San Francisco, CA',
+      coordinates: '37.7885° N, 122.4019° W'
+    },
+    reportedVitals: {
+      consciousness: 'UNRESPONSIVE',
+      breathing: 'AGONAL GASPING (6/min)',
+      pulse: 'ABSENT (CAROTID)'
+    },
+    triagePriority: 'ESI-1 (Immediate Resuscitation)' as const,
+    expectedProtocolId: 'CARD-01'
+  },
+  {
+    id: 'scen_pediatric',
+    title: 'Infant Airway Obstruction (9 Mo)',
+    tagline: 'Choking on toy piece, silent crying, lips turning grey',
+    iconName: 'Baby',
+    callerProfile: 'Panicked mother at home',
+    callerSpeechTranscript: "Help me please, my 9-month-old baby is choking! She was playing on the carpet and put something in her mouth, now she's not crying, she can't make any sound, and her lips are turning blue! Please hurry!",
+    callerLocation: {
+      address: '1420 Pine Creek Way',
+      city: 'San Jose, CA',
+      coordinates: '37.3382° N, 121.8863° W'
+    },
+    reportedVitals: {
+      consciousness: 'LETHARGIC',
+      breathing: 'STRIDOR / ZERO AIRFLOW',
+      pulse: '170 BPM (TACHYCARDIA)'
+    },
+    triagePriority: 'ESI-1 (Immediate Resuscitation)' as const,
+    expectedProtocolId: 'AIR-02'
+  },
+  {
+    id: 'scen_stroke',
+    title: 'Acute Stroke Alert (67F)',
+    tagline: 'Sudden left-side facial droop, slurred speech, arm weakness',
+    iconName: 'Brain',
+    callerProfile: 'Adult daughter calling from living room',
+    callerSpeechTranscript: "I'm with my mother at breakfast. About ten minutes ago she dropped her coffee cup and when she tried to speak it sounded like complete gibberish. The left side of her face is sagging down and she can't lift her left arm at all.",
+    callerLocation: {
+      address: '890 Sunset Blvd, Apt 4B',
+      city: 'Oakland, CA',
+      coordinates: '37.8044° N, 122.2712° W'
+    },
+    reportedVitals: {
+      consciousness: 'CONFUSED / CONSCIOUS',
+      breathing: 'NORMAL (16/min)',
+      pulse: '88 BPM (IRREGULAR)'
+    },
+    triagePriority: 'ESI-2 (Emergent)' as const,
+    expectedProtocolId: 'NEURO-03'
+  },
+  {
+    id: 'scen_anaphylaxis',
+    title: 'Severe Anaphylactic Shock (22M)',
+    tagline: 'Accidental peanut exposure, throat constriction, severe hives',
+    iconName: 'AlertOctagon',
+    callerProfile: 'Friend calling from university dining hall',
+    callerSpeechTranscript: "My roommate ate a pad thai dish with hidden peanut sauce. He has a severe allergy. His throat is swelling shut, he's wheezing terribly, and he has hives covering his neck. We have his EpiPen right here but we're terrified to use it!",
+    callerLocation: {
+      address: 'University Student Union, Dining Hall B',
+      city: 'Berkeley, CA',
+      coordinates: '37.8719° N, 122.2585° W'
+    },
+    reportedVitals: {
+      consciousness: 'DISTRESSED / HYPOXIC',
+      breathing: 'SEVERE WHEEZING / WHEEZE (28/min)',
+      pulse: '135 BPM'
+    },
+    triagePriority: 'ESI-1 (Immediate Resuscitation)' as const,
+    expectedProtocolId: 'IMMUNO-04'
+  }
+];
