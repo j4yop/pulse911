@@ -46,8 +46,10 @@ export interface EmergencyScenario {
 export interface MossQueryResult {
   protocol: EmergencyProtocol;
   score: number;
+  /** Measured cost of the executed retrieval — SDK-reported or real performance.now() delta. Never synthesized. */
   latencyMs: number;
-  engine: 'Moss In-Memory Core (Rust/WASM)' | 'Moss Cloud';
+  /** What actually served this query, e.g. 'Moss WASM Runtime (@moss-dev/moss-web)' or 'Local Fallback (deterministic keyword pass)'. */
+  engine: string;
   vectorDistance: number;
   tokensEvaluated: number;
 }

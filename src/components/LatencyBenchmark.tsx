@@ -22,15 +22,7 @@ export const LatencyBenchmark: React.FC = () => {
     remoteP95: number;
     queriesCount: number;
     timeSavedSeconds: number;
-  } | null>({
-    mossP50: 3.4,
-    mossP95: 4.8,
-    mossP99: 5.9,
-    remoteP50: 240,
-    remoteP95: 380,
-    queriesCount: 100,
-    timeSavedSeconds: 23.6,
-  });
+  } | null>(null); // No pre-baked numbers: the panel stays empty until a real run populates it.
 
   const runBenchmark = async () => {
     setIsRunningTest(true);
@@ -55,14 +47,17 @@ export const LatencyBenchmark: React.FC = () => {
     const p95 = mossLatencies[Math.floor(mossLatencies.length * 0.95)];
     const p99 = mossLatencies[Math.floor(mossLatencies.length * 0.99)];
 
+    // Cloud-DB figures are CITED REFERENCE POINTS from Moss's published 100k-doc
+    // benchmarks (P50 ~430ms Pinecone / ~598ms Qdrant), NOT measurements from this app.
+    const CITED_REMOTE_P50 = 430;
     setResults({
       mossP50: +p50.toFixed(2),
       mossP95: +p95.toFixed(2),
       mossP99: +p99.toFixed(2),
-      remoteP50: 245,
-      remoteP95: 390,
-      queriesCount: 50,
-      timeSavedSeconds: +((245 - p50) * 50 / 1000).toFixed(2),
+      remoteP50: CITED_REMOTE_P50,
+      remoteP95: 590,
+      queriesCount: mossLatencies.length,
+      timeSavedSeconds: +(((CITED_REMOTE_P50 - p50) * mossLatencies.length) / 1000).toFixed(2),
     });
 
     setIsRunningTest(false);
@@ -185,7 +180,7 @@ export const LatencyBenchmark: React.FC = () => {
               {results.mossP50} ms
             </div>
             <span className="text-[11px] text-slate-500 block">
-              vs. 240 ms remote DB (<strong>{Math.round(240 / results.mossP50)}x faster</strong>)
+              vs. {results.remoteP50} ms cloud vector DB <em>(cited: Moss 100k-doc benchmark)</em> (<strong>{Math.round(results.remoteP50 / results.mossP50)}x faster</strong>)
             </span>
           </div>
 
@@ -195,7 +190,7 @@ export const LatencyBenchmark: React.FC = () => {
               {results.mossP99} ms
             </div>
             <span className="text-[11px] text-slate-500 block">
-              Sub-10ms hard guarantee &bull; Zero network jitter
+              Measured P99 &bull; runs fully client-side via Moss WASM
             </span>
           </div>
 

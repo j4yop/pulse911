@@ -49,7 +49,7 @@ export const App: React.FC = () => {
         name: 'Medic Engine 14 (ALS Paramedic Rescue)',
         type: res.protocol.unitRecommendation.unitType,
         station: 'Station 4 &bull; Downtown Core',
-        etaMinutes: Math.floor(Math.random() * 2) + 3, // 3 - 4 mins
+        etaMinutes: Math.floor(Math.random() * 2) + 3, // Simulated demo ETA — live CAD integration is out of scope for this sprint
         status: 'DISPATCHED',
         crew: 'Captain R. Torres, Paramedic J. Vance',
       };
@@ -134,7 +134,9 @@ export const App: React.FC = () => {
           <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
           <span className="font-mono text-slate-400">Pulse911 Runtime Active</span>
           <span>&bull;</span>
-          <span className="font-mono text-emerald-400">Moss (YC F25) In-Memory Engine</span>
+          <span className="font-mono text-emerald-400">
+            {queryResult ? queryResult.engine : 'Moss (YC F25) — initializing retrieval runtime…'}
+          </span>
         </div>
         <div className="font-mono text-[11px] text-slate-500">
           Built for YC Fall 2026 &times; Moss Zero Latency Builder Sprint

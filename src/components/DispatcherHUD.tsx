@@ -67,8 +67,15 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
               <Zap className="w-3.5 h-3.5 text-amber-400" />
               <span>Moss Retrieval: {queryResult.latencyMs.toFixed(2)} ms</span>
             </div>
-            <span className="text-[10px] text-slate-500 px-2 py-0.5 rounded bg-slate-800 border border-slate-700">
-              Score: {(queryResult.score * 100).toFixed(0)}%
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded border ${
+                queryResult.engine.startsWith('Moss')
+                  ? 'text-emerald-400 bg-slate-800 border-slate-700'
+                  : 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+              }`}
+              title={queryResult.engine}
+            >
+              {queryResult.engine.startsWith('Moss') ? 'MOSS RUNTIME' : 'LOCAL FALLBACK'} · Score: {(queryResult.score * 100).toFixed(0)}%
             </span>
           </div>
         )}
@@ -127,7 +134,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
               <div className="flex items-center justify-between text-xs font-bold text-rose-400">
                 <span className="flex items-center gap-1.5">
                   <Volume2 className="w-4 h-4 text-rose-400" />
-                  Real-Time Voice Agent Output (Sub-250ms Turnaround):
+                  Real-Time Voice Agent Output:
                 </span>
                 <span className="text-[10px] font-mono text-rose-300 uppercase">Live Web Speech</span>
               </div>
@@ -193,7 +200,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                     <span className="text-xs font-bold text-white">CAD Assigned Unit: {dispatchedUnit.name}</span>
                   </div>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">
-                    {dispatchedUnit.status} &bull; ETA {dispatchedUnit.etaMinutes}m
+                    {dispatchedUnit.status} &bull; ETA {dispatchedUnit.etaMinutes}m (simulated)
                   </span>
                 </div>
 

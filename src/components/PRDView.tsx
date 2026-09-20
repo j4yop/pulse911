@@ -26,7 +26,7 @@ export const PRDView: React.FC = () => {
             1. Executive Summary & Problem Definition
           </h2>
           <p>
-            Emergency 911 dispatch centers in the United States and globally face a <strong>35% critical staffing shortage</strong>, leading to delayed answer times and dispatcher cognitive fatigue. While AI voice agents can answer calls instantaneously, conversational voice pipelines fail when paired with traditional cloud vector databases (Pinecone, Qdrant).
+            Emergency 911 dispatch centers in the United States and globally face chronic staffing shortages (recent US surveys report vacancy rates approaching 35%), leading to delayed answer times and dispatcher cognitive fatigue. While AI voice agents can answer calls instantaneously, conversational voice pipelines fail when paired with traditional cloud vector databases (Pinecone, Qdrant).
           </p>
           <p>
             Remote vector queries introduce <strong>150ms to 350ms of network latency</strong>. Combined with Speech-to-Text and Text-to-Speech synthesis, the total voice roundtrip balloons beyond <strong>450ms</strong>. In life-or-death emergencies (e.g. cardiac arrest, infant choking), this hesitation shatters conversational cadence, causing callers to panic and yell <em>"Are you listening to me?!"</em>
