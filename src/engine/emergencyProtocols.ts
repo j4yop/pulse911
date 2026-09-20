@@ -172,6 +172,41 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
       'heroin', 'shallow breathing', 'pinpoint pupils', 'unresponsive drug'
     ],
     citations: 'CDC Emergency Guidelines on Illicit Synthetic Opioid Resuscitation 2026'
+  },
+  {
+    id: 'CYBER-06',
+    code: 'CERT-IN-2026-SCAM',
+    title: 'Senior Citizen Digital Arrest & Cyber Extortion Interception',
+    category: 'cyber_extortion',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    clinicalSummary: 'Psychological coercion and extortion where malicious actors impersonate Police/CBI/Customs claiming "Digital Arrest". Immediate intervention prevents life savings transfer and severe hypertensive crisis.',
+    immediateActions: [
+      'IMMEDIATELY TERMINATE CALL: Instruct caller to hang up the phone/Skype immediately.',
+      'INVARIANT RULE: Government agencies, CBI, and Police NEVER conduct arrests over video calls or demand funds.',
+      'DO NOT SHARE ANY OTP, PIN, OR NET-BANKING CREDENTIALS UNDER ANY CIRCUMSTANCES.',
+      'Freeze net-banking and UPI access temporarily via bank helpline.',
+      'Dispatch Cyber Crime Rapid Response Unit & alert designated family emergency contact.'
+    ],
+    verbalResponseText: "Listen to me very carefully: HANG UP THAT CALL RIGHT NOW. This is a 100% fraudulent scam known as a Digital Arrest. Real police, customs, and CBI will NEVER demand money, UPI transfers, or ask for OTPs over the phone or Skype. Do not send a single rupee. You are completely safe, and we are dispatching cyber crime units to secure your line.",
+    criticalQuestions: [
+      'Have you shared any OTP, password, or transferred any money yet?',
+      'Are they still on the other line or video call?'
+    ],
+    contraindications: [
+      'NEVER transfer funds or share screen via AnyDesk/TeamViewer under pressure.',
+      'Do not keep this secret; fraudsters rely on isolation to extract money.'
+    ],
+    unitRecommendation: {
+      unitType: 'Cyber Crime Rapid Response Unit + Senior Welfare Patrol',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['1930 Financial Fraud Freeze Terminal', 'Aadhaar Biometric Lock Module', 'EMDR Crisis De-escalation Kit']
+    },
+    keywords: [
+      'digital arrest', 'cbi', 'police', 'customs', 'otp', 'transfer money',
+      'parcel drugs', 'narcotics', 'aadhaar', 'skype call', 'arrest warrant',
+      'cyber crime', 'bank details', 'scam', 'extortion', 'upi'
+    ],
+    citations: 'Ministry of Home Affairs & CERT-In 2026 National Cyber Extortion Advisory'
   }
 ];
 
@@ -255,5 +290,25 @@ export const EMERGENCY_SCENARIOS = [
     },
     triagePriority: 'ESI-1 (Immediate Resuscitation)' as const,
     expectedProtocolId: 'IMMUNO-04'
+  },
+  {
+    id: 'scen_digital_arrest',
+    title: 'Digital Arrest & Scam Extortion (71M)',
+    tagline: 'Senior citizen extorted by fake CBI police demanding immediate 50,000 INR RTGS / OTP',
+    iconName: 'ShieldAlert',
+    callerProfile: 'Terrified senior citizen calling from home',
+    callerSpeechTranscript: "Help me please, I am terrified! Someone claiming to be a CBI inspector from Mumbai Cyber Crime is on Skype telling me my Aadhaar is linked to illegal narcotics money laundering! They say I am under digital arrest and will be jailed unless I transfer 50,000 rupees and share my bank OTP right now! What do I do?!",
+    callerLocation: {
+      address: '42 Indiranagar 100ft Road',
+      city: 'Bengaluru, KA',
+      coordinates: '12.9716° N, 77.5946° E'
+    },
+    reportedVitals: {
+      consciousness: 'ACUTE PSYCHOLOGICAL PANIC',
+      breathing: 'HYPERVENTILATING (32/min)',
+      pulse: '138 BPM (HYPERTENSIVE CRISIS)'
+    },
+    triagePriority: 'ESI-1 (Immediate Resuscitation)' as const,
+    expectedProtocolId: 'CYBER-06'
   }
 ];
