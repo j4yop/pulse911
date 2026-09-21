@@ -1,6 +1,7 @@
 import { MossClient, type SearchResult } from '@moss-dev/moss-web';
 import type { EmergencyProtocol, MossQueryResult } from '../types';
 import { EMERGENCY_PROTOCOLS } from './emergencyProtocols';
+import { resolveTopProtocol } from './retrievalCore';
 
 /**
  * Pulse911 Retrieval Engine — REAL @moss-dev/moss-web (YC F25) integration.
@@ -45,24 +46,7 @@ function protocolToMetadata(p: EmergencyProtocol): Record<string, string> {
     triageLevel: p.triageLevel,
     code: p.code,
   };
-}
-
-/** Deterministic local scorer used only when the real Moss runtime is unavailable. */
-function localFallbackScore(transcript: string, p: EmergencyProtocol): number {
-  const t = transcript.toLowerCase();
-  let score = 0;
-  for (const kw of p.keywords) {
-    if (t.includes(kw.toLowerCase())) score += 1;
-  }
-  // Weak lexical overlap on title/summary tokens as a tiebreaker.
-  const tokens = t.split(/[^a-z0-9]+/).filter((w) => w.length > 3);
-  const corpus = `${p.title} ${p.clinicalSummary}`.toLowerCase();
-  let overlap = 0;
-  for (const tok of tokens) if (corpus.includes(tok)) overlap += 0.1;
-  return score + overlap;
-}
-
-class Pulse911RetrievalEngine {
+}class Pulse911RetrievalEngine {
   private client: MossClient | null = null;
   private mode: EngineMode = 'local-fallback';
   private initPromise: Promise<void> | null = null;
@@ -164,21 +148,18 @@ class Pulse911RetrievalEngine {
     return this.localQuery(transcript);
   }
 
-  /** Honest local fallback: real measurement of real work, clearly labeled. */
+  /** Honest local fallback: real measurement of real work via the shared pure ranker, clearly labeled. */
   private localQuery(transcript: string): MossQueryResult {
     const t0 = performance.now();
-    const ranked = EMERGENCY_PROTOCOLS.map((p) => ({ p, s: localFallbackScore(transcript, p) })).sort(
-      (a, b) => b.s - a.s
-    );
-    const best = ranked[0];
+    const match = resolveTopProtocol(transcript, EMERGENCY_PROTOCOLS);
     const latencyMs = +(performance.now() - t0).toFixed(2);
 
     return {
-      protocol: best?.p ?? EMERGENCY_PROTOCOLS[0],
-      score: best?.s ?? 0,
+      protocol: match.protocol,
+      score: match.score,
       latencyMs,
       engine: 'Local Fallback (deterministic keyword pass)',
-      vectorDistance: best ? Math.max(0, 1 - best.s / 10) : 1,
+      vectorDistance: match.score > 0 ? Math.max(0, 1 - match.score / 10) : 1,
       tokensEvaluated: transcript.split(/\s+/).filter(Boolean).length,
     };
   }

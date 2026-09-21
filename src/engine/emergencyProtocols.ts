@@ -103,7 +103,8 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
     },
     keywords: [
       'stroke', 'facial droop', 'slurred speech', 'arm weakness', 'sudden numbness',
-      'cant talk', 'paralyzed on one side', 'fast protocol', 'brain bleed', 'confusion', 'last known well'
+      'cant talk', 'paralyzed on one side', 'fast protocol', 'brain bleed', 'confusion', 'last known well',
+      'gibberish', 'garbled speech', 'sagging', 'words not making sense', 'one side of her face', 'one side of his face'
     ],
     citations: 'AHA / American Stroke Association Guidelines for Early Management of Acute Stroke'
   },
