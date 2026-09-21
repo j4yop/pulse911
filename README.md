@@ -70,6 +70,11 @@ Navigate to: **`http://localhost:3000`**
 npm run build
 ```
 
+### Operating Modes & Network Requirements (read before demoing)
+* **MOSS RUNTIME (primary):** with credentials configured, the first `query()` loads the embedding model through the Moss service (per the moss-web SDK, there is no fully-offline model load), after which retrieval itself runs **in-process via WASM** with SDK-measured latency.
+* **LOCAL FALLBACK (labeled):** with no credentials or if Moss Cloud is unreachable, the engine degrades to a deterministic keyword ranker (`src/engine/retrievalCore.ts`) over the same corpus — real work, honestly measured, clearly labeled in the UI. **No synthetic latency numbers are ever shown.**
+* **Demo guidance:** the five one-click presets are transcript-driven and network-risk-free; for venue Wi-Fi insurance, rehearse in fallback mode once — the app stays fully functional and honest.
+
 ---
 
 ## 4. 2-Minute Video Demo Playbook
