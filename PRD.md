@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary & Problem Definition
 
-Emergency 911 dispatch centers in the United States and globally face a **35% critical staffing shortage**, leading to delayed answer times and dispatcher cognitive fatigue. While AI voice agents can answer calls instantaneously, conversational voice pipelines fail when paired with traditional cloud vector databases (Pinecone, Qdrant).
+Emergency 911 dispatch centers in the United States and globally face chronic staffing shortages (recent US surveys report vacancy rates approaching 35%), leading to delayed answer times and dispatcher cognitive fatigue. While AI voice agents can answer calls instantaneously, conversational voice pipelines fail when paired with traditional cloud vector databases (Pinecone, Qdrant).
 
 Remote vector queries introduce **150ms to 350ms of network latency**. Combined with Speech-to-Text and Text-to-Speech synthesis, the total voice roundtrip balloons beyond **450ms**. In life-or-death emergencies (e.g. cardiac arrest, infant choking), this hesitation shatters conversational cadence, causing callers to panic and yell *"Are you listening to me?!"*
 

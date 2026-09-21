@@ -5,7 +5,7 @@
 > **Track:** Y Combinator Fall 2026 Requests for Startups (AI-Native Critical Infrastructure & Services)  
 > **Author:** Jay Gopal ([@j4yop](https://github.com/j4yop))  
 > **Repository Location:** `/Users/jaygopal/pulse911`  
-> **Status:** Code Complete, Production Build Verified (0 errors, 944ms), Git Initialized  
+> **Status:** Code Complete · Real @moss-dev/moss-web SDK integrated · honest benchmarking · Git Initialized (build times shown below are from the pre-SDK rewrite and will be re-verified)  
 
 ---
 
@@ -19,7 +19,7 @@ Human conversational turn-taking has a hard biological ceiling at **300 millisec
 In traditional AI voice architectures:
 * **Audio Ingestion & VAD:** 70 ms
 * **Streaming Speech-to-Text (STT):** 90 ms
-* **Cloud Vector Database (Pinecone, Qdrant, Weaviate):** **150 ms – 350 ms (Network Roundtrip)**
+* **Cloud Vector Database (Pinecone, Qdrant, Weaviate):** 150 ms – 350 ms (network roundtrip; Moss's published 100k-doc benchmarks cite Pinecone P50 ≈ 433ms, Qdrant P50 ≈ 597ms)
 * **LLM Time-to-First-Token (TTFT):** 70 ms
 * **Text-to-Speech (TTS) Buffer:** 50 ms
 * **Total Turnaround:** **430 ms – 560 ms** 🔴 *(Breaks conversational flow)*
@@ -27,9 +27,8 @@ In traditional AI voice architectures:
 When an emergency voice bot hesitates for half a second before offering CPR instructions, the caller panics, yells *"Hello?! Are you there?!"*, and critical resuscitation seconds are lost.
 
 ### The Pulse911 Solution: The Sub-10ms Moss Moat
-**Pulse911** replaces external cloud vector databases with **Moss (YC F25)**. By colocating the retrieval layer directly inside the application process in-memory:
-* **Moss Retrieval Latency:** **3.2 ms – 4.8 ms** 🟢
-* **Total End-to-End Voice Turnaround:** **233 ms – 264 ms** 🟢
+**Pulse911** replaces external cloud vector databases with **Moss (YC F25)**. By colocating the retrieval layer directly inside the application process via the **real @moss-dev/moss-web WASM runtime**:
+* **Moss Retrieval Latency:** single-digit ms, **measured by the SDK on every query** (run the in-app benchmark for live P50/P95/P99 on your machine) 🟢
 * **Result:** The AI agent interrupts and responds within natural human conversational cadence, providing authoritative, life-saving instructions without awkward pauses.
 
 ---
@@ -57,7 +56,7 @@ When an emergency voice bot hesitates for half a second before offering CPR inst
 │  - Colocated In-Memory Vector Index over AHA 2026 Clinical Guidelines          │
 │  - Zero Network Roundtrip to Remote Cloud Databases                            │
 │  - Microsecond Vector Distance & Keyword Disjunction Evaluation                │
-│  - Verified Execution Latency: 3.2 ms - 4.8 ms (Sub-10ms Guaranteed)           │
+│  - Verified SDK-measured Latency (run the in-app benchmark for live P50/P95/P99) │
 └───────────────────────────────────────┬────────────────────────────────────────┘
                                         │ Matched Clinical Pathway & Entity Graph
                                         ▼
@@ -81,7 +80,7 @@ When an emergency voice bot hesitates for half a second before offering CPR inst
 
 | Component | Technology | Version / Spec | Role in Pulse911 |
 | :--- | :--- | :--- | :--- |
-| **Retrieval Engine** | **Moss (YC F25)** | In-Memory Core (`@moss-dev/moss` / `usemoss`) | Colocates clinical vector index directly in-process; delivers sub-5ms semantic search with zero vector DB network hops. |
+| **Retrieval Engine** | **Moss (YC F25)** | **@moss-dev/moss-web** (WASM runtime, v1.2.0) | Real in-process retrieval: docs ingested to Moss Cloud, index pulled into the page, `client.query()` runs embedding + hybrid search via WebAssembly; `timeTakenMs` is SDK-measured per query. Clearly-labeled deterministic fallback when Moss Cloud is unreachable. |
 | **Audio Transport** | **LiveKit WebRTC** | `livekit-client` / Web Audio API | Low-latency audio streaming with dynamic jitter buffers, VAD, and bidirectional voice channels. |
 | **Speech Pipeline** | **Web Speech / Cartesia** | HTML5 SpeechSynthesis + Web Audio | Low-latency voice output (<100ms audio buffer) for spoken caller guidance. |
 | **Frontend Framework** | **React 19 + Vite 6** | `react@^19.0.0`, `vite@^6.1.0` | Ultra-fast client rendering, sub-second HMR, and reactive state management. |
@@ -95,12 +94,9 @@ When an emergency voice bot hesitates for half a second before offering CPR inst
 ## 4. Deep-Dive: Codebase Architecture & Key Files
 
 ### 1. `src/engine/mossEngine.ts` (Sub-10ms Retrieval Core)
-* **Design:** Replaces remote database calls with an in-memory normalized vector projection model built on top of the Moss embeddable architecture.
-* **Mechanism:**
-  * Computes inverted index and vocabulary token dimensions on application startup.
-  * L2-normalizes clinical document vectors for all emergency protocols.
-  * Evaluates cosine vector distance combined with medical keyword disjunctions in pure memory.
-* **Performance:** Benchmarked at **3.2ms – 4.8ms**, eliminating 200ms+ of cloud network latency.
+* **Design:** Graceful-degradation chain — primary: **real @moss-dev/moss-web WASM runtime** (createIndex → loadIndex → query; SDK-measured `timeTakenMs`); fallback: a clearly-labeled deterministic keyword pass over the same corpus, used only when Moss Cloud is unreachable.
+* **Honesty policy:** every latency figure displayed is SDK-reported or a real `performance.now()` delta of executed work. No padding, no randomized jitter, no invented scores — the sponsor's engine is never simulated.
+* **Idempotent ingestion:** protocols are flattened (summary + actions + contraindications + dispatch + keywords) into a single index document each, with metadata (`protocolId`, `category`, `triageLevel`) for filtered retrieval.
 
 ### 2. `src/engine/emergencyProtocols.ts` (Clinical Knowledge Base)
 Contains authoritative protocols compliant with 2026 medical standards:
@@ -134,17 +130,9 @@ Contains authoritative protocols compliant with 2026 medical standards:
 
 ---
 
-## 5. Live Latency Benchmark Results
+## 5. Live Latency Benchmark (measure it yourself)
 
-Running the automated benchmark over 50 emergency queries produces the following real-world statistics:
-
-| Metric | Moss In-Memory Retrieval | Traditional Cloud Vector DB (Pinecone/Qdrant) | Advantage |
-| :--- | :---: | :---: | :---: |
-| **P50 Latency** | **3.42 ms** | 245.00 ms | **~71x Faster** |
-| **P95 Latency** | **4.85 ms** | 390.00 ms | **~80x Faster** |
-| **P99 Latency** | **5.90 ms** | 520.00 ms | **Zero Tail Jitter** |
-| **Network Failure Risk** | **0% (Local-First)** | High (Dependent on external VPC) | **100% Uptime** |
-| **Total Turn-Taking** | **264 ms (Passes < 300ms)** | 470 ms (Fails < 300ms) | **Preserves Conversational Flow** |
+The benchmark tab in the app runs **50 real queries** against the Moss WASM runtime in your browser and computes live P50 / P95 / P99 from the SDK's own `timeTakenMs`. Numbers shown in the UI are always from the current run on your machine — never pre-baked. For scale, Moss's published 100k-document benchmark (embedding included) reports Moss P50 ≈ 3.1ms vs Pinecone ≈ 433ms and Qdrant ≈ 597ms; our UI cites those figures as *references*, clearly separated from local measurements.
 
 ---
 
@@ -159,10 +147,10 @@ A sub-10ms emergency voice dispatch copilot powered by Moss that keeps AI conver
 ### What problem does your project solve, and who is it for?
 Emergency 911 dispatch centers face a critical 35% operator shortage. While AI voice agents can answer calls immediately, pairing them with traditional cloud vector databases introduces 200ms–350ms of network latency. Combined with speech recognition and voice synthesis, total turnaround exceeds 480ms. In high-stress emergencies like cardiac arrest or infant choking, this half-second hesitation shatters conversational flow, inducing caller panic.
 
-Pulse911 solves this by colocating medical protocols directly in-memory using Moss (YC F25). Moss executes semantic search in 3.6 milliseconds, bringing total voice turnaround to ~260ms—comfortably beneath the 300ms human conversational threshold. It serves 911 dispatchers, emergency medical technicians (EMTs), and distressed callers needing immediate, non-hesitant guidance.
+Pulse911 solves this by colocating medical protocols directly in-memory using **the real @moss-dev/moss-web runtime (YC F25)**. Moss executes semantic search in single-digit milliseconds (SDK-measured per query), keeping our modeled total voice turnaround beneath the 300ms human conversational threshold. It serves 911 dispatchers, emergency medical technicians (EMTs), and distressed callers needing immediate, non-hesitant guidance.
 
 ### How did you use Moss in your project?
-Moss functions as the primary real-time semantic retrieval layer of Pulse911. We embedded American Heart Association (AHA 2026) resuscitation guidelines, pediatric airway obstruction protocols, and stroke scales into Moss. When caller speech is transcribed, Moss executes vector similarity in under 5ms, retrieving the exact clinical pathway, immediate instructions, contraindications, and CAD unit recommendations before the caller finishes speaking.
+Moss functions as the primary real-time semantic retrieval layer of Pulse911, integrated via the official **@moss-dev/moss-web** browser/WASM SDK. We embedded emergency protocols (AHA-modelled resuscitation guidance, pediatric airway obstruction, stroke scales, anaphylaxis, opioid toxicity, and cyber-extortion interception) into a Moss index. When caller speech is transcribed, Moss executes hybrid semantic + keyword search in single-digit milliseconds (SDK-measured), retrieving the matching pathway, instructions, contraindications, and dispatch recommendations before the caller finishes speaking.
 
 ---
 
@@ -171,9 +159,9 @@ Moss functions as the primary real-time semantic retrieval layer of Pulse911. We
 | Time | Script / Spoken Voiceover | Visual on Screen |
 | :--- | :--- | :--- |
 | **0:00 – 0:25** | *"In emergency 911 dispatch, every millisecond counts. When an infant is choking or someone collapses, waiting 350ms for a cloud vector database breaks conversational cadence and causes caller panic. Meet Pulse911: the zero-latency dispatch copilot powered by Moss."* | Show Pulse911 dual-channel console with the live Moss latency badge flashing `< 5.00 ms`. |
-| **0:25 – 0:55** | Click preset: **"Adult Cardiac Arrest (58M)"**. Speech plays: *"My boss collapsed out of nowhere! He's not breathing!"* | In **3.6 ms**, Moss retrieves AHA Protocol `CARD-01`. The voice agent responds instantly: *"Put me on speaker. Lay him flat on the floor right now. Push hard and fast in the center of his chest."* |
+| **0:25 – 0:55** | Click preset: **"Adult Cardiac Arrest (58M)"**. Speech plays: *"My boss collapsed out of nowhere! He's not breathing!"* | In single-digit milliseconds (watch the live badge), Moss retrieves Protocol `CARD-01`. The voice agent responds instantly: *"Put me on speaker. Lay him flat on the floor right now. Push hard and fast in the center of his chest."* |
 | **0:55 – 1:20** | Click **"CPR Rhythm (110 BPM)"**. | The acoustic metronome starts clicking at 110 BPM. On the right HUD, Medic 14 is automatically assigned with Lucas mechanical CPR device, ETA 3 minutes. |
-| **1:20 – 1:45** | Switch to the **"Moss vs Vector DBs"** tab and click **"Run Live Latency Benchmark"**. | Show the 300ms biological ceiling diagram: cloud vector DBs fail at 470ms, while Pulse911 with Moss succeeds at 264ms. Highlight the 70x speedup. |
+| **1:20 – 1:45** | Switch to the **"Moss vs Vector DBs"** tab and click **"Run Live Latency Benchmark"**. | Show the 300ms biological ceiling diagram: cited cloud vector-DB bars vs the measured Moss bar; highlight the order-of-magnitude gap. |
 | **1:45 – 2:00** | *"By bringing sub-10ms retrieval directly into the voice loop with Moss, Pulse911 turns latency into a life-saving competitive moat. Built for the YC Fall 2026 Builder Sprint. Thank you!"* | Bring up the Architecture Diagram showing the Moss in-memory retrieval layer. |
 
 ---
@@ -234,7 +222,7 @@ $$T_{\text{retrieval}} \le 300\text{ ms} - 280\text{ ms} = 20\text{ ms}$$
 
 **Conclusion:**
 * If an external Cloud Vector DB is used: $T_{\text{retrieval}} = 150\text{ ms} - 350\text{ ms} \implies T_{\text{turn}} = 430\text{ ms} - 630\text{ ms}$ ❌ **Violates biological threshold by up to 110%.**
-* If Moss in-memory runtime is used: $T_{\text{retrieval}} = 3.2\text{ ms} - 4.8\text{ ms} \implies T_{\text{turn}} = 233\text{ ms} - 264\text{ ms}$ ✅ **Safely within the conversational cadence.**
+* If Moss in-process runtime is used: $T_{\text{retrieval}}$ = single-digit ms (SDK-measured) $\implies T_{\text{turn}} \approx 260\text{ ms}$ ✅ **Within the conversational cadence.**
 
 ---
 
@@ -261,7 +249,7 @@ export interface Protocol {
 ### Deterministic Safety Guardrails
 1. **Zero Negative Interference:** If an infant choking scenario is detected, the system immediately locks out blind finger sweeps (`AIR-02 Contraindication`).
 2. **Instant Acoustic Guidance:** For cardiac arrest, audio switches to a dual-frequency 110 BPM acoustic metronome, freeing the caller from guessing compression speed.
-3. **Continuous Re-Evaluation:** If a caller states *"he woke up and is breathing"*, Moss re-indexes within 3.5ms and transitions from CPR to post-arrest recovery positioning.
+3. **Continuous Re-Evaluation:** If a caller states *"he woke up and is breathing"*, the index re-retrieves in single-digit ms and transitions from CPR to post-arrest recovery positioning.
 
 ---
 
@@ -269,10 +257,10 @@ export interface Protocol {
 
 | Hackathon Criterion | Weight | How Pulse911 Wins |
 | :--- | :---: | :--- |
-| **Zero-Latency Integration & Moss Moat** | **35%** | Moss is the irreducible core of the architecture. Without sub-10ms retrieval, the voice pipeline exceeds 300ms and fails. We provide a live 50-query statistical benchmark directly in the UI proving 70x speedup over Pinecone/Qdrant. |
-| **Technical Architecture & Code Quality** | **25%** | Modular, production-ready React 19 + TypeScript codebase. Strict typing across clinical entities, Web Audio API synthesis, WebRTC audio interfaces, zero build warnings, clean 944ms build time. |
-| **Product & UX Polish** | **25%** | Real-time dual-channel interface: Caller Panel (live waveform, mic transcription, scenario presets) and Dispatcher HUD (active checklist, CAD unit routing, telemetry). High-end dark CAD design system. |
-| **Demo & Pitch Clarity** | **15%** | Visceral life-or-death crisis hook. A judge immediately understands the difference between an AI that hesitates for half a second while someone is dying vs an AI that responds in 200 milliseconds. |
+| **Speed & Latency (Moss integration)** | **20%** | Moss is the irreducible core of the architecture: the turn-taking budget mathematically caps retrieval at ~20ms, and the in-app benchmark proves the Moss WASM runtime clears it with order-of-magnitude headroom over *cited* cloud vector-DB figures. |
+| **Product & User Experience** | **35%** | Real-time dual-channel interface: Caller Panel (live waveform, mic transcription, 5 scenario presets incl. the Bengaluru digital-arrest scenario) and Dispatcher HUD (interactive checklist, CAD unit routing, telemetry). High-end dark CAD design system. |
+| **Technical Execution** | **30%** | Modular React 19 + TypeScript codebase; **real sponsor SDK integration** (@moss-dev/moss-web) with graceful degradation; strict typing across clinical entities; Web Audio synthesis; honest, measured telemetry only. |
+| **Demo & Presentation** | **15%** | Visceral crisis hooks (cardiac arrest + digital-arrest scam). A judge immediately understands the difference between an AI that hesitates for half a second while someone is dying vs one that responds within natural cadence. |
 
 ---
 
@@ -282,4 +270,4 @@ Pulse911 is not just a hackathon prototype—it is designed as the seed architec
 
 1. **NG911 CAD Ingestion Engine:** Direct API integration into legacy Computer-Aided Dispatch suites (Motorola Solutions PremierOne, Tyler Technologies Enterprise CAD, CentralSquare).
 2. **Offline Edge Appliances (FirstNet Certified):** Moss's embeddable, in-memory architecture allows Pulse911 to run on ruggedized in-vehicle Panasonic Toughbooks inside ambulances and fire engines without cellular connectivity.
-3. **Multi-Language Triage:** Real-time cross-lingual semantic retrieval allowing Spanish, Mandarin, or Vietnamese callers to be triaged against English clinical protocols in <10ms.
+3. **Multi-Language Triage:** Real-time cross-lingual semantic retrieval allowing Spanish, Mandarin, or Vietnamese callers to be triaged against English clinical protocols in single-digit ms.
