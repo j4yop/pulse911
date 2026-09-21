@@ -5,6 +5,12 @@
 > *Track:* **Y Combinator Fall 2026 Requests for Startups** (AI-Native Critical Services & Infrastructure)  
 > *Stack:* **Moss (YC F25) — @moss-dev/moss-web WASM runtime** • **WebRTC (getUserMedia) + Web Audio API** • **React 19** • **Tailwind CSS v4** • **Vite**
 
+![Pulse911 dispatch console](docs/01-console.png)
+*The dual-channel dispatch console — caller channel (left), dispatcher HUD with live measured latency (right).*
+
+![Pulse911 latency benchmark](docs/02-benchmark.png)
+*Live in-browser benchmark: run it yourself — the panel starts empty by design.*
+
 ---
 
 ## 1. The Crisis: The 300ms Biological Ceiling in Emergency Voice AI

@@ -12,7 +12,19 @@ import { audioService } from './engine/speechSimulation';
 import confetti from 'canvas-confetti';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'console' | 'benchmark' | 'architecture' | 'prd'>('console');
+  const TAB_IDS = ['console', 'benchmark', 'architecture', 'prd'] as const;
+  type TabId = (typeof TAB_IDS)[number];
+  const initialTab = TAB_IDS.find((t) => t === new URLSearchParams(window.location.search).get('tab'));
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'console');
+
+  // Deep-linkable tabs (?tab=benchmark) — shareable demo URLs for judges.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', activeTab);
+    window.history.replaceState(null, '', url);
+  }, [activeTab]);
+
+  const handleSelectTab = (tab: TabId) => setActiveTab(tab);
   const [activeScenario, setActiveScenario] = useState<EmergencyScenario | null>(EMERGENCY_SCENARIOS[0]);
   const [currentTranscript, setCurrentTranscript] = useState<string>(EMERGENCY_SCENARIOS[0].callerSpeechTranscript);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -20,7 +32,8 @@ export const App: React.FC = () => {
   const [dispatchedUnit, setDispatchedUnit] = useState<DispatchedUnit | null>(null);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const [audioFeedbackEnabled, setAudioFeedbackEnabled] = useState(true);
-  const [latencyMs, setLatencyMs] = useState(3.6);
+  /** Measured latency of the last query. `null` until a real query resolves — never a default. */
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
 
   // Initialize with the cardiac arrest scenario on mount
   useEffect(() => {
@@ -93,8 +106,9 @@ export const App: React.FC = () => {
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={handleSelectTab}
         latencyMs={latencyMs}
+        engineLabel={queryResult?.engine ?? null}
         isCallActive={activeScenario !== null}
         audioFeedbackEnabled={audioFeedbackEnabled}
         onToggleAudioFeedback={() => setAudioFeedbackEnabled(!audioFeedbackEnabled)}
@@ -135,7 +149,7 @@ export const App: React.FC = () => {
           <span className="font-mono text-slate-400">Pulse911 Runtime Active</span>
           <span>&bull;</span>
           <span className="font-mono text-emerald-400">
-            {queryResult ? queryResult.engine : 'Moss (YC F25) — initializing retrieval runtime…'}
+            {queryResult ? queryResult.engine : 'Retrieval runtime initializing — engine label appears after first query'}
           </span>
         </div>
         <div className="font-mono text-[11px] text-slate-500">
