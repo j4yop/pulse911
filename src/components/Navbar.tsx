@@ -15,7 +15,10 @@ import {
 interface NavbarProps {
   activeTab: 'console' | 'benchmark' | 'architecture' | 'prd';
   onSelectTab: (tab: 'console' | 'benchmark' | 'architecture' | 'prd') => void;
-  latencyMs: number;
+  /** Measured latency of the last query. `null` until the first query resolves — never a default number. */
+  latencyMs: number | null;
+  /** What served the last query (engine label), or `null` before the first query. */
+  engineLabel: string | null;
   isCallActive: boolean;
   audioFeedbackEnabled: boolean;
   onToggleAudioFeedback: () => void;
@@ -25,6 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   onSelectTab,
   latencyMs,
+  engineLabel,
   isCallActive,
   audioFeedbackEnabled,
   onToggleAudioFeedback,
@@ -118,18 +122,28 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Live Metrics & Utilities HUD */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          {/* Moss Latency Meter */}
+          {/* Moss Latency Meter — honest states only */}
           <div className="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-inner font-mono text-[11px]">
             <span className="text-slate-400 flex items-center gap-1">
               <Zap className="w-3.5 h-3.5 text-amber-400" />
-              Moss Retrieval:
+              Retrieval:
             </span>
             <span className="text-emerald-400 font-bold tabular-nums">
-              {latencyMs > 0 ? `${latencyMs.toFixed(2)} ms` : '< 5.00 ms'}
+              {latencyMs != null ? `${latencyMs.toFixed(2)} ms` : '— ms'}
             </span>
-            <span className="text-[9px] uppercase px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/20 font-semibold">
-              Sub-10ms Verified
-            </span>
+            {latencyMs == null ? (
+              <span className="text-[9px] uppercase px-1.5 py-0.5 bg-slate-800/60 text-slate-400 rounded border border-slate-700 font-semibold">
+                Awaiting first query
+              </span>
+            ) : engineLabel?.toLowerCase().includes('fallback') ? (
+              <span className="text-[9px] uppercase px-1.5 py-0.5 bg-amber-500/10 text-amber-400 rounded border border-amber-500/20 font-semibold">
+                Local Fallback
+              </span>
+            ) : (
+              <span className="text-[9px] uppercase px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/20 font-semibold">
+                Moss Runtime · Measured
+              </span>
+            )}
           </div>
 
           {/* Spoken Voice Toggle */}
