@@ -36,7 +36,8 @@ In 2026, 911 dispatch centers face chronic operator shortages (recent US surveys
 3. **Live WebRTC Audio & Waveform:** Real-time microphone ingestion, speech-to-text token streaming, and canvas-rendered voice waveforms.
 4. **Interactive CPR Metronome:** Integrated 110 BPM acoustic rhythm generator for chest compression pacing.
 5. **CAD Paramedic Dispatch:** Automatically assigns the nearest ALS paramedic rescue engine with required equipment.
-6. **Live Latency Benchmark Runner:** Runs a real 50-query statistical benchmark (P50/P95/P99) of the Moss WASM runtime in your browser, compared against *cited* cloud vector-DB figures from Moss's published 100k-document benchmarks.
+6. **AI Dispatcher Coach (HiDevs Gateway):** after the instant protocol card, an async LLM call to the hackathon's own gateway (`llm.hidevs.xyz`) coaches the human handler — grounded in the resolved protocol so it can never reroute triage, always labeled with its real measured round-trip, and architected **out of the 300ms voice path** (the voice line never waits for it).
+7. **Live Latency Benchmark Runner:** Runs a real 50-query statistical benchmark (P50/P95/P99) of the Moss WASM runtime in your browser, compared against *cited* cloud vector-DB figures from Moss's published 100k-document benchmarks.
 
 ---
 
@@ -60,6 +61,9 @@ npm install
 #
 #   VITE_MOSS_PROJECT_ID=your_project_id
 #   VITE_MOSS_PROJECT_KEY=your_project_key
+#
+# Optional — AI Dispatcher Coach via the HiDevs arena gateway (see .env.example):
+#   VITE_HIDEVS_LLM_URL / VITE_HIDEVS_LLM_KEY / VITE_HIDEVS_LLM_MODEL
 #
 # Without credentials the app still runs end-to-end using a clearly-labeled
 # deterministic local fallback (no synthetic latency numbers are ever shown).

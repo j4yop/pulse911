@@ -17,12 +17,15 @@ import {
 } from 'lucide-react';
 import { EmergencyProtocol, MossQueryResult, DispatchedUnit } from '../types';
 import { audioService } from '../engine/speechSimulation';
+import { CopilotCoachPanel } from './CopilotCoachPanel';
 
 interface DispatcherHUDProps {
   queryResult: MossQueryResult | null;
   dispatchedUnit: DispatchedUnit | null;
   onTriggerMetronome: (active: boolean) => void;
   isMetronomeActive: boolean;
+  transcript: string;
+  requestId: number;
 }
 
 export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
@@ -30,6 +33,8 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   dispatchedUnit,
   onTriggerMetronome,
   isMetronomeActive,
+  transcript,
+  requestId,
 }) => {
   const [checkedSteps, setCheckedSteps] = useState<Record<number, boolean>>({});
 
@@ -142,6 +147,9 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                 "{protocol.verbalResponseText}"
               </p>
             </div>
+
+            {/* Async AI Coaching — enrichment only, never in the critical path */}
+            <CopilotCoachPanel transcript={transcript} protocol={protocol} requestId={requestId} />
 
             {/* Immediate Action Checklist */}
             <div className="space-y-2">
