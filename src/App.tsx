@@ -34,6 +34,8 @@ export const App: React.FC = () => {
   const [audioFeedbackEnabled, setAudioFeedbackEnabled] = useState(true);
   /** Measured latency of the last query. `null` until a real query resolves — never a default. */
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  /** Increments per processed call — keys/cancels async AI enrichment per scenario. */
+  const [callRequestId, setCallRequestId] = useState(0);
 
   // Initialize with the cardiac arrest scenario on mount
   useEffect(() => {
@@ -44,6 +46,7 @@ export const App: React.FC = () => {
     async (text: string, scenario?: EmergencyScenario, speakAudio = true) => {
       setIsProcessing(true);
       setCurrentTranscript(text);
+      setCallRequestId((n) => n + 1);
       if (scenario) {
         setActiveScenario(scenario);
       }
@@ -133,6 +136,8 @@ export const App: React.FC = () => {
               dispatchedUnit={dispatchedUnit}
               onTriggerMetronome={handleToggleMetronome}
               isMetronomeActive={isMetronomeActive}
+              transcript={currentTranscript}
+              requestId={callRequestId}
             />
           </div>
         )}
