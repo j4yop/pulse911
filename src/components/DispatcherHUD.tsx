@@ -49,7 +49,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   };
 
   return (
-    <div className="double-bezel-shell flex flex-col h-[820px]">
+    <div className="double-bezel-shell flex flex-col min-h-[680px] xl:h-[820px]">
       <div className="double-bezel-core flex-1 flex flex-col overflow-hidden">
         {/* HUD Header */}
         <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
