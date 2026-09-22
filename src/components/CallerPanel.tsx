@@ -234,10 +234,14 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
               const isSelected = activePresetId === scen.id;
               const Icon = getScenarioIcon(scen.id);
               return (
-                <button
+                <motion.button
                   key={scen.id}
+                  layout
+                  whileHover={{ y: -2, scale: 1.015 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                   onClick={() => handleSelectScenario(scen)}
-                  className={`btn-tactile p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between relative group ${
+                  className={`btn-tactile p-3.5 rounded-2xl border text-left transition-colors cursor-pointer flex flex-col justify-between relative group ${
                     isSelected
                       ? 'border-rose-500 bg-rose-50/70 shadow-sm ring-2 ring-rose-500/20'
                       : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/60 shadow-2xs'
@@ -268,7 +272,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
                   <p className="text-[11px] text-slate-500 line-clamp-1 font-mono italic">
                     "{scen.callerSpeechTranscript}"
                   </p>
-                </button>
+                </motion.button>
               );
             })}
           </div>

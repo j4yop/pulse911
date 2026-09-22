@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { FileText, CheckCircle2, ShieldAlert, Zap, Target, Users, ShieldCheck } from 'lucide-react';
 
 export const PRDView: React.FC = () => {
@@ -43,24 +44,36 @@ export const PRDView: React.FC = () => {
             2. Core User Personas
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200 space-y-2 shadow-2xs hover:border-slate-300 transition-all">
+            <motion.div
+              whileHover={{ y: -3, scale: 1.015 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className="bg-slate-50/80 p-4 rounded-xl border border-slate-200 space-y-2 shadow-2xs hover:border-slate-300 transition-colors"
+            >
               <h3 className="font-bold text-slate-900 text-sm">The Distressed Caller</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
                 Experiencing acute crisis (infant choking, partner collapsed). Needs immediate, calm, authoritative, non-hesitant instructions in under 300ms.
               </p>
-            </div>
-            <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200 space-y-2 shadow-2xs hover:border-slate-300 transition-all">
+            </motion.div>
+            <motion.div
+              whileHover={{ y: -3, scale: 1.015 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className="bg-slate-50/80 p-4 rounded-xl border border-slate-200 space-y-2 shadow-2xs hover:border-slate-300 transition-colors"
+            >
               <h3 className="font-bold text-slate-900 text-sm">The 911 Dispatch Officer</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
                 Managing multi-line emergency queues. Needs automated clinical protocol cards, contraindication alerts, and 1-click unit dispatch.
               </p>
-            </div>
-            <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200 space-y-2 shadow-2xs hover:border-slate-300 transition-all">
+            </motion.div>
+            <motion.div
+              whileHover={{ y: -3, scale: 1.015 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className="bg-slate-50/80 p-4 rounded-xl border border-slate-200 space-y-2 shadow-2xs hover:border-slate-300 transition-colors"
+            >
               <h3 className="font-bold text-slate-900 text-sm">The Field Paramedic Captain</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
                 En route in an ambulance. Needs pre-arrival clinical summary, accurate Last Known Well timestamps, and pre-staged defibrillator/Narcan alerts.
               </p>
-            </div>
+            </motion.div>
           </div>
         </section>
 

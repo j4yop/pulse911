@@ -127,19 +127,43 @@ export const LatencyBenchmark: React.FC = () => {
               </span>
             </div>
 
-            <div className="h-9 w-full bg-slate-100 rounded-xl overflow-hidden flex text-[10px] font-mono font-bold border border-slate-200 shadow-inner">
-              <div style={{ width: '15%' }} className="bg-sky-500 flex items-center justify-center text-white" title="Voice VAD & Audio Chunks (70ms)">
+            <div className="h-10 w-full bg-slate-100 rounded-2xl overflow-hidden flex text-[10px] font-mono font-bold border border-slate-200 shadow-inner p-1 gap-1">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: '15%' }}
+                transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
+                className="bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-2xs"
+                title="Voice VAD & Audio Chunks (70ms)"
+              >
                 VAD 70ms
-              </div>
-              <div style={{ width: '20%' }} className="bg-indigo-500 flex items-center justify-center text-white" title="Whisper / Deepgram STT (90ms)">
+              </motion.div>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: '20%' }}
+                transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
+                className="bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-2xs"
+                title="Whisper / Deepgram STT (90ms)"
+              >
                 STT 90ms
-              </div>
-              <div style={{ width: '45%' }} className="bg-rose-500 flex items-center justify-center text-white animate-pulse" title="Cloud Vector DB Network Roundtrip (210ms)">
+              </motion.div>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: '45%' }}
+                transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
+                className="bg-rose-500 rounded-xl flex items-center justify-center text-white animate-pulse shadow-2xs"
+                title="Cloud Vector DB Network Roundtrip (210ms)"
+              >
                 Cloud Vector DB 210ms ⚠️
-              </div>
-              <div style={{ width: '20%' }} className="bg-amber-500 flex items-center justify-center text-white" title="LLM TTFT + TTS (100ms)">
+              </motion.div>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: '20%' }}
+                transition={{ duration: 0.9, ease: [0.32, 0.72, 0, 1] }}
+                className="bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-2xs"
+                title="LLM TTFT + TTS (100ms)"
+              >
                 LLM + Audio 100ms
-              </div>
+              </motion.div>
             </div>
             <p className="text-[11px] text-slate-500">
               Result: The caller hears unnatural silence and starts yelling <em className="text-slate-700 font-medium">"Hello?! Are you there?!"</em> before the AI speaks.
@@ -158,19 +182,43 @@ export const LatencyBenchmark: React.FC = () => {
               </span>
             </div>
 
-            <div className="h-9 w-full bg-slate-100 rounded-xl overflow-hidden flex text-[10px] font-mono font-bold border border-emerald-300 shadow-inner">
-              <div style={{ width: '25%' }} className="bg-sky-500 flex items-center justify-center text-white" title="Voice VAD & Audio Chunks (70ms)">
+            <div className="h-10 w-full bg-slate-100 rounded-2xl overflow-hidden flex text-[10px] font-mono font-bold border border-emerald-300 shadow-inner p-1 gap-1">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: '25%' }}
+                transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
+                className="bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-2xs"
+                title="Voice VAD & Audio Chunks (70ms)"
+              >
                 VAD 70ms
-              </div>
-              <div style={{ width: '32%' }} className="bg-indigo-500 flex items-center justify-center text-white" title="Fast STT (90ms)">
+              </motion.div>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: '32%' }}
+                transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
+                className="bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-2xs"
+                title="Fast STT (90ms)"
+              >
                 STT 90ms
-              </div>
-              <div style={{ width: '4%' }} className="bg-emerald-500 flex items-center justify-center text-slate-950 font-extrabold shadow-xs" title="Moss Sub-10ms Semantic Search (4ms)">
+              </motion.div>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: '4%' }}
+                transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
+                className="bg-emerald-500 rounded-xl flex items-center justify-center text-slate-950 font-black shadow-xs ring-2 ring-emerald-300"
+                title="Moss Sub-10ms Semantic Search (4ms)"
+              >
                 4ms
-              </div>
-              <div style={{ width: '39%' }} className="bg-amber-500 flex items-center justify-center text-white" title="LLM TTFT + TTS (100ms)">
+              </motion.div>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: '39%' }}
+                transition={{ duration: 0.9, ease: [0.32, 0.72, 0, 1] }}
+                className="bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-2xs"
+                title="LLM TTFT + TTS (100ms)"
+              >
                 LLM TTFT + TTS Audio 100ms
-              </div>
+              </motion.div>
             </div>
             <p className="text-[11px] text-emerald-800 font-medium">
               Result: Instantaneous voice interruption. The AI answers with life-saving instructions before the caller finishes exhaling.
