@@ -1,5 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  Heart,
+  Baby,
+  Brain,
+  AlertOctagon,
+  ShieldAlert,
+  Zap,
+  Clock,
+  ShieldCheck,
+  Layers,
+  Sparkles,
+} from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { CallerPanel } from './components/CallerPanel';
 import { DispatcherHUD } from './components/DispatcherHUD';
@@ -149,61 +161,93 @@ export const App: React.FC = () => {
               transition={{ duration: 0.2 }}
               className="space-y-6"
             >
-              {/* Executive Mission Control Telemetry Strip */}
-              <div className="bg-white/80 backdrop-blur-xl border border-slate-200/90 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5">
-                <div className="space-y-1.5 max-w-2xl">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold font-mono shadow-2xs">
-                    <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
-                    <span>ZERO-LATENCY EMERGENCY PROTOCOL DISPATCH</span>
+              {/* Clean Welcoming Hero Header */}
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-1">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold font-mono shadow-2xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>POWERED BY MOSS (YC F25) &bull; SUB-10MS IN-PROCESS RETRIEVAL</span>
                   </div>
-                  <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-950 font-sans">
-                    Conversational 911 Clinical Triage under the 300ms Human Ceiling
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 font-sans">
+                    Zero-Latency Emergency Dispatch Console
                   </h1>
-                  <p className="text-xs text-slate-500 leading-relaxed font-sans">
-                    Colocating the retrieval layer directly in-memory via <strong className="text-slate-800 font-bold">Moss (YC F25)</strong> eliminates 200ms of cloud vector database network roundtrip latency — delivering life-saving instructions before the caller finishes speaking.
+                  <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-3xl">
+                    Click any emergency scenario below or speak into the live microphone to test in-memory protocol retrieval under the 300ms human conversational threshold.
                   </p>
-                </div>
-
-                {/* 4 Quick Hardware Stat Capsules */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full xl:w-auto text-xs font-mono">
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-2xs">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Moss Retrieval</span>
-                    <span className="text-sm sm:text-base font-extrabold text-emerald-600 block mt-0.5">3 - 5 ms</span>
-                    <span className="text-[9px] text-slate-500 block">&bull; In-Memory WASM</span>
-                  </div>
-
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-2xs">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Turnaround Budget</span>
-                    <span className="text-sm sm:text-base font-extrabold text-slate-900 block mt-0.5">264 ms</span>
-                    <span className="text-[9px] text-emerald-600 font-semibold block">&bull; Under 300ms Ceiling</span>
-                  </div>
-
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-2xs">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Triage Fidelity</span>
-                    <span className="text-sm sm:text-base font-extrabold text-slate-900 block mt-0.5">100% AHA</span>
-                    <span className="text-[9px] text-slate-500 block">&bull; Zero Hallucination</span>
-                  </div>
-
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-2xs">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Telemetry Privacy</span>
-                    <span className="text-sm sm:text-base font-extrabold text-slate-900 block mt-0.5">Local-First</span>
-                    <span className="text-[9px] text-slate-500 block">&bull; HIPAA Compliant</span>
-                  </div>
                 </div>
               </div>
 
-              {/* The 2-Column Clinical Hardware Console */}
+              {/* 5 Clean Interactive Scenario Selector Cards */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700 font-mono flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                    Quick-Test Emergency Scenarios:
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-mono">Click to test instant triage</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  {EMERGENCY_SCENARIOS.map((scen) => {
+                    const isSelected = activeScenario?.id === scen.id;
+                    const icons: Record<string, any> = {
+                      scen_cardiac: Heart,
+                      scen_pediatric: Baby,
+                      scen_stroke: Brain,
+                      scen_anaphylaxis: AlertOctagon,
+                      scen_digital_arrest: ShieldAlert,
+                    };
+                    const Icon = icons[scen.id] || Heart;
+                    return (
+                      <motion.button
+                        key={scen.id}
+                        whileHover={{ y: -2, scale: 1.015 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ type: 'spring', stiffness: 450, damping: 28 }}
+                        onClick={() => handleProcessTranscript(scen.callerSpeechTranscript, scen, true)}
+                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between relative shadow-xs ${
+                          isSelected
+                            ? 'bg-rose-50/90 border-rose-500 ring-2 ring-rose-500/20 shadow-md'
+                            : 'bg-white hover:bg-slate-50/80 border-slate-200/90 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full mb-2">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                            isSelected ? 'bg-rose-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <span className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-full ${
+                            scen.triagePriority.includes('1') ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {scen.triagePriority.split(' ')[0]}
+                          </span>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900 leading-tight">{scen.title}</h4>
+                          <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-snug font-sans">
+                            {scen.tagline}
+                          </p>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* The 2-Column Clinical Dispatch Arena */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Left Channel: The 911 Caller Audio & Scenarios */}
+                {/* Left Channel: The 911 Caller Audio & Conversation */}
                 <CallerPanel
                   onProcessTranscript={(txt, scen) => handleProcessTranscript(txt, scen, true)}
                   isProcessing={isProcessing}
                   activeScenario={activeScenario}
                   currentTranscript={currentTranscript}
+                  spokenInstruction={queryResult?.protocol.verbalResponseText}
                   onClearCall={handleClearCall}
                 />
 
-                {/* Right Channel: The Dispatcher Mission HUD & Moss Telemetry */}
+                {/* Right Channel: The Dispatcher Mission HUD & Protocol */}
                 <DispatcherHUD
                   queryResult={queryResult}
                   dispatchedUnit={dispatchedUnit}
@@ -212,6 +256,49 @@ export const App: React.FC = () => {
                   transcript={currentTranscript}
                   requestId={callRequestId}
                 />
+              </div>
+
+              {/* Bottom Clean Telemetry Ribbon */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4.5 shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0 shadow-2xs">
+                    <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Moss Retrieval</span>
+                    <span className="font-extrabold text-emerald-600 text-sm">{queryResult ? `${queryResult.latencyMs.toFixed(1)} ms` : '3 - 5 ms'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
+                    <Clock className="w-4 h-4 text-slate-700" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Turnaround Target</span>
+                    <span className="font-extrabold text-slate-900 text-sm">&lt; 300 ms Ceiling</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
+                    <ShieldCheck className="w-4 h-4 text-rose-600" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Triage Protocol</span>
+                    <span className="font-extrabold text-slate-900 text-sm">AHA / CDC Grounded</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
+                    <Layers className="w-4 h-4 text-indigo-600" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Architecture</span>
+                    <span className="font-extrabold text-slate-900 text-sm">Local-First WASM</span>
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}
