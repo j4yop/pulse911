@@ -48,17 +48,36 @@ export const App: React.FC = () => {
       setIsProcessing(true);
       setCurrentTranscript(text);
       setCallRequestId((n) => n + 1);
-      if (scenario) {
-        setActiveScenario(scenario);
-      }
-
-      // Play emergency radio sound effect
       audioService.playRadioChirp();
 
       // Query Moss in-memory semantic retrieval engine
       const res = await mossEngine.query(text);
       setQueryResult(res);
       setLatencyMs(res.latencyMs);
+
+      if (scenario) {
+        setActiveScenario(scenario);
+      } else {
+        setActiveScenario({
+          id: 'scen_live_call',
+          title: 'Live Inbound 911 Call (Real-Time Ingest)',
+          tagline: 'Live voice audio / freeform speech transcribed & routed via Moss',
+          iconName: 'PhoneCall',
+          callerProfile: 'Live Caller (Direct Audio Stream)',
+          callerSpeechTranscript: text,
+          callerLocation: {
+            address: 'Triangulating Cell Tower GPS',
+            city: 'Metro Dispatch Sector 4',
+            coordinates: '37.7749° N, 122.4194° W'
+          },
+          reportedVitals: {
+            consciousness: 'TRIAGED IN REAL TIME',
+            breathing: 'VAD MONITORED',
+            pulse: res.protocol.cadenceBpm ? `${res.protocol.cadenceBpm} BPM TARGET` : 'MONITORED'
+          },
+          triagePriority: (res.protocol.triageLevel.includes('1') ? 'ESI-1 (Immediate Resuscitation)' : 'ESI-2 (Emergent)') as any,
+        });
+      }
 
       // Auto-assign CAD Unit
       const assigned: DispatchedUnit = {
