@@ -14,8 +14,8 @@ import {
 } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'console' | 'benchmark' | 'architecture' | 'prd';
-  onSelectTab: (tab: 'console' | 'benchmark' | 'architecture' | 'prd') => void;
+  activeTab: 'overview' | 'console' | 'benchmark' | 'architecture' | 'prd';
+  onSelectTab: (tab: 'overview' | 'console' | 'benchmark' | 'architecture' | 'prd') => void;
   latencyMs: number | null;
   engineLabel: string | null;
   isCallActive: boolean;
@@ -33,6 +33,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleAudioFeedback,
 }) => {
   const tabs = [
+    { id: 'overview', label: 'Overview', icon: Sparkles },
     { id: 'console', label: 'Emergency Console', icon: Radio },
     { id: 'benchmark', label: 'Moss vs Cloud DBs', icon: BarChart3 },
     { id: 'architecture', label: 'Architecture Flow', icon: Layers },
