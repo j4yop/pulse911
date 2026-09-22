@@ -41,6 +41,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
 
   // Web Speech recognition hook for live microphone
   const recognitionRef = useRef<any>(null);
+  const [speechNotice, setSpeechNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -75,7 +76,8 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
 
   const toggleMic = () => {
     if (!recognitionRef.current) {
-      alert('Web Speech API is not supported in this browser. Please use the scenario presets or type below.');
+      setSpeechNotice('Live microphone requires Chrome/Edge Web Speech API. Use the 5 one-click presets below for full simulation.');
+      setTimeout(() => setSpeechNotice(null), 4500);
       return;
     }
 
@@ -169,7 +171,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
   };
 
   return (
-    <div className="double-bezel-shell flex flex-col h-[820px]">
+    <div className="double-bezel-shell flex flex-col min-h-[680px] xl:h-[820px]">
       <div className="double-bezel-core flex-1 flex flex-col overflow-hidden">
         {/* Channel Header */}
         <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
@@ -187,7 +189,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
                   LIVE CAD INGEST
                 </span>
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">WebRTC Opus Audio &bull; VAD Tokenizer Stream</span>
+              <span className="text-[10px] text-slate-400 font-mono">Web Audio Stream &bull; Live VAD Oscilloscope</span>
             </div>
           </div>
 
@@ -216,6 +218,14 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Browser Notice if microphone unsupported */}
+        {speechNotice && (
+          <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-900 text-[11px] font-mono flex items-center justify-between">
+            <span>⚠️ {speechNotice}</span>
+            <button onClick={() => setSpeechNotice(null)} className="text-amber-700 hover:text-amber-900 font-bold ml-2 cursor-pointer">&times;</button>
+          </div>
+        )}
 
         {/* Preset Emergency Scenarios (One-Click Testing) */}
         <div className="p-4 border-b border-slate-100 bg-slate-50/40">
@@ -332,7 +342,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
                 Live Inbound Voice Transcription
               </span>
               <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-bold">
-                {isProcessing ? 'Moss Semantic Tokenizing...' : 'Live WebRTC Streaming'}
+                {isProcessing ? 'Moss Semantic Tokenizing...' : 'Live Audio Ingestion (Web Audio)'}
               </span>
             </div>
 
