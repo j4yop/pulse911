@@ -20,6 +20,7 @@ import { LatencyBenchmark } from './components/LatencyBenchmark';
 import { ArchitectureView } from './components/ArchitectureView';
 import { PRDView } from './components/PRDView';
 import { LandingView } from './components/LandingView';
+import { PulseLogo } from './components/PulseLogo';
 import {
   MagneticDock,
   DockIconHome,
@@ -157,7 +158,7 @@ export const App: React.FC = () => {
     {
       id: 'console',
       label: 'Emergency Console',
-      icon: <Radio className="w-full h-full text-rose-600" />,
+      icon: <PulseLogo size={26} animated={false} />,
       isActive: activeTab === 'console',
       onClick: () => handleSelectTab('console'),
       badge: activeScenario !== null ? 1 : undefined,
