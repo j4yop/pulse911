@@ -9,3 +9,4 @@ dist-ssr
 .vercel
 package/
 *.tgz
+*.tsbuildinfo
