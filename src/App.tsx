@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Navbar } from './components/Navbar';
 import { CallerPanel } from './components/CallerPanel';
 import { DispatcherHUD } from './components/DispatcherHUD';
@@ -105,7 +106,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-rose-500/20 selection:text-rose-400">
+    <div className="min-h-screen bg-slate-50 text-slate-900 clinical-grid flex flex-col selection:bg-rose-500/20 selection:text-rose-600">
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -119,45 +120,86 @@ export const App: React.FC = () => {
 
       {/* Main Workspace */}
       <main className="flex-1 max-w-[1750px] w-full mx-auto p-4 sm:p-6 space-y-6">
-        {activeTab === 'console' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 animate-in fade-in duration-200">
-            {/* Left Channel: The 911 Caller Audio & Scenarios */}
-            <CallerPanel
-              onProcessTranscript={(txt, scen) => handleProcessTranscript(txt, scen, true)}
-              isProcessing={isProcessing}
-              activeScenario={activeScenario}
-              currentTranscript={currentTranscript}
-              onClearCall={handleClearCall}
-            />
+        <AnimatePresence mode="wait">
+          {activeTab === 'console' && (
+            <motion.div
+              key="console"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-5"
+            >
+              {/* Left Channel: The 911 Caller Audio & Scenarios */}
+              <CallerPanel
+                onProcessTranscript={(txt, scen) => handleProcessTranscript(txt, scen, true)}
+                isProcessing={isProcessing}
+                activeScenario={activeScenario}
+                currentTranscript={currentTranscript}
+                onClearCall={handleClearCall}
+              />
 
-            {/* Right Channel: The Dispatcher Mission HUD & Moss Telemetry */}
-            <DispatcherHUD
-              queryResult={queryResult}
-              dispatchedUnit={dispatchedUnit}
-              onTriggerMetronome={handleToggleMetronome}
-              isMetronomeActive={isMetronomeActive}
-              transcript={currentTranscript}
-              requestId={callRequestId}
-            />
-          </div>
-        )}
+              {/* Right Channel: The Dispatcher Mission HUD & Moss Telemetry */}
+              <DispatcherHUD
+                queryResult={queryResult}
+                dispatchedUnit={dispatchedUnit}
+                onTriggerMetronome={handleToggleMetronome}
+                isMetronomeActive={isMetronomeActive}
+                transcript={currentTranscript}
+                requestId={callRequestId}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'benchmark' && <LatencyBenchmark />}
-        {activeTab === 'architecture' && <ArchitectureView />}
-        {activeTab === 'prd' && <PRDView />}
+          {activeTab === 'benchmark' && (
+            <motion.div
+              key="benchmark"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              <LatencyBenchmark />
+            </motion.div>
+          )}
+
+          {activeTab === 'architecture' && (
+            <motion.div
+              key="architecture"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              <ArchitectureView />
+            </motion.div>
+          )}
+
+          {activeTab === 'prd' && (
+            <motion.div
+              key="prd"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              <PRDView />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950 py-4 px-6 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <footer className="border-t border-slate-200/90 bg-white/90 backdrop-blur-md py-4 px-6 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 shadow-2xs">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span className="font-mono text-slate-400">Pulse911 Runtime Active</span>
-          <span>&bull;</span>
-          <span className="font-mono text-emerald-400">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-2xs animate-pulse"></span>
+          <span className="font-mono text-slate-700 font-medium">Pulse911 Runtime Active</span>
+          <span className="text-slate-300">&bull;</span>
+          <span className="font-mono text-emerald-700 font-semibold">
             {queryResult ? queryResult.engine : 'Retrieval runtime initializing — engine label appears after first query'}
           </span>
         </div>
-        <div className="font-mono text-[11px] text-slate-500">
+        <div className="font-mono text-[11px] text-slate-400">
           Built for YC Fall 2026 &times; Moss Zero Latency Builder Sprint
         </div>
       </footer>
