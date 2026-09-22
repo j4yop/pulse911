@@ -80,10 +80,13 @@ export const ArchitectureView: React.FC = () => {
           const isSelected = selectedPhase === p.phase;
           const PhaseIcon = p.icon;
           return (
-            <button
+            <motion.button
               key={p.phase}
+              whileHover={{ y: -3, scale: 1.015 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               onClick={() => setSelectedPhase(p.phase)}
-              className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between btn-tactile relative ${
+              className={`p-4 rounded-2xl border text-left transition-colors cursor-pointer flex flex-col justify-between btn-tactile relative ${
                 isSelected
                   ? 'border-rose-500 bg-rose-50/70 shadow-xs ring-2 ring-rose-500/20'
                   : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60 shadow-2xs'
@@ -111,7 +114,7 @@ export const ArchitectureView: React.FC = () => {
                 <span>{isSelected ? 'Currently Inspecting' : 'Inspect Layer'}</span>
                 <ArrowRight className="w-3 h-3" />
               </div>
-            </button>
+            </motion.button>
           );
         })}
       </div>

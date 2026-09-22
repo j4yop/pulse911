@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { motion } from 'motion/react';
 import { Sparkles, Loader2, AlertTriangle, Zap } from 'lucide-react';
 import { EmergencyProtocol } from '../types';
 import {
@@ -74,27 +75,40 @@ export const CopilotCoachPanel: React.FC<CopilotCoachPanelProps> = ({ transcript
 
   if (state.status === 'loading') {
     return (
-      <div className="bg-indigo-50/50 border border-indigo-200/70 rounded-xl p-3 flex items-center gap-2 text-[11px] font-mono text-indigo-700">
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-indigo-50/50 border border-indigo-200/70 rounded-xl p-3 flex items-center gap-2 text-[11px] font-mono text-indigo-700"
+      >
         <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
         AI dispatcher coach generating (async background thread &bull; critical path unblocked)…
-      </div>
+      </motion.div>
     );
   }
 
   if (state.status === 'error') {
     return (
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2 text-[11px] font-mono text-amber-800">
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2 text-[11px] font-mono text-amber-800"
+      >
         <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-600" />
         <span>
           AI coach notice: {state.message} Clinical protocol and live speech engine continue uninterrupted.
         </span>
-      </div>
+      </motion.div>
     );
   }
 
   const { coaching } = state;
   return (
-    <div className="bg-indigo-50/40 border border-indigo-200/80 rounded-xl p-3.5 space-y-2 shadow-2xs">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+      className="bg-indigo-50/40 border border-indigo-200/80 rounded-xl p-3.5 space-y-2 shadow-2xs"
+    >
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold text-indigo-900 flex items-center gap-1.5 font-mono uppercase tracking-wide">
           <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
@@ -114,6 +128,6 @@ export const CopilotCoachPanel: React.FC<CopilotCoachPanelProps> = ({ transcript
       <p className="text-[10px] font-mono text-slate-400">
         Grounded in resolved protocol {protocol?.code} &bull; Deterministic triage cannot be altered; LLM strictly coaches communication cadence.
       </p>
-    </div>
+    </motion.div>
   );
 };
