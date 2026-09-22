@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import {
-  Activity,
   Zap,
   Volume2,
   VolumeX,
@@ -10,8 +9,8 @@ import {
   BarChart3,
   Radio,
   Sparkles,
-  ShieldAlert,
 } from 'lucide-react';
+import { PulseLogo } from './PulseLogo';
 
 interface NavbarProps {
   activeTab: 'overview' | 'console' | 'benchmark' | 'architecture' | 'prd';
@@ -42,45 +41,47 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-3 z-50 px-3 sm:px-6 max-w-[1750px] mx-auto w-full transition-all">
-      <div className="bg-white/90 backdrop-blur-2xl border border-slate-200/90 rounded-2xl lg:rounded-full px-4 sm:px-6 py-2.5 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.08),0_0_0_1px_rgba(255,255,255,0.8)_inset] flex flex-col lg:flex-row items-center justify-between gap-3">
-        {/* Brand identity */}
-        <div className="flex items-center justify-between w-full lg:w-auto gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-center shadow-md shadow-rose-500/25 ring-2 ring-rose-100">
-              <Activity className="w-5 h-5 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-black tracking-tight text-slate-900 font-sans">
-                  Pulse<span className="text-rose-600">911</span>
-                </span>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-900 text-white tracking-wide shadow-2xs">
-                  AHA &bull; MOSS
-                </span>
+      <div className="bg-white/90 backdrop-blur-2xl border border-slate-200/90 rounded-2xl lg:rounded-full px-4 sm:px-6 py-2.5 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.08),0_0_0_1px_rgba(255,255,255,0.8)_inset] flex flex-col md:flex-row items-center justify-between gap-3">
+        {/* Brand identity with bespoke PulseLogo */}
+        <div className="flex items-center gap-3.5 shrink-0">
+          <PulseLogo size={42} />
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className="text-base font-black tracking-tight text-slate-900 font-sans flex items-center">
+                Pulse<span className="text-rose-600">911</span>
+              </span>
+
+              <span className="h-3 w-[1px] bg-slate-200" />
+
+              {/* Refined Live Status Indicator */}
+              <div
+                className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border transition-all ${
+                  isCallActive
+                    ? 'bg-rose-50 text-rose-700 border-rose-200 shadow-2xs'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                }`}
+              >
                 <span
-                  className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border transition-all ${
-                    isCallActive
-                      ? 'bg-rose-50 text-rose-700 border-rose-200/80 shadow-xs'
-                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    isCallActive ? 'bg-rose-600 animate-pulse' : 'bg-emerald-500'
                   }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      isCallActive ? 'bg-rose-600 animate-ping' : 'bg-slate-400'
-                    }`}
-                  />
-                  {isCallActive ? 'CAD INGESTION LIVE' : 'CAD STANDBY'}
-                </span>
+                />
+                <span>{isCallActive ? 'LIVE INGEST' : 'CAD READY'}</span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium">
-                Sub-10ms Emergency Triage Copilot &bull; Powered by <strong className="text-slate-800 font-semibold">Moss (YC F25)</strong>
-              </p>
+
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-900 text-white tracking-wide shadow-2xs hidden sm:inline-block">
+                MOSS &bull; AHA
+              </span>
             </div>
+
+            <p className="text-[11px] text-slate-500 font-medium whitespace-nowrap hidden sm:block">
+              Sub-10ms Emergency Clinical Triage &bull; In-Process WASM
+            </p>
           </div>
         </div>
 
         {/* View Switcher Tabs with Motion Layout Indicator */}
-        <nav className="flex items-center gap-1 bg-slate-100/90 p-1.5 rounded-xl lg:rounded-full border border-slate-200/80 text-xs font-semibold shadow-inner">
+        <nav className="hidden xl:flex items-center gap-1 bg-slate-100/90 p-1.5 rounded-full border border-slate-200/80 text-xs font-semibold shadow-inner">
           {tabs.map((t) => {
             const Icon = t.icon;
             const isActive = activeTab === t.id;
@@ -107,7 +108,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Live Metrics & Utilities HUD */}
-        <div className="flex flex-wrap items-center gap-2.5 text-xs">
+        <div className="flex items-center gap-2.5 text-xs shrink-0">
           {/* Moss Latency Meter */}
           <div className="bg-emerald-50/70 border border-emerald-200 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-2xs font-mono text-[11px]">
             <span className="text-emerald-800 flex items-center gap-1 font-semibold">
