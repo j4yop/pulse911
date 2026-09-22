@@ -2,28 +2,29 @@
 
 @layer base {
   body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Geist", "Segoe UI", Roboto, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     background-color: #f8fafc;
     color: #0f172a;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
   }
 }
 
 /* Custom crisp scrollbar for clinical panels */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 4px;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -32,8 +33,32 @@
 
 /* Clinical grid pattern */
 .clinical-grid {
-  background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+  background-image: radial-gradient(#e2e8f0 1.2px, transparent 1.2px);
   background-size: 24px 24px;
+}
+
+/* Medical Oscilloscope Grid */
+.ecg-grid {
+  background-image: 
+    linear-gradient(to right, rgba(226, 232, 240, 0.6) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(226, 232, 240, 0.6) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+/* Double-Bezel Hardware Architecture */
+.double-bezel-shell {
+  background: linear-gradient(135deg, rgba(241, 245, 249, 0.9) 0%, rgba(226, 232, 240, 0.6) 100%);
+  padding: 6px;
+  border-radius: 1.75rem;
+  border: 1px solid rgba(203, 213, 225, 0.6);
+  box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.07), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+}
+
+.double-bezel-core {
+  background: #ffffff;
+  border-radius: calc(1.75rem - 6px);
+  border: 1px solid rgba(241, 245, 249, 0.9);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9), 0 1px 3px rgba(15, 23, 42, 0.03);
 }
 
 @keyframes pulse-subtle {
@@ -41,17 +66,17 @@
   50% { opacity: 0.88; transform: scale(1.02); }
 }
 
-@keyframes ecg-scan {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(200%); }
-}
-
 @keyframes heartbeat {
   0%, 100% { transform: scale(1); }
-  14% { transform: scale(1.18); }
+  14% { transform: scale(1.22); }
   28% { transform: scale(1); }
-  42% { transform: scale(1.12); }
+  42% { transform: scale(1.15); }
   70% { transform: scale(1); }
+}
+
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .animate-pulse-subtle {
@@ -62,15 +87,11 @@
   animation: heartbeat 0.85s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.animate-ecg-scan {
-  animation: ecg-scan 2.5s linear infinite;
-}
-
 /* Tactile button micro-interaction */
 .btn-tactile {
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s cubic-bezier(0.32, 0.72, 0, 1);
 }
 .btn-tactile:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
