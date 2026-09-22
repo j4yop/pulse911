@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Layers,
   Sparkles,
+  Radio,
 } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { CallerPanel } from './components/CallerPanel';
@@ -18,6 +19,15 @@ import { DispatcherHUD } from './components/DispatcherHUD';
 import { LatencyBenchmark } from './components/LatencyBenchmark';
 import { ArchitectureView } from './components/ArchitectureView';
 import { PRDView } from './components/PRDView';
+import { LandingView } from './components/LandingView';
+import {
+  MagneticDock,
+  DockIconHome,
+  DockIconSearch,
+  DockIconFolder,
+  DockIconMail,
+  DockIconSettings,
+} from '@/components/ui/magnetic-dock';
 import { EmergencyScenario, MossQueryResult, DispatchedUnit } from './types';
 import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from './engine/emergencyProtocols';
 import { mossEngine } from './engine/mossEngine';
@@ -25,10 +35,10 @@ import { audioService } from './engine/speechSimulation';
 import confetti from 'canvas-confetti';
 
 export const App: React.FC = () => {
-  const TAB_IDS = ['console', 'benchmark', 'architecture', 'prd'] as const;
+  const TAB_IDS = ['overview', 'console', 'benchmark', 'architecture', 'prd'] as const;
   type TabId = (typeof TAB_IDS)[number];
   const initialTab = TAB_IDS.find((t) => t === new URLSearchParams(window.location.search).get('tab'));
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'console');
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'overview');
 
   // Deep-linkable tabs (?tab=benchmark) — shareable demo URLs for judges.
   useEffect(() => {
@@ -136,6 +146,52 @@ export const App: React.FC = () => {
     setDispatchedUnit(null);
   };
 
+  const dockItems = [
+    {
+      id: 'overview',
+      label: 'Overview & Story',
+      icon: <DockIconHome className="w-full h-full text-slate-800" />,
+      isActive: activeTab === 'overview',
+      onClick: () => handleSelectTab('overview'),
+    },
+    {
+      id: 'console',
+      label: 'Emergency Console',
+      icon: <Radio className="w-full h-full text-rose-600" />,
+      isActive: activeTab === 'console',
+      onClick: () => handleSelectTab('console'),
+      badge: activeScenario !== null ? 1 : undefined,
+    },
+    {
+      id: 'benchmark',
+      label: 'Moss vs Cloud DBs',
+      icon: <DockIconSearch className="w-full h-full text-amber-500" />,
+      isActive: activeTab === 'benchmark',
+      onClick: () => handleSelectTab('benchmark'),
+    },
+    {
+      id: 'architecture',
+      label: 'Architecture Flow',
+      icon: <DockIconFolder className="w-full h-full text-indigo-500" />,
+      isActive: activeTab === 'architecture',
+      onClick: () => handleSelectTab('architecture'),
+    },
+    {
+      id: 'prd',
+      label: 'Product Spec',
+      icon: <DockIconMail className="w-full h-full text-emerald-600" />,
+      isActive: activeTab === 'prd',
+      onClick: () => handleSelectTab('prd'),
+    },
+    {
+      id: 'settings',
+      label: audioFeedbackEnabled ? 'Voice Guidance On (Click to Mute)' : 'Voice Guidance Muted (Click to Enable)',
+      icon: <DockIconSettings className="w-full h-full text-slate-700" />,
+      isActive: audioFeedbackEnabled,
+      onClick: () => setAudioFeedbackEnabled(!audioFeedbackEnabled),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 clinical-grid flex flex-col selection:bg-rose-500/20 selection:text-rose-600">
       {/* Top Navbar */}
@@ -150,8 +206,29 @@ export const App: React.FC = () => {
       />
 
       {/* Main Workspace */}
-      <main className="flex-1 max-w-[1750px] w-full mx-auto p-4 sm:p-6 space-y-6">
+      <main className="flex-1 max-w-[1750px] w-full mx-auto p-4 sm:p-6 pb-28 sm:pb-36 space-y-6">
         <AnimatePresence mode="wait">
+          {activeTab === 'overview' && (
+            <motion.div
+              key="overview"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <LandingView
+                onLaunchConsole={(scen) => {
+                  if (scen) {
+                    handleProcessTranscript(scen.callerSpeechTranscript, scen, true);
+                  }
+                  handleSelectTab('console');
+                }}
+                onNavigateTab={(tab) => handleSelectTab(tab)}
+                latencyMs={latencyMs}
+              />
+            </motion.div>
+          )}
+
           {activeTab === 'console' && (
             <motion.div
               key="console"
@@ -342,7 +419,7 @@ export const App: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/90 bg-white/90 backdrop-blur-md py-4 px-6 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 shadow-2xs">
+      <footer className="border-t border-slate-200/90 bg-white/90 backdrop-blur-md py-4 px-6 pb-28 sm:pb-24 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 shadow-2xs">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-2xs animate-pulse"></span>
           <span className="font-mono text-slate-700 font-medium">Pulse911 Runtime Active</span>
@@ -355,6 +432,19 @@ export const App: React.FC = () => {
           Built for YC Fall 2026 &times; Moss Zero Latency Builder Sprint
         </div>
       </footer>
+
+      {/* Floating macOS Magnetic Dock */}
+      <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
+        <MagneticDock
+          items={dockItems}
+          position="bottom"
+          variant="glass"
+          iconSize={48}
+          maxScale={1.38}
+          magneticDistance={130}
+          className="shadow-2xl shadow-slate-900/15 border-slate-200/90 bg-white/85 backdrop-blur-2xl"
+        />
+      </div>
     </div>
   );
 };
