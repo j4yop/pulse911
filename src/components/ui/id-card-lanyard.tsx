@@ -18,6 +18,8 @@ export interface IDCardLanyardProps {
   validThru?: string;
   /** Profile photo image URL (Unsplash stock or custom avatar). */
   avatarUrl?: string;
+  /** Custom CSS object-position for photo cropping (e.g. "center 25%"). Defaults to "center 22%". */
+  avatarObjectPosition?: string;
   /** URL/label shown next to the back-face QR code. */
   site?: string;
   /** Social links shown as small icon buttons on the back face. Omit any you don't want rendered. */
@@ -151,7 +153,7 @@ const CSS = `
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.08), inset 0 2px 6px rgba(0,0,0,.12);
 }
 .idcl-photo svg{ width:100%; height:100%; display:block; }
-.idcl-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
+.idcl-photo img{ width:100%; height:100%; object-fit:cover; object-position:var(--idcl-avatar-pos, center 22%); display:block; }
 .idcl-verified{
   position:absolute; right:-6px; bottom:-6px; width:22px; height:22px; border-radius:50%;
   background:linear-gradient(160deg, var(--idcl-accent), var(--idcl-accent-dim));
@@ -239,6 +241,7 @@ export function IDCardLanyard({
   idNumber = "MC-042019",
   validThru = "12/2029",
   avatarUrl,
+  avatarObjectPosition = "center 22%",
   site = "mayachen.dev/work",
   githubUrl,
   linkedinUrl,
@@ -712,7 +715,8 @@ export function IDCardLanyard({
                     src={avatarUrl}
                     alt={name}
                     className="w-full h-full object-cover"
-                    loading="lazy"
+                    style={{ objectPosition: avatarObjectPosition }}
+                    loading="eager"
                   />
                 ) : (
                   <svg viewBox="0 0 182 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
