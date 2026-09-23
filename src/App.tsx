@@ -23,7 +23,7 @@ import { EmergencyScenario, MossQueryResult, DispatchedUnit } from './types';
 import { EMERGENCY_SCENARIOS } from './engine/emergencyProtocols';
 import { mossEngine } from './engine/mossEngine';
 import { audioService } from './engine/speechSimulation';
-import { Progress } from '@/components/ui/progress';
+import { TopLoader } from './components/TopLoader';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { cn } from '@/lib/utils';
 
@@ -65,56 +65,61 @@ export const App: React.FC = () => {
       setCallRequestId((n) => n + 1);
       audioService.playRadioChirp();
 
-      // Query Moss in-memory semantic retrieval engine
-      const res = await mossEngine.query(text);
-      setQueryResult(res);
-      setLatencyMs(res.latencyMs);
+      try {
+        // Query Moss in-memory semantic retrieval engine
+        const res = await mossEngine.query(text);
+        setQueryResult(res);
+        setLatencyMs(res.latencyMs);
 
-      if (scenario) {
-        setActiveScenario(scenario);
-      } else {
-        setActiveScenario({
-          id: 'scen_live_call',
-          title: 'Live Inbound 911 Call (Real-Time Ingest)',
-          tagline: 'Live voice audio / freeform speech transcribed & routed via Moss',
-          iconName: 'PhoneCall',
-          callerProfile: 'Live Caller (Direct Audio Stream)',
-          callerSpeechTranscript: text,
-          callerLocation: {
-            address: 'Triangulating Cell Tower GPS',
-            city: 'Metro Dispatch Sector 4',
-            coordinates: '37.7749° N, 122.4194° W'
-          },
-          reportedVitals: {
-            consciousness: 'TRIAGED IN REAL TIME',
-            breathing: 'VAD MONITORED',
-            pulse: res.protocol.cadenceBpm ? `${res.protocol.cadenceBpm} BPM TARGET` : 'MONITORED'
-          },
-          triagePriority: (res.protocol.triageLevel.includes('1') ? 'ESI-1 (Immediate Resuscitation)' : 'ESI-2 (Emergent)') as any,
-        });
-      }
+        if (scenario) {
+          setActiveScenario(scenario);
+        } else {
+          setActiveScenario({
+            id: 'scen_live_call',
+            title: 'Live Inbound 911 Call (Real-Time Ingest)',
+            tagline: 'Live voice audio / freeform speech transcribed & routed via Moss',
+            iconName: 'PhoneCall',
+            callerProfile: 'Live Caller (Direct Audio Stream)',
+            callerSpeechTranscript: text,
+            callerLocation: {
+              address: 'Triangulating Cell Tower GPS',
+              city: 'Metro Dispatch Sector 4',
+              coordinates: '37.7749° N, 122.4194° W'
+            },
+            reportedVitals: {
+              consciousness: 'TRIAGED IN REAL TIME',
+              breathing: 'VAD MONITORED',
+              pulse: res.protocol.cadenceBpm ? `${res.protocol.cadenceBpm} BPM TARGET` : 'MONITORED'
+            },
+            triagePriority: (res.protocol.triageLevel.includes('1') ? 'ESI-1 (Immediate Resuscitation)' : 'ESI-2 (Emergent)') as any,
+          });
+        }
 
-      // Auto-assign CAD Unit
-      const assigned: DispatchedUnit = {
-        id: 'MEDIC-14',
-        name: 'Medic Engine 14 (ALS Paramedic Rescue)',
-        type: res.protocol.unitRecommendation.unitType,
-        station: 'Station 4 &bull; Downtown Core',
-        etaMinutes: Math.floor(Math.random() * 2) + 3, // Simulated demo ETA — live CAD integration is out of scope for this sprint
-        status: 'DISPATCHED',
-        crew: 'Captain R. Torres, Paramedic J. Vance',
-      };
-      setDispatchedUnit(assigned);
-      setIsProcessing(false);
+        // Auto-assign CAD Unit
+        const assigned: DispatchedUnit = {
+          id: 'MEDIC-14',
+          name: 'Medic Engine 14 (ALS Paramedic Rescue)',
+          type: res.protocol.unitRecommendation.unitType,
+          station: 'Station 4 &bull; Downtown Core',
+          etaMinutes: Math.floor(Math.random() * 2) + 3, // Simulated demo ETA — live CAD integration is out of scope for this sprint
+          status: 'DISPATCHED',
+          crew: 'Captain R. Torres, Paramedic J. Vance',
+        };
+        setDispatchedUnit(assigned);
 
-      // Speak verbal instructions through Web Speech API if enabled
-      if (speakAudio && audioFeedbackEnabled) {
-        audioService.speakVerbalInstruction(res.protocol.verbalResponseText);
-      }
+        // Speak verbal instructions through Web Speech API if enabled
+        if (speakAudio && audioFeedbackEnabled) {
+          audioService.speakVerbalInstruction(res.protocol.verbalResponseText);
+        }
 
-      // If it is cardiac arrest, suggest metronome
-      if (res.protocol.cadenceBpm && isMetronomeActive) {
-        audioService.startCprMetronome(res.protocol.cadenceBpm);
+        // If it is cardiac arrest, suggest metronome
+        if (res.protocol.cadenceBpm && isMetronomeActive) {
+          audioService.startCprMetronome(res.protocol.cadenceBpm);
+        }
+      } catch (err) {
+        console.error('[Pulse911] Error processing transcript:', err);
+      } finally {
+        setIsProcessing(false);
       }
     },
     [audioFeedbackEnabled, isMetronomeActive]
@@ -153,19 +158,8 @@ export const App: React.FC = () => {
         onToggleAudioFeedback={() => setAudioFeedbackEnabled(!audioFeedbackEnabled)}
       />
 
-      {/* Global Ingestion / Loading Progress Indicator */}
-      <AnimatePresence>
-        {isProcessing && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed top-0 left-0 right-0 z-50 pointer-events-none"
-          >
-            <Progress value={90} className="h-1 rounded-none bg-rose-100/60" indicatorClassName="bg-rose-600 transition-all duration-300" />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Global Ingestion / Top Loading Progress Indicator */}
+      <TopLoader isLoading={isProcessing} activeTab={activeTab} />
 
       {/* Main Workspace */}
       <main
