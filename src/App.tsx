@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Layers,
   Sparkles,
+  Radio,
 } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { CallerPanel } from './components/CallerPanel';
@@ -396,8 +397,17 @@ export const App: React.FC = () => {
             {queryResult ? queryResult.engine : 'Retrieval runtime initializing — engine label appears after first query'}
           </span>
         </div>
-        <div className="font-mono text-[11px] text-slate-400">
-          Built for YC Fall 2026 &times; Moss Zero Latency Builder Sprint
+        <div className="flex items-center gap-3 font-mono text-[11px] text-slate-400">
+          <a
+            href="#contact-operations"
+            onClick={() => setActiveTab('overview')}
+            className="hover:text-rose-600 transition-colors flex items-center gap-1.5 text-slate-500 font-medium"
+          >
+            <Radio className="w-3 h-3 text-rose-500 animate-pulse" />
+            <span>Contact &amp; Dispatcher Badge</span>
+          </a>
+          <span className="text-slate-300">&bull;</span>
+          <span>Built for YC Fall 2026 &times; Moss Zero Latency Builder Sprint</span>
         </div>
       </footer>
     </div>

@@ -1,6 +1,5 @@
-"use client";
-
-import { HeroSection } from "@/components/blocks/hero-section";
+import { IDCardLanyard } from "@/components/ui/id-card-lanyard";
+import { HeroSection } from "@/components/ui/hero-section";
 import { Icons } from "@/components/ui/icons";
 
 export function HeroSectionDemo() {
@@ -37,4 +36,15 @@ export function HeroSectionDemo() {
   );
 }
 
-export default HeroSectionDemo;
+export function DemoOne() {
+  return (
+    <IDCardLanyard
+      avatarUrl="https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=400&q=80"
+      githubUrl="https://github.com/mayachen"
+      linkedinUrl="https://linkedin.com/in/mayachen"
+      instagramUrl="https://instagram.com/mayachen"
+    />
+  );
+}
+
+export default DemoOne;
