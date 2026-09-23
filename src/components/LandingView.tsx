@@ -33,6 +33,7 @@ import { Icons } from '@/components/ui/icons';
 import { AsciiGlitchRipple } from '@/components/ui/ascii-glitch-ripple';
 import { Progress } from '@/components/ui/progress';
 import { IDCardLanyard } from '@/components/ui/id-card-lanyard';
+import dispatcherAvatar from '../assets/dispatcher-photo.jpeg';
 import { mossEngine } from '../engine/mossEngine';
 import { audioService } from '../engine/speechSimulation';
 
@@ -713,7 +714,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
             location="San Francisco, CA"
             idNumber="P911-2026-HQ"
             validThru="12/2029"
-            avatarUrl="https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=400&q=80"
+            avatarUrl={dispatcherAvatar}
+            avatarObjectPosition="center 32%"
             site="pulse911.org/ops"
             githubUrl="https://github.com/j4yop/pulse911"
             linkedinUrl="https://linkedin.com"
