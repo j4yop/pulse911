@@ -194,67 +194,45 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header
       ref={navRef}
-      className="sticky top-0 z-50 w-full border-b border-slate-200/90 bg-white/85 backdrop-blur-xl transition-all font-sans"
+      className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/90 backdrop-blur-md transition-all font-sans"
       onMouseLeave={() => setOpenMenu(null)}
     >
-      <div className="mx-auto max-w-[1700px] px-4 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Brand & Live Ingestion Status */}
-          <div className="flex items-center gap-4 sm:gap-6 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => handleNavTab('overview')}
-              className="flex items-center gap-3 text-left cursor-pointer group"
+              className="flex items-center gap-2.5 text-left cursor-pointer group focus:outline-hidden"
+              title="Pulse911 Home"
             >
-              <PulseLogo size={36} animated={false} />
-              <div className="flex flex-col">
+              <PulseLogo size={32} animated={false} />
+              <div className="flex items-center gap-2">
                 <span className="text-lg font-black tracking-tight text-slate-900 font-sans flex items-center leading-none">
                   Pulse<span className="text-rose-600">911</span>
                 </span>
-                <span className="text-[10px] text-slate-400 font-mono tracking-tight mt-0.5 hidden sm:block">
-                  Zero-Latency Clinical Triage
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border transition-colors",
+                    isCallActive
+                      ? "bg-rose-50 text-rose-700 border-rose-200"
+                      : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "size-1.5 rounded-full",
+                      isCallActive ? "bg-rose-600 animate-pulse" : "bg-emerald-500"
+                    )}
+                  />
+                  <span>{isCallActive ? 'LIVE CALL' : 'READY'}</span>
                 </span>
               </div>
             </button>
-
-            {/* Live Ingestion & AHA Badges */}
-            <div className="hidden md:flex items-center gap-2">
-              <span className="h-4 w-[1px] bg-slate-200" />
-              <div
-                className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border transition-all ${
-                  isCallActive
-                    ? 'bg-rose-50 text-rose-700 border-rose-200 shadow-2xs'
-                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    isCallActive ? 'bg-rose-600 animate-pulse' : 'bg-emerald-500'
-                  }`}
-                />
-                <span>{isCallActive ? 'LIVE INGEST' : 'CAD READY'}</span>
-              </div>
-
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-900 text-white tracking-wide shadow-2xs">
-                MOSS &bull; AHA
-              </span>
-            </div>
           </div>
 
           {/* Desktop Mega Menu Navigation Links */}
           <nav aria-label="Primary navigation" className="hidden lg:flex items-center gap-1">
-            {/* Overview / Story Tab */}
-            <button
-              onClick={() => handleNavTab('overview')}
-              className={cn(
-                'px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer',
-                activeTab === 'overview'
-                  ? 'bg-rose-50 text-rose-700 font-bold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
-              )}
-            >
-              Overview
-            </button>
-
             {/* Features Mega Menu Trigger */}
             <div
               className="relative"
@@ -281,7 +259,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Features Mega Menu Dropdown */}
               {openMenu === 'features' && (
-                <div className="absolute left-0 top-full pt-2 z-50 w-[640px] -translate-x-12">
+                <div className="absolute left-0 top-full pt-2 z-50 w-[580px] -translate-x-8">
                   <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xl space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       {features.map((item) => {
@@ -354,7 +332,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Scenarios Mega Menu Dropdown */}
               {openMenu === 'scenarios' && (
-                <div className="absolute left-0 top-full pt-2 z-50 w-[420px] -translate-x-16">
+                <div className="absolute left-0 top-full pt-2 z-50 w-[420px] -translate-x-12">
                   <div className="rounded-2xl border border-slate-200/90 bg-white p-3 shadow-xl space-y-1">
                     <div className="px-3 py-1.5 text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
                       Quick-Launch Emergency Triage
@@ -435,17 +413,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Right Action Suite: Telemetry Pill, Audio Toggle, Launch CTA */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {/* Live Moss WASM Latency Readout Pill */}
-            <div className="hidden sm:flex items-center gap-2 bg-emerald-50/80 border border-emerald-200 px-3 py-1.5 rounded-xl font-mono text-xs shadow-2xs">
+            <div className="hidden xl:inline-flex items-center gap-1.5 bg-emerald-50/90 border border-emerald-200/80 px-2.5 py-1 rounded-lg font-mono text-xs shadow-2xs">
               <span className="text-emerald-800 flex items-center gap-1 font-semibold">
                 <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                 Moss:
               </span>
               <span className="text-emerald-700 font-extrabold tabular-nums">
-                {latencyMs != null ? `${latencyMs.toFixed(2)} ms` : '3.80 ms'}
+                {latencyMs != null ? `${latencyMs.toFixed(1)}ms` : '3.8ms'}
               </span>
-              <span className="text-[9px] uppercase px-1.5 py-0.2 bg-emerald-600 text-white rounded font-bold">
+              <span className="text-[9px] uppercase px-1 py-0.2 bg-emerald-600 text-white rounded font-bold">
                 WASM
               </span>
             </div>
@@ -455,10 +433,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={onToggleAudioFeedback}
               title={audioFeedbackEnabled ? 'Mute Voice Agent Audio' : 'Unmute Voice Agent Audio'}
               className={cn(
-                'btn-tactile px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all',
+                'px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all',
                 audioFeedbackEnabled
                   ? 'bg-slate-900 hover:bg-slate-800 border-slate-900 text-white shadow-2xs'
-                  : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600'
+                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600'
               )}
             >
               {audioFeedbackEnabled ? (
@@ -469,7 +447,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               ) : (
                 <>
                   <VolumeX className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-[11px] font-mono hidden md:inline">Voice: Muted</span>
+                  <span className="text-[11px] font-mono hidden md:inline">Voice: OFF</span>
                 </>
               )}
             </button>
@@ -478,13 +456,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => handleNavTab('console')}
               className={cn(
-                'btn-tactile px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all',
+                'px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all',
                 activeTab === 'console'
                   ? 'bg-rose-600 text-white ring-2 ring-rose-500/30 shadow-md shadow-rose-600/20'
                   : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20'
               )}
             >
-              <Radio className="w-3.5 h-3.5 animate-pulse" />
+              <Radio className="w-3.5 h-3.5 text-white animate-pulse" />
               <span>Launch Console</span>
             </button>
 

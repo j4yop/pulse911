@@ -98,13 +98,9 @@ export const LandingView: React.FC<LandingViewProps> = ({
   };
 
   return (
-    <div className="space-y-16 pb-16 max-w-[1400px] mx-auto font-sans">
+    <div className="space-y-16 pb-16 w-full max-w-7xl mx-auto font-sans">
       {/* 1. HERO SECTION (21st.dev / Launch UI Component) */}
-      <section className="relative pt-2 text-center space-y-6">
-        <div className="flex justify-center mb-[-36px] relative z-20">
-          <PulseLogo size={58} animated={true} />
-        </div>
-
+      <section className="relative text-center">
         <HeroSection
           badge={{
             text: "YC Fall 2026 • Real-Time Voice AI Sprint",
