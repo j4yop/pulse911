@@ -34,6 +34,7 @@ import { AsciiGlitchRipple } from '@/components/ui/ascii-glitch-ripple';
 import { Progress } from '@/components/ui/progress';
 import { IDCardLanyard } from '@/components/ui/id-card-lanyard';
 import dispatcherAvatar from '../assets/dispatcher-photo.jpeg';
+import heroConsolePreview from '../assets/hero-console-preview.jpg';
 import { mossEngine } from '../engine/mossEngine';
 import { audioService } from '../engine/speechSimulation';
 
@@ -154,8 +155,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
             },
           ]}
           image={{
-            light: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1600&q=80",
-            dark: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1600&q=80",
+            light: heroConsolePreview,
+            dark: heroConsolePreview,
             alt: "Pulse911 Zero-Latency Emergency Dispatch Console with Moss WASM Triage",
           }}
         />
