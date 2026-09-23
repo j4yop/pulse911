@@ -390,15 +390,7 @@ export const App: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/90 bg-white/90 backdrop-blur-md py-4 px-6 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 shadow-2xs">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-2xs animate-pulse"></span>
-          <span className="font-mono text-slate-700 font-medium">Pulse911 Runtime Active</span>
-          <span className="text-slate-300">&bull;</span>
-          <span className="font-mono text-emerald-700 font-semibold">
-            {queryResult ? queryResult.engine : 'Retrieval runtime initializing — engine label appears after first query'}
-          </span>
-        </div>
+      <footer className="border-t border-slate-200/90 bg-white/90 backdrop-blur-md py-4 px-6 text-xs text-slate-500 flex items-center justify-center shadow-2xs">
         <div className="font-mono text-[11px] text-slate-400">
           Built for YC Fall 2026 &times; Moss Zero Latency Builder Sprint
         </div>
