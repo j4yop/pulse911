@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, Loader2, AlertTriangle, Zap } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { EmergencyProtocol } from '../types';
 import {
   LlmCoaching,
@@ -78,10 +79,16 @@ export const CopilotCoachPanel: React.FC<CopilotCoachPanelProps> = ({ transcript
       <motion.div
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-indigo-50/50 border border-indigo-200/70 rounded-xl p-3 flex items-center gap-2 text-[11px] font-mono text-indigo-700"
+        className="bg-indigo-50/60 border border-indigo-200/80 rounded-xl p-3.5 space-y-2.5 text-[11px] font-mono text-indigo-700 shadow-2xs"
       >
-        <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-        AI dispatcher coach generating (async background thread &bull; critical path unblocked)…
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-2 font-bold">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+            AI dispatcher coach generating (async background thread &bull; critical path unblocked)…
+          </span>
+          <span className="text-[10px] text-indigo-500 font-semibold">HiDevs Gateway</span>
+        </div>
+        <Progress value={65} className="h-1.5 bg-indigo-100" indicatorClassName="bg-indigo-600 animate-pulse" />
       </motion.div>
     );
   }
