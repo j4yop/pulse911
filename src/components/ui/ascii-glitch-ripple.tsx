@@ -9,6 +9,10 @@ const CHAR_MULT = 3;
 const ANIM_STEP = 40;
 const WAVE_BUF = 5;
 
+// Clean standard ASCII character pool (as in Vengeance UI demo)
+// Excludes giant Unicode full blocks (█ ▓ ▒ ░ ▄ ▀ ▌ ▐ ■) to ensure normal typographic scale
+export const DEFAULT_ASCII_CHARS = "!@#$%^&*()_+-=[]{}|;:'\",./<>?~0123456789*";
+
 export interface AsciiGlitchRippleProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
   /**
    * The text to display and animate.
@@ -30,7 +34,7 @@ export interface AsciiGlitchRippleProps extends React.AnchorHTMLAttributes<HTMLA
   dur?: number;
   /**
    * Character set to scramble through during the ripple wave.
-   * @default '.,·-─~+:;=*π""┐┌┘┴┬╗╔╝╚╬╠╣╩╦║░▒▓█▄▀▌▐■!?&#$@0123456789*'
+   * @default DEFAULT_ASCII_CHARS
    */
   chars?: string;
   /**
@@ -40,7 +44,7 @@ export interface AsciiGlitchRippleProps extends React.AnchorHTMLAttributes<HTMLA
   preserveSpaces?: boolean;
   /**
    * The spread of the ripple wave. Larger numbers mean wider waves.
-   * @default 1.0
+   * @default 1.2
    */
   spread?: number;
   [key: string]: any;
@@ -51,9 +55,9 @@ export function AsciiGlitchRipple({
   as = "a",
   className,
   dur = 1000,
-  chars = '.,·-─~+:;=*π""┐┌┘┴┬╗╔╝╚╬╠╣╩╦║░▒▓█▄▀▌▐■!?&#$@0123456789*',
+  chars = DEFAULT_ASCII_CHARS,
   preserveSpaces = true,
-  spread = 1.0,
+  spread = 1.2,
   ...props
 }: AsciiGlitchRippleProps) {
   const Component = as;
@@ -119,6 +123,7 @@ export function AsciiGlitchRipple({
       // Restore natural width layout
       if (stateRef.current.origW !== null) {
         el.style.width = "";
+        el.style.minWidth = "";
         stateRef.current.origW = null;
       }
       stateRef.current.isAnim = false;
@@ -134,7 +139,7 @@ export function AsciiGlitchRipple({
       // Lock current width to prevent layout shifts during ASCII scrambling
       if (stateRef.current.origW === null) {
         stateRef.current.origW = el.getBoundingClientRect().width;
-        el.style.width = `${stateRef.current.origW}px`;
+        el.style.minWidth = `${stateRef.current.origW}px`;
       }
 
       stateRef.current.isAnim = true;
@@ -242,7 +247,7 @@ export function AsciiGlitchRipple({
     <Component
       ref={elRef}
       className={cn(
-        "cursor-pointer select-none relative inline-block transition-colors duration-200",
+        "cursor-pointer select-none relative inline-block whitespace-nowrap transition-colors duration-200",
         className
       )}
       {...props}

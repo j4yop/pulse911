@@ -116,31 +116,31 @@ export const LandingView: React.FC<LandingViewProps> = ({
           }}
           title={
             <>
-              <span className="block">
+              <span className="block whitespace-nowrap">
                 <AsciiGlitchRipple
                   as="span"
-                  className="cursor-pointer select-none transition-colors duration-200 hover:text-slate-700"
-                  dur={1000}
+                  className="cursor-pointer select-none whitespace-nowrap transition-colors duration-200 hover:text-slate-700"
+                  dur={900}
                   spread={1.2}
                 >
                   When Seconds Save Lives,
                 </AsciiGlitchRipple>
               </span>
-              <span className="block mt-1 sm:mt-2">
+              <span className="block mt-1 sm:mt-2 whitespace-nowrap">
                 <AsciiGlitchRipple
                   as="span"
-                  className="cursor-pointer select-none transition-colors duration-200 hover:text-slate-700"
-                  dur={1000}
+                  className="cursor-pointer select-none whitespace-nowrap transition-colors duration-200 hover:text-slate-700"
+                  dur={900}
                   spread={1.2}
                 >
                   400ms Cloud Latency is
                 </AsciiGlitchRipple>
               </span>
-              <span className="block mt-1 sm:mt-2">
+              <span className="block mt-1 sm:mt-2 whitespace-nowrap">
                 <AsciiGlitchRipple
                   as="span"
-                  className="cursor-pointer select-none transition-colors duration-200 hover:text-rose-600"
-                  dur={1000}
+                  className="cursor-pointer select-none whitespace-nowrap transition-colors duration-200 hover:text-rose-600"
+                  dur={900}
                   spread={1.2}
                 >
                   Fatal.
