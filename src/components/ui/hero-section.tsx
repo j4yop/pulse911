@@ -70,7 +70,7 @@ export function HeroSection({
     >
       <ContainerScroll
         titleComponent={
-          <div className="mx-auto flex max-w-4xl flex-col items-center gap-5 text-center sm:gap-7 mb-4">
+          <div className="mx-auto flex max-w-4xl flex-col items-center gap-5 text-center sm:gap-7 mb-6 sm:mb-8">
             {/* Badge */}
             {badge && (
               <Badge variant="outline" className="animate-appear gap-2 py-1.5 px-4 rounded-full border-slate-200/90 bg-white/90 shadow-2xs text-xs">
@@ -99,7 +99,7 @@ export function HeroSection({
             </p>
 
             {/* Actions */}
-            <div className="relative z-10 flex animate-appear justify-center gap-4 delay-300">
+            <div className="relative z-10 flex animate-appear justify-center gap-4 delay-300 pb-2 sm:pb-4">
               {actions.map((action, index) => (
                 <Button
                   key={index}
