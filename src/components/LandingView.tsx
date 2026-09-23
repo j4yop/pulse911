@@ -31,6 +31,7 @@ import { EmergencyScenario, MossQueryResult } from '../types';
 import { PulseLogo } from './PulseLogo';
 import { HeroSection } from '@/components/ui/hero-section';
 import { Icons } from '@/components/ui/icons';
+import { AsciiGlitchRipple } from '@/components/ui/ascii-glitch-ripple';
 import { mossEngine } from '../engine/mossEngine';
 import { audioService } from '../engine/speechSimulation';
 
@@ -113,7 +114,40 @@ export const LandingView: React.FC<LandingViewProps> = ({
               },
             },
           }}
-          title="When Seconds Save Lives, 400ms Cloud Latency is Fatal."
+          title={
+            <>
+              <span className="block">
+                <AsciiGlitchRipple
+                  as="span"
+                  className="cursor-pointer select-none transition-colors duration-200 hover:text-slate-700"
+                  dur={1000}
+                  spread={1.2}
+                >
+                  When Seconds Save Lives,
+                </AsciiGlitchRipple>
+              </span>
+              <span className="block mt-1 sm:mt-2">
+                <AsciiGlitchRipple
+                  as="span"
+                  className="cursor-pointer select-none transition-colors duration-200 hover:text-slate-700"
+                  dur={1000}
+                  spread={1.2}
+                >
+                  400ms Cloud Latency is
+                </AsciiGlitchRipple>
+              </span>
+              <span className="block mt-1 sm:mt-2">
+                <AsciiGlitchRipple
+                  as="span"
+                  className="cursor-pointer select-none transition-colors duration-200 hover:text-rose-600"
+                  dur={1000}
+                  spread={1.2}
+                >
+                  Fatal.
+                </AsciiGlitchRipple>
+              </span>
+            </>
+          }
           description="Pulse911 is the zero-latency emergency dispatch copilot powered by Moss (YC F25) in-process WASM semantic retrieval. Grounded in verified AHA & CDC clinical protocols, delivering spoken resuscitation guidance under the 300ms human panic window."
           actions={[
             {
