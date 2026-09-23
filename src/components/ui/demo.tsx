@@ -1,6 +1,8 @@
 import { IDCardLanyard } from "@/components/ui/id-card-lanyard";
 import { HeroSection } from "@/components/ui/hero-section";
 import { Icons } from "@/components/ui/icons";
+import { ContainerScroll } from "@/components/ui/container-scroll-animation";
+import { Image } from "@/components/ui/image";
 
 export function HeroSectionDemo() {
   return (
@@ -47,4 +49,33 @@ export function DemoOne() {
   );
 }
 
+export function HeroScrollDemo() {
+  return (
+    <div className="flex flex-col overflow-hidden pb-[500px] pt-[1000px]">
+      <ContainerScroll
+        titleComponent={
+          <>
+            <h1 className="text-4xl font-semibold text-black dark:text-white">
+              Unleash the power of <br />
+              <span className="text-4xl md:text-[6rem] font-bold mt-1 leading-none">
+                Scroll Animations
+              </span>
+            </h1>
+          </>
+        }
+      >
+        <Image
+          src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=2000&q=85"
+          alt="hero"
+          height={720}
+          width={1400}
+          className="mx-auto rounded-2xl object-cover h-full object-left-top"
+          draggable={false}
+        />
+      </ContainerScroll>
+    </div>
+  );
+}
+
 export default DemoOne;
+
