@@ -9,6 +9,8 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
+import { AsciiGlitchRipple } from "@/components/ui/ascii-glitch-ripple";
+
 interface HeroAction {
   text: string;
   href: string;
@@ -26,8 +28,8 @@ interface HeroProps {
       onClick?: (e: React.MouseEvent) => void;
     };
   };
-  title: string;
-  description: string;
+  title: React.ReactNode;
+  description: React.ReactNode;
   actions: HeroAction[];
   image: {
     light: string;
@@ -75,14 +77,16 @@ export function HeroSection({
                 onClick={badge.action.onClick}
                 className="flex items-center gap-1 font-semibold text-rose-600 hover:text-rose-700 transition-colors"
               >
-                {badge.action.text}
+                <AsciiGlitchRipple as="span" dur={800} spread={1.0}>
+                  {badge.action.text}
+                </AsciiGlitchRipple>
                 <ArrowRightIcon className="h-3 w-3" />
               </a>
             </Badge>
           )}
 
           {/* Title */}
-          <h1 className="relative z-10 inline-block animate-appear bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent drop-shadow-sm sm:text-6xl sm:leading-tight md:text-7xl md:leading-tight max-w-4xl">
+          <h1 className="relative z-10 inline-block animate-appear text-4xl font-black tracking-tight text-slate-900 drop-shadow-xs sm:text-6xl sm:leading-tight md:text-7xl md:leading-tight max-w-4xl">
             {title}
           </h1>
 
