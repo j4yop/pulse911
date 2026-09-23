@@ -24,6 +24,7 @@ import { EMERGENCY_SCENARIOS } from './engine/emergencyProtocols';
 import { mossEngine } from './engine/mossEngine';
 import { audioService } from './engine/speechSimulation';
 import { Progress } from '@/components/ui/progress';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { cn } from '@/lib/utils';
 
 export const App: React.FC = () => {
@@ -175,7 +176,8 @@ export const App: React.FC = () => {
             : "max-w-[1750px] p-4 sm:p-6 space-y-6"
         )}
       >
-        <AnimatePresence mode="wait">
+        <ErrorBoundary fallbackTitle="Application View Recovered">
+          <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
             <motion.div
               key="overview"
@@ -384,6 +386,7 @@ export const App: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}
