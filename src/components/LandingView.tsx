@@ -166,7 +166,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.32 }}
-          className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 max-w-4xl mx-auto pt-4 text-left"
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 max-w-4xl mx-auto mt-12 sm:mt-16 md:mt-24 pt-4 text-left"
         >
           <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xs">
             <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block">Moss WASM Retrieval</span>
