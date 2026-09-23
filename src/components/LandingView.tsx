@@ -31,6 +31,7 @@ import { PulseLogo } from './PulseLogo';
 import { HeroSection } from '@/components/ui/hero-section';
 import { Icons } from '@/components/ui/icons';
 import { AsciiGlitchRipple } from '@/components/ui/ascii-glitch-ripple';
+import { Progress } from '@/components/ui/progress';
 import { mossEngine } from '../engine/mossEngine';
 import { audioService } from '../engine/speechSimulation';
 
@@ -338,6 +339,27 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <span>Execute Vector Query</span>
           </button>
         </div>
+
+        {/* Vector Search Execution Progress */}
+        <AnimatePresence>
+          {isSandboxQuerying && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-1.5"
+            >
+              <div className="flex justify-between items-center text-[11px] font-mono text-slate-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  Scanning 10 embedded AHA clinical protocol vectors in-process...
+                </span>
+                <span className="font-semibold text-rose-600">Retrieving protocol</span>
+              </div>
+              <Progress value={90} className="h-1.5 bg-slate-100" indicatorClassName="bg-rose-500 transition-all duration-300" />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Quick Symptom Chips */}
         <div className="flex flex-wrap items-center gap-2 pt-1">
