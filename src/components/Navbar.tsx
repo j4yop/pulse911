@@ -21,6 +21,8 @@ import {
   Cpu,
   ArrowRight,
   ExternalLink,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { PulseLogo } from './PulseLogo';
 import { PopButton } from './ui/pop-button';
@@ -198,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
-          {/* Brand & Live Ingestion Status */}
+          {/* Brand */}
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => handleNavTab('overview')}
@@ -206,32 +208,27 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="Pulse911 Home"
             >
               <PulseLogo size={32} animated={false} />
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-black tracking-tight text-slate-900 font-sans flex items-center leading-none">
-                  Pulse<span className="text-rose-600">911</span>
-                </span>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border transition-colors",
-                    isCallActive
-                      ? "bg-rose-50 text-rose-700 border-rose-200"
-                      : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "size-1.5 rounded-full",
-                      isCallActive ? "bg-rose-600 animate-pulse" : "bg-emerald-500"
-                    )}
-                  />
-                  <span>{isCallActive ? 'LIVE CALL' : 'READY'}</span>
-                </span>
-              </div>
+              <span className="text-lg font-black tracking-tight text-slate-900 font-sans flex items-center leading-none">
+                Pulse<span className="text-rose-600">911</span>
+              </span>
             </button>
           </div>
 
           {/* Desktop Mega Menu Navigation Links */}
           <nav aria-label="Primary navigation" className="hidden lg:flex items-center gap-1">
+            {/* Overview Tab Link */}
+            <button
+              onClick={() => handleNavTab('overview')}
+              className={cn(
+                'px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0',
+                activeTab === 'overview'
+                  ? 'bg-rose-50 text-rose-700 font-bold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+              )}
+            >
+              <Activity className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <span className="whitespace-nowrap">Overview</span>
+            </button>
             {/* Features Mega Menu Trigger */}
             <div
               className="relative"
@@ -412,7 +409,27 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Right Action Suite: Launch CTA */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {/* Audio Voice Guidance Toggle */}
+            <button
+              type="button"
+              onClick={onToggleAudioFeedback}
+              title={audioFeedbackEnabled ? 'Voice Guidance Active (Click to Mute)' : 'Voice Guidance Muted (Click to Enable)'}
+              aria-label={audioFeedbackEnabled ? 'Voice Guidance Active' : 'Voice Guidance Muted'}
+              className={cn(
+                'flex size-9 items-center justify-center rounded-xl border transition-colors cursor-pointer shrink-0',
+                audioFeedbackEnabled
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  : 'border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'
+              )}
+            >
+              {audioFeedbackEnabled ? (
+                <Volume2 className="size-4" />
+              ) : (
+                <VolumeX className="size-4" />
+              )}
+            </button>
+
             {/* Primary Action Button: VengeanceUI PopButton */}
             <PopButton
               onClick={() => handleNavTab('console')}
@@ -553,6 +570,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           <div className="border-t border-slate-100 pt-4 space-y-3">
+            <button
+              type="button"
+              onClick={onToggleAudioFeedback}
+              className={cn(
+                'w-full text-left px-3.5 py-2.5 rounded-xl font-bold text-sm transition-colors cursor-pointer flex items-center justify-between border',
+                audioFeedbackEnabled
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : 'bg-slate-50 text-slate-600 border-slate-200'
+              )}
+            >
+              <span className="flex items-center gap-2">
+                {audioFeedbackEnabled ? <Volume2 className="size-4 text-emerald-600" /> : <VolumeX className="size-4 text-slate-400" />}
+                Voice Guidance
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-white border border-inherit">
+                {audioFeedbackEnabled ? 'ON' : 'MUTED'}
+              </span>
+            </button>
+
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1 font-mono text-xs">
               <span className="text-slate-400 block text-[10px]">Moss Runtime:</span>
               <span className="font-bold text-emerald-700 block">

@@ -22,7 +22,6 @@ import {
   ExternalLink,
   Play,
   Pause,
-  AlertTriangle,
   Flame,
   Search,
 } from 'lucide-react';
@@ -50,10 +49,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
   const [sandboxQuery, setSandboxQuery] = useState('adult cardiac arrest no pulse gasping');
   const [sandboxResult, setSandboxResult] = useState<MossQueryResult | null>(null);
   const [isSandboxQuerying, setIsSandboxQuerying] = useState(false);
-
-  // Audio Latency Simulator state
-  const [activeAudioSim, setActiveAudioSim] = useState<'cloud' | 'pulse911' | null>(null);
-
   // Metronome preview state
   const [isMetronomePreviewing, setIsMetronomePreviewing] = useState(false);
 
@@ -65,28 +60,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
     setIsSandboxQuerying(false);
   };
 
-  const handleSimulateAudioLatency = async (type: 'cloud' | 'pulse911') => {
-    setActiveAudioSim(type);
-    audioService.playRadioChirp();
-
-    if (type === 'cloud') {
-      // Simulate awkward 610ms cloud delay
-      await new Promise((r) => setTimeout(r, 610));
-      audioService.speakVerbalInstruction(
-        'Start chest compressions immediately in center of chest at 110 beats per minute.'
-      );
-    } else {
-      // Instant sub-260ms response
-      await new Promise((r) => setTimeout(r, 120));
-      audioService.speakVerbalInstruction(
-        'Place hands center of chest. Push hard and fast at 110 beats per minute.'
-      );
-    }
-
-    setTimeout(() => {
-      setActiveAudioSim(null);
-    }, 4500);
-  };
 
   const toggleMetronomePreview = () => {
     if (isMetronomePreviewing) {
@@ -229,10 +202,10 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </motion.div>
       </section>
 
-      {/* 2. THE 300MS BIOLOGICAL LATENCY PROBLEM & AUDIO SIMULATOR */}
+      {/* 2. THE 300MS BIOLOGICAL LATENCY PROBLEM */}
       <section className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-10 shadow-xs space-y-8">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-2">
-          <div className="max-w-2xl space-y-2">
+        <div className="pb-2">
+          <div className="max-w-3xl space-y-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-rose-600 uppercase tracking-wider">
               <Clock className="w-3.5 h-3.5" />
               The Biological Constraint
@@ -243,37 +216,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
               In high-stress medical emergencies, human conversational pause tolerance collapses to <strong>300ms</strong>. If an AI takes longer to respond, the panicked caller talks over the assistant or hangs up.
             </p>
-          </div>
-
-          {/* Interactive Audio Simulator Buttons */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 shrink-0">
-            <span className="text-xs font-mono font-bold text-slate-700 block">
-              Audio Turn-Taking A/B Test:
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => handleSimulateAudioLatency('cloud')}
-                disabled={activeAudioSim !== null}
-                className="px-3.5 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 font-mono text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
-              >
-                <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                <span>Hear 610ms Cloud Delay</span>
-              </button>
-
-              <button
-                onClick={() => handleSimulateAudioLatency('pulse911')}
-                disabled={activeAudioSim !== null}
-                className="px-3.5 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-mono text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                <span>Hear 264ms Pulse911</span>
-              </button>
-            </div>
-            {activeAudioSim && (
-              <span className="text-[11px] font-mono text-slate-500 block animate-pulse">
-                Playing simulation audio through Web Audio...
-              </span>
-            )}
           </div>
         </div>
 
