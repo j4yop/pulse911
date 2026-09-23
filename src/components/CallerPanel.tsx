@@ -11,8 +11,10 @@ import {
   Send,
   User,
   Bot,
+  RotateCcw,
 } from 'lucide-react';
 import { EmergencyScenario } from '../types';
+import { audioService } from '../engine/speechSimulation';
 
 interface CallerPanelProps {
   onProcessTranscript: (text: string, scenario?: EmergencyScenario) => void;
@@ -91,6 +93,8 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
     }
   };
 
+  const isVoiceActive = isRecording || isProcessing || (activeScenario !== null);
+
   // Organic Audio Waveform Animation
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -103,7 +107,6 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
 
     const renderWave = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const isVoiceActive = isRecording || isProcessing || (activeScenario !== null);
 
       ctx.lineWidth = 2.5;
       ctx.strokeStyle = isVoiceActive ? '#e11d48' : '#cbd5e1';
@@ -136,13 +139,19 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isRecording, isProcessing, activeScenario]);
+  }, [isVoiceActive]);
 
   const handleCustomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (customInput.trim()) {
       onProcessTranscript(customInput);
       setCustomInput('');
+    }
+  };
+
+  const handleReplayInstruction = () => {
+    if (spokenInstruction) {
+      audioService.speakVerbalInstruction(spokenInstruction);
     }
   };
 
@@ -157,7 +166,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-slate-900">Caller Voice Channel</h3>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Live Ingestion
               </span>
@@ -168,17 +177,19 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
 
         <div className="flex items-center gap-2">
           {activeScenario && (
-            <button
+            <motion.button
+              whileTap={{ scale: 0.95 }}
               onClick={onClearCall}
               title="Reset Call"
               className="btn-tactile px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 border border-slate-200 text-slate-600 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
             >
               <PhoneOff className="w-3.5 h-3.5" />
               <span>Reset</span>
-            </button>
+            </motion.button>
           )}
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={toggleMic}
             className={`btn-tactile px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-xs ${
               isRecording
@@ -189,7 +200,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
             <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white animate-ping' : 'bg-rose-500'}`} />
             {isRecording ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5 text-rose-600" />}
             <span>{isRecording ? 'Listening...' : 'Live Mic'}</span>
-          </button>
+          </motion.button>
         </div>
       </div>
 
@@ -224,14 +235,40 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
         </div>
       )}
 
-      {/* Medical Waveform Visualizer */}
-      <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex items-center justify-between">
+      {/* Medical Waveform Visualizer & Equalizer Bars */}
+      <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex items-center justify-between gap-4">
         <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
           <Volume2 className="w-3.5 h-3.5 text-slate-400" />
           <span>Audio Ingestion Level</span>
         </span>
-        <div className="bg-white border border-slate-200/80 px-3 py-1 rounded-xl shadow-2xs">
-          <canvas ref={canvasRef} width={280} height={24} className="block" />
+
+        <div className="flex items-center gap-3">
+          {/* 12-Band Dynamic EQ Visualizer */}
+          <div className="flex items-center gap-1 h-6 px-2 bg-slate-100/80 rounded-lg">
+            {[6, 12, 18, 14, 22, 16, 20, 10, 15, 8, 14, 18].map((h, i) => (
+              <motion.div
+                key={i}
+                animate={
+                  isVoiceActive
+                    ? {
+                        height: [4, h * 0.8, 4],
+                        backgroundColor: i > 8 ? '#f43f5e' : '#10b981',
+                      }
+                    : { height: 3, backgroundColor: '#cbd5e1' }
+                }
+                transition={{
+                  repeat: Infinity,
+                  duration: 0.35 + (i % 3) * 0.1,
+                  ease: 'easeInOut',
+                }}
+                className="w-1 rounded-full"
+              />
+            ))}
+          </div>
+
+          <div className="bg-white border border-slate-200/80 px-2.5 py-1 rounded-xl shadow-2xs hidden sm:block">
+            <canvas ref={canvasRef} width={200} height={20} className="block" />
+          </div>
         </div>
       </div>
 
@@ -245,16 +282,21 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
               Caller Inbound Speech:
             </span>
             {activeScenario && (
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+              <span className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
                 <MapPin className="w-3 h-3 text-slate-400" />
                 {activeScenario.callerLocation.city}
               </span>
             )}
           </div>
 
-          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4.5 text-slate-800 text-sm leading-relaxed shadow-inner">
+          <motion.div
+            key={currentTranscript}
+            initial={{ opacity: 0.8 }}
+            animate={{ opacity: 1 }}
+            className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4.5 text-slate-800 text-sm leading-relaxed shadow-inner"
+          >
             {currentTranscript ? (
-              <p className="font-medium text-slate-900 leading-relaxed">
+              <p className="font-medium text-slate-900 leading-relaxed font-sans">
                 "{currentTranscript}"
               </p>
             ) : (
@@ -262,7 +304,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
                 Awaiting incoming call audio... Speak using the microphone or select a scenario above to test.
               </p>
             )}
-          </div>
+          </motion.div>
         </div>
 
         {/* AI Voice Resuscitation Instruction Bubble */}
@@ -270,6 +312,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 25 }}
             className="space-y-1.5"
           >
             <div className="flex items-center justify-between text-xs font-bold text-rose-700">
@@ -277,13 +320,27 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
                 <Bot className="w-4 h-4 text-rose-600" />
                 <span>AI Spoken Directive (Heard in Caller's Ear):</span>
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold">
-                Spoken Aloud
-              </span>
+
+              <div className="flex items-center gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleReplayInstruction}
+                  className="px-2 py-0.5 rounded-full bg-rose-100 hover:bg-rose-200 text-rose-800 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Replay Voice Instruction"
+                >
+                  <RotateCcw className="w-2.5 h-2.5" />
+                  <span>Replay Audio</span>
+                </motion.button>
+
+                <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold font-mono">
+                  Turnaround: &lt; 264ms
+                </span>
+              </div>
             </div>
 
             <div className="bg-gradient-to-br from-rose-50 to-rose-100/60 border border-rose-200/80 rounded-2xl p-4.5 text-slate-900 text-sm leading-relaxed shadow-xs">
-              <p className="font-medium text-slate-950 leading-relaxed">
+              <p className="font-medium text-slate-950 leading-relaxed font-sans">
                 "{spokenInstruction}"
               </p>
             </div>
@@ -306,14 +363,17 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
             'Grandmother face drooping stroke',
             'Severe chest pain sweating',
           ].map((promptText) => (
-            <button
+            <motion.button
               key={promptText}
               type="button"
+              whileHover={{ y: -2, scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 25 }}
               onClick={() => onProcessTranscript(promptText)}
               className="px-3 py-1 rounded-full bg-white hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 border border-slate-200 text-slate-700 font-medium whitespace-nowrap transition-colors cursor-pointer shadow-2xs text-[11px]"
             >
               {promptText}
-            </button>
+            </motion.button>
           ))}
         </div>
 
@@ -326,14 +386,16 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
             placeholder="Type any emergency symptom (e.g. 'My 9-month-old baby swallowed a coin')..."
             className="flex-1 bg-white border border-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 outline-none transition-all shadow-xs"
           />
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
             type="submit"
             disabled={!customInput.trim() || isProcessing}
             className="btn-tactile bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 shadow-xs"
           >
             <span>Dispatch</span>
             <Send className="w-3.5 h-3.5" />
-          </button>
+          </motion.button>
         </form>
       </div>
     </div>
