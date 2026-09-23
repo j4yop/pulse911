@@ -34,6 +34,7 @@ import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from './engine/emergencyProt
 import { mossEngine } from './engine/mossEngine';
 import { audioService } from './engine/speechSimulation';
 import confetti from 'canvas-confetti';
+import { cn } from '@/lib/utils';
 
 export const App: React.FC = () => {
   const TAB_IDS = ['overview', 'console', 'benchmark', 'architecture', 'prd'] as const;
@@ -207,7 +208,14 @@ export const App: React.FC = () => {
       />
 
       {/* Main Workspace */}
-      <main className="flex-1 max-w-[1750px] w-full mx-auto p-4 sm:p-6 pb-28 sm:pb-36 space-y-6">
+      <main
+        className={cn(
+          "flex-1 w-full mx-auto pb-28 sm:pb-36",
+          activeTab === 'overview'
+            ? "max-w-7xl px-4 sm:px-6 lg:px-8 pt-0"
+            : "max-w-[1750px] p-4 sm:p-6 space-y-6"
+        )}
+      >
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
             <motion.div
