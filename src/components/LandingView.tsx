@@ -24,9 +24,6 @@ import {
   Pause,
   Flame,
   Search,
-  Mail,
-  Maximize2,
-  Minimize2,
 } from 'lucide-react';
 import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
 import { EmergencyScenario, MossQueryResult } from '../types';
@@ -35,7 +32,6 @@ import { HeroSection } from '@/components/ui/hero-section';
 import { Icons } from '@/components/ui/icons';
 import { AsciiGlitchRipple } from '@/components/ui/ascii-glitch-ripple';
 import { Progress } from '@/components/ui/progress';
-import { IDCardLanyard } from '@/components/ui/id-card-lanyard';
 import { mossEngine } from '../engine/mossEngine';
 import { audioService } from '../engine/speechSimulation';
 
@@ -56,7 +52,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
   const [isSandboxQuerying, setIsSandboxQuerying] = useState(false);
   // Metronome preview state
   const [isMetronomePreviewing, setIsMetronomePreviewing] = useState(false);
-  const [isLanyardFixed, setIsLanyardFixed] = useState(false);
 
   const handleRunSandboxQuery = async (queryText: string) => {
     setIsSandboxQuerying(true);
@@ -687,154 +682,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
             </div>
             <ExternalLink className="w-4 h-4 text-slate-400" />
           </a>
-        </div>
-      </section>
-
-      {/* 7. CONTACT US & DISPATCHER COMMAND CREDENTIAL */}
-      <section id="contact-operations" className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <span className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-rose-600 uppercase tracking-wider">
-              <Radio className="w-3.5 h-3.5 animate-pulse" />
-              Operational Contact &amp; Dispatcher Credential
-            </span>
-            <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
-              Connect With Pulse911 Operations
-            </h3>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-bold">
-              Dispatch Command Ready
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: Contact Cards & Info */}
-          <div className="lg:col-span-6 space-y-5">
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Evaluating zero-latency Moss retrieval for your agency CAD, requesting custom emergency triage protocols, or exploring research collaborations? Connect directly with our clinical systems team.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <a
-                href="mailto:dispatch@pulse911.org"
-                className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100/90 border border-slate-200 transition-all group flex flex-col justify-between"
-              >
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-200/80 flex items-center justify-center text-rose-600 group-hover:scale-105 transition-transform">
-                    <Mail className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-slate-900 block font-sans">Agency CAD Integration</span>
-                    <span className="text-slate-500 text-[11px] font-mono">dispatch@pulse911.org</span>
-                  </div>
-                </div>
-                <span className="text-[11px] text-slate-500">Telemetry, CAD routing &amp; PSAP pilots</span>
-              </a>
-
-              <a
-                href="https://github.com/j4yop/pulse911"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100/90 border border-slate-200 transition-all group flex flex-col justify-between"
-              >
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200/80 flex items-center justify-center text-indigo-600 group-hover:scale-105 transition-transform">
-                    <Cpu className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-slate-900 block font-sans">OSS Codebase &amp; Benchmarks</span>
-                    <span className="text-slate-500 text-[11px] font-mono">github.com/j4yop</span>
-                  </div>
-                </div>
-                <span className="text-[11px] text-slate-500">Moss WASM vector engine &amp; PRs</span>
-              </a>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Interactive Dispatcher Badge Physics</span>
-              </div>
-              <p className="text-xs text-slate-500 leading-normal">
-                The dispatcher credential on the right is an interactive physics simulation suspended from a cloth lanyard ribbon. 
-                <strong className="text-slate-700"> Grab and drag</strong> to swing the badge, or <strong className="text-slate-700">click the card</strong> to flip it over for verified QR codes, barcode, and team contacts.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                onClick={() => onLaunchConsole()}
-                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-xs"
-              >
-                <Play className="w-3.5 h-3.5 fill-white" />
-                <span>Launch 911 Console</span>
-              </button>
-              <button
-                onClick={() => setIsLanyardFixed(!isLanyardFixed)}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-2 transition-all cursor-pointer"
-              >
-                {isLanyardFixed ? (
-                  <>
-                    <Minimize2 className="w-3.5 h-3.5" />
-                    <span>Dock Badge to Section</span>
-                  </>
-                ) : (
-                  <>
-                    <Maximize2 className="w-3.5 h-3.5" />
-                    <span>Float Badge Across Viewport</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Right Column: Contained ID Card Lanyard Display */}
-          <div className="lg:col-span-6 w-full">
-            <div className="relative min-h-[580px] lg:min-h-[640px] w-full rounded-2xl bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border border-slate-800 shadow-xl overflow-hidden flex flex-col justify-between p-4">
-              {/* Decorative background grid and header */}
-              <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b10_1px,transparent_1px),linear-gradient(to_bottom,#1e293b10_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-              
-              <div className="relative z-10 flex items-center justify-between text-[11px] font-mono text-slate-400 border-b border-slate-800/80 pb-2.5">
-                <span className="flex items-center gap-1.5 font-semibold text-slate-300">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  P911-CREDENTIAL-AHA
-                </span>
-                <span className="flex items-center gap-1.5 text-emerald-400 text-[10px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  VERIFIED OPERATOR
-                </span>
-              </div>
-
-              {/* Lanyard Component Mounted */}
-              <div className="relative flex-1 w-full flex items-center justify-center">
-                <IDCardLanyard
-                  name="Jay Gopal"
-                  role="Lead Systems Engineer"
-                  brand="PULSE 911"
-                  brandTagline="Zero-Latency Dispatch"
-                  pillars={["Sub-10ms Retrieval", "Deterministic AHA", "Acoustic CPR"]}
-                  location="San Francisco, CA"
-                  idNumber="P911-2026-HQ"
-                  validThru="12/2029"
-                  avatarUrl="https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=400&q=80"
-                  site="pulse911.org/ops"
-                  githubUrl="https://github.com/j4yop/pulse911"
-                  linkedinUrl="https://linkedin.com"
-                  emailUrl="mailto:dispatch@pulse911.org"
-                  anchorX="50%"
-                  anchorY={10}
-                  positionMode={isLanyardFixed ? "fixed" : "absolute"}
-                  showHint={true}
-                />
-              </div>
-
-              <div className="relative z-10 text-center font-mono text-[10px] text-slate-500 pt-2 border-t border-slate-800/80">
-                DRAG ROPE TO SWING &bull; CLICK BADGE TO ROTATE 180&deg; FOR QR &amp; BARCODE
-              </div>
-            </div>
-          </div>
         </div>
       </section>
     </div>
