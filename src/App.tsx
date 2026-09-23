@@ -23,6 +23,7 @@ import { EmergencyScenario, MossQueryResult, DispatchedUnit } from './types';
 import { EMERGENCY_SCENARIOS } from './engine/emergencyProtocols';
 import { mossEngine } from './engine/mossEngine';
 import { audioService } from './engine/speechSimulation';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 export const App: React.FC = () => {
@@ -150,6 +151,20 @@ export const App: React.FC = () => {
         audioFeedbackEnabled={audioFeedbackEnabled}
         onToggleAudioFeedback={() => setAudioFeedbackEnabled(!audioFeedbackEnabled)}
       />
+
+      {/* Global Ingestion / Loading Progress Indicator */}
+      <AnimatePresence>
+        {isProcessing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed top-0 left-0 right-0 z-50 pointer-events-none"
+          >
+            <Progress value={90} className="h-1 rounded-none bg-rose-100/60" indicatorClassName="bg-rose-600 transition-all duration-300" />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Workspace */}
       <main

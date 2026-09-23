@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { mossEngine } from '../engine/mossEngine';
 import confetti from 'canvas-confetti';
+import { Progress, ProgressCircle } from '@/components/ui/progress';
 
 interface VectorDbBenchmark {
   id: string;
@@ -431,21 +432,27 @@ export const LatencyBenchmark: React.FC = () => {
             className="space-y-3 p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 font-mono text-xs"
           >
             <div className="flex items-center justify-between text-emerald-900 font-semibold">
-              <span className="flex items-center gap-2 truncate max-w-lg">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Query: "{currentQueryText}"
+              <span className="flex items-center gap-2.5 truncate max-w-lg">
+                <ProgressCircle
+                  value={(progressCount / 50) * 100}
+                  size={22}
+                  strokeWidth={3}
+                  indicatorClassName="text-emerald-600"
+                  trackClassName="text-emerald-200"
+                />
+                <span className="truncate">
+                  Query {progressCount}/50: "{currentQueryText}"
+                </span>
               </span>
               <span className="font-extrabold text-emerald-700">
                 {liveLastMs ? `${liveLastMs.toFixed(1)} ms` : '—'}
               </span>
             </div>
-            <div className="w-full h-2 rounded-full bg-emerald-200 overflow-hidden">
-              <motion.div
-                className="h-full bg-emerald-600 rounded-full"
-                style={{ width: `${(progressCount / 50) * 100}%` }}
-                transition={{ duration: 0.05 }}
-              />
-            </div>
+            <Progress
+              value={(progressCount / 50) * 100}
+              className="h-2 bg-emerald-200"
+              indicatorClassName="bg-emerald-600"
+            />
           </motion.div>
         )}
 
