@@ -40,6 +40,10 @@ export interface IDCardLanyardProps {
 
 const CSS = `
 .idcl-root{
+  position:relative;
+  width:100%;
+  height:100%;
+  min-height:580px;
   --idcl-ink-faint:#5b6270;
   --idcl-accent:#5b8cff;
   --idcl-accent-dim:#2f4488;
@@ -59,6 +63,8 @@ const CSS = `
 .idcl-stage{
   position:var(--idcl-position, fixed);
   inset:0;
+  width:100%;
+  height:100%;
   z-index:var(--idcl-z, 60);
   pointer-events:none;
   overflow:visible;
@@ -308,10 +314,12 @@ export function IDCardLanyard({
     // anchor is resolved against the scene rect ("50%", "120px", or "calc(100% - 130px)")
     function resolveAnchorX() {
       const rect = scene!.getBoundingClientRect();
+      const parentRect = scene!.parentElement ? scene!.parentElement.getBoundingClientRect() : null;
+      const sceneW = rect.width > 0 ? rect.width : (parentRect && parentRect.width > 0 ? parentRect.width : (window.innerWidth || 320));
       const v = anchorX.trim();
       const calcMatch = v.match(/^calc\(\s*100%\s*-\s*([\d.]+)px\s*\)$/);
-      if (calcMatch) return rect.width - parseFloat(calcMatch[1]);
-      if (v.endsWith("%")) return rect.width * (parseFloat(v) / 100);
+      if (calcMatch) return sceneW - parseFloat(calcMatch[1]);
+      if (v.endsWith("%")) return sceneW * (parseFloat(v) / 100);
       return parseFloat(v);
     }
 
@@ -319,11 +327,25 @@ export function IDCardLanyard({
 
     function resize() {
       const rect = scene!.getBoundingClientRect();
-      canvas!.width = rect.width;
-      canvas!.height = rect.height;
+      const parentRect = scene!.parentElement ? scene!.parentElement.getBoundingClientRect() : null;
+      const w = rect.width > 0 ? rect.width : (parentRect && parentRect.width > 0 ? parentRect.width : (window.innerWidth || 320));
+      const h = rect.height > 0 ? rect.height : (parentRect && parentRect.height > 0 ? parentRect.height : 600);
+
+      canvas!.width = w;
+      canvas!.height = h;
+
+      const prevAnchorX = anchor.x;
       anchor.x = resolveAnchorX();
       rail!.style.left = anchor.x + "px";
       rail!.style.top = anchor.y - 3 + "px";
+
+      if (points.length > 0 && Math.abs(prevAnchorX - anchor.x) > 5) {
+        const dx = anchor.x - (points[0].x || prevAnchorX);
+        for (let i = 0; i < points.length; i++) {
+          points[i].x += dx;
+          points[i].oldx += dx;
+        }
+      }
     }
     resize();
 
@@ -338,9 +360,11 @@ export function IDCardLanyard({
 
     type Pt = { x: number; y: number; oldx: number; oldy: number; pinned: boolean };
     const points: Pt[] = [];
+    const initX = anchor.x || (window.innerWidth ? window.innerWidth / 2 : 200);
+    anchor.x = initX;
     for (let i = 0; i < NUM_POINTS; i++) {
       const y = anchor.y + i * SEGMENT_LENGTH;
-      points.push({ x: anchor.x, y, oldx: anchor.x, oldy: y, pinned: i === 0 });
+      points.push({ x: initX, y, oldx: initX, oldy: y, pinned: i === 0 });
     }
 
     let dragging = false;
@@ -363,8 +387,10 @@ export function IDCardLanyard({
 
     function clampToScene(p: { x: number; y: number }) {
       const margin = 18;
-      p.x = Math.max(margin, Math.min(canvas!.width - margin, p.x));
-      p.y = Math.max(anchor.y + 20, Math.min(canvas!.height - 30, p.y));
+      const boundW = canvas && canvas.width > 50 ? canvas.width : 500;
+      const boundH = canvas && canvas.height > 100 ? canvas.height : 650;
+      p.x = Math.max(margin, Math.min(boundW - margin, p.x));
+      p.y = Math.max(anchor.y + 20, Math.min(boundH - 30, p.y));
       return p;
     }
 
@@ -606,10 +632,17 @@ export function IDCardLanyard({
     window.addEventListener("resize", onResize);
     document.addEventListener("pointerout", onPointerOut);
 
+    const ro = new ResizeObserver(() => {
+      resize();
+    });
+    ro.observe(scene);
+    if (scene.parentElement) ro.observe(scene.parentElement);
+
     loop();
 
     return () => {
       cancelAnimationFrame(raf);
+      ro.disconnect();
       card.removeEventListener("pointerdown", onCardDown);
       window.removeEventListener("pointermove", onWindowMove);
       window.removeEventListener("pointerup", onWindowUp);
