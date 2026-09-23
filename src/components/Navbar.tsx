@@ -4,8 +4,6 @@ import {
   Menu,
   X,
   Zap,
-  Volume2,
-  VolumeX,
   Layers,
   FileText,
   BarChart3,
@@ -25,6 +23,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { PulseLogo } from './PulseLogo';
+import { PopButton } from './ui/pop-button';
 import { cn } from '@/lib/utils';
 import { EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
 
@@ -412,46 +411,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Right Action Suite: Audio Toggle, Launch CTA */}
-          <div className="flex items-center gap-2.5">
-
-            {/* Voice Audio Mute Toggle Button */}
-            <button
-              onClick={onToggleAudioFeedback}
-              title={audioFeedbackEnabled ? 'Mute Voice Agent Audio' : 'Unmute Voice Agent Audio'}
-              className={cn(
-                'px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all',
-                audioFeedbackEnabled
-                  ? 'bg-slate-900 hover:bg-slate-800 border-slate-900 text-white shadow-2xs'
-                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600'
-              )}
-            >
-              {audioFeedbackEnabled ? (
-                <>
-                  <Volume2 className="w-3.5 h-3.5 text-rose-400" />
-                  <span className="text-[11px] font-mono hidden md:inline">Voice: ON</span>
-                </>
-              ) : (
-                <>
-                  <VolumeX className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-[11px] font-mono hidden md:inline">Voice: OFF</span>
-                </>
-              )}
-            </button>
-
-            {/* Primary Action Button: Launch Emergency Console */}
-            <button
+          {/* Right Action Suite: Launch CTA */}
+          <div className="flex items-center gap-3">
+            {/* Primary Action Button: VengeanceUI PopButton */}
+            <PopButton
               onClick={() => handleNavTab('console')}
+              variant="default"
+              size="default"
               className={cn(
-                'px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all',
-                activeTab === 'console'
-                  ? 'bg-rose-600 text-white ring-2 ring-rose-500/30 shadow-md shadow-rose-600/20'
-                  : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20'
+                'whitespace-nowrap shrink-0 my-auto -translate-y-[1px]',
+                activeTab === 'console' && 'ring-2 ring-[#b18597]/70'
               )}
             >
-              <Radio className="w-3.5 h-3.5 text-white animate-pulse" />
+              <Radio className="w-3.5 h-3.5 text-[#b18597] group-hover:text-[#881337] transition-colors animate-pulse shrink-0" />
               <span>Launch Console</span>
-            </button>
+            </PopButton>
 
             {/* Mobile Hamburger Menu Toggle */}
             <button
