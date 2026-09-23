@@ -242,16 +242,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={() => setOpenMenu(openMenu === 'features' ? null : 'features')}
                 className={cn(
-                  'flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer',
+                  'flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer whitespace-nowrap shrink-0',
                   openMenu === 'features'
                     ? 'bg-slate-100 text-slate-900'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 )}
               >
-                <span>Features</span>
+                <span className="whitespace-nowrap">Features</span>
                 <ChevronDown
                   className={cn(
-                    'w-3.5 h-3.5 opacity-60 transition-transform duration-200',
+                    'w-3.5 h-3.5 opacity-60 transition-transform duration-200 shrink-0',
                     openMenu === 'features' && 'rotate-180'
                   )}
                 />
@@ -315,16 +315,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={() => setOpenMenu(openMenu === 'scenarios' ? null : 'scenarios')}
                 className={cn(
-                  'flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer',
+                  'flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer whitespace-nowrap shrink-0',
                   openMenu === 'scenarios'
                     ? 'bg-slate-100 text-slate-900'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 )}
               >
-                <span>Scenarios</span>
+                <span className="whitespace-nowrap">Scenarios</span>
                 <ChevronDown
                   className={cn(
-                    'w-3.5 h-3.5 opacity-60 transition-transform duration-200',
+                    'w-3.5 h-3.5 opacity-60 transition-transform duration-200 shrink-0',
                     openMenu === 'scenarios' && 'rotate-180'
                   )}
                 />
@@ -373,60 +373,47 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => handleNavTab('benchmark')}
               className={cn(
-                'px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5',
+                'px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0',
                 activeTab === 'benchmark'
                   ? 'bg-rose-50 text-rose-700 font-bold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
               )}
             >
-              <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              <span>Benchmarks</span>
+              <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+              <span className="whitespace-nowrap">Benchmarks</span>
             </button>
 
             {/* Architecture Tab Link */}
             <button
               onClick={() => handleNavTab('architecture')}
               className={cn(
-                'px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5',
+                'px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0',
                 activeTab === 'architecture'
                   ? 'bg-rose-50 text-rose-700 font-bold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
               )}
             >
-              <Layers className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Architecture</span>
+              <Layers className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <span className="whitespace-nowrap">Architecture</span>
             </button>
 
             {/* Product Spec Tab Link */}
             <button
               onClick={() => handleNavTab('prd')}
               className={cn(
-                'px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5',
+                'px-3.5 py-2 text-sm font-semibold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0',
                 activeTab === 'prd'
                   ? 'bg-rose-50 text-rose-700 font-bold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
               )}
             >
-              <FileText className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Product Spec</span>
+              <FileText className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="whitespace-nowrap">Product Spec</span>
             </button>
           </nav>
 
-          {/* Right Action Suite: Telemetry Pill, Audio Toggle, Launch CTA */}
+          {/* Right Action Suite: Audio Toggle, Launch CTA */}
           <div className="flex items-center gap-2.5">
-            {/* Live Moss WASM Latency Readout Pill */}
-            <div className="hidden xl:inline-flex items-center gap-1.5 bg-emerald-50/90 border border-emerald-200/80 px-2.5 py-1 rounded-lg font-mono text-xs shadow-2xs">
-              <span className="text-emerald-800 flex items-center gap-1 font-semibold">
-                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                Moss:
-              </span>
-              <span className="text-emerald-700 font-extrabold tabular-nums">
-                {latencyMs != null ? `${latencyMs.toFixed(1)}ms` : '3.8ms'}
-              </span>
-              <span className="text-[9px] uppercase px-1 py-0.2 bg-emerald-600 text-white rounded font-bold">
-                WASM
-              </span>
-            </div>
 
             {/* Voice Audio Mute Toggle Button */}
             <button
