@@ -32,6 +32,7 @@ import { HeroSection } from '@/components/ui/hero-section';
 import { Icons } from '@/components/ui/icons';
 import { AsciiGlitchRipple } from '@/components/ui/ascii-glitch-ripple';
 import { Progress } from '@/components/ui/progress';
+import { IDCardLanyard } from '@/components/ui/id-card-lanyard';
 import { mossEngine } from '../engine/mossEngine';
 import { audioService } from '../engine/speechSimulation';
 
@@ -682,6 +683,50 @@ export const LandingView: React.FC<LandingViewProps> = ({
             </div>
             <ExternalLink className="w-4 h-4 text-slate-400" />
           </a>
+        </div>
+      </section>
+
+      {/* 7. DISPATCHER ID CARD LANYARD */}
+      <section className="relative min-h-[600px] lg:min-h-[640px] w-full rounded-3xl bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border border-slate-800 shadow-xl overflow-hidden flex flex-col justify-between p-4 sm:p-6">
+        {/* Subtle grid background */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b10_1px,transparent_1px),linear-gradient(to_bottom,#1e293b10_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+
+        <div className="relative z-10 flex items-center justify-between text-xs font-mono text-slate-400 border-b border-slate-800/80 pb-3">
+          <span className="flex items-center gap-2 font-bold text-slate-200">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            P911-CREDENTIAL-AHA // OFFICIAL DISPATCHER BADGE
+          </span>
+          <span className="flex items-center gap-1.5 text-emerald-400 text-[11px] font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            VERIFIED OPERATOR &bull; ACTIVE
+          </span>
+        </div>
+
+        {/* Lanyard Physics Component */}
+        <div className="relative flex-1 w-full flex items-center justify-center">
+          <IDCardLanyard
+            name="Jay Gopal"
+            role="Lead Systems Engineer"
+            brand="PULSE 911"
+            brandTagline="Zero-Latency Dispatch"
+            pillars={["Sub-10ms Retrieval", "Deterministic AHA", "Acoustic CPR"]}
+            location="San Francisco, CA"
+            idNumber="P911-2026-HQ"
+            validThru="12/2029"
+            avatarUrl="https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=400&q=80"
+            site="pulse911.org/ops"
+            githubUrl="https://github.com/j4yop/pulse911"
+            linkedinUrl="https://linkedin.com"
+            emailUrl="mailto:dispatch@pulse911.org"
+            anchorX="50%"
+            anchorY={12}
+            positionMode="absolute"
+            showHint={true}
+          />
+        </div>
+
+        <div className="relative z-10 text-center font-mono text-[11px] text-slate-500 pt-3 border-t border-slate-800/80">
+          DRAG ROPE TO SWING &bull; CLICK BADGE TO ROTATE 180&deg; FOR QR &amp; DIRECT CONTACT
         </div>
       </section>
     </div>
