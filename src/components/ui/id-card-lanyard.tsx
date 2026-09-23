@@ -18,6 +18,8 @@ export interface IDCardLanyardProps {
   validThru?: string;
   /** Profile photo image URL (Unsplash stock or custom avatar). */
   avatarUrl?: string;
+  /** Custom CSS object-position for photo cropping (e.g. "center 25%"). Defaults to "center 22%". */
+  avatarObjectPosition?: string;
   /** URL/label shown next to the back-face QR code. */
   site?: string;
   /** Social links shown as small icon buttons on the back face. Omit any you don't want rendered. */
@@ -40,6 +42,10 @@ export interface IDCardLanyardProps {
 
 const CSS = `
 .idcl-root{
+  position:relative;
+  width:100%;
+  height:100%;
+  min-height:580px;
   --idcl-ink-faint:#5b6270;
   --idcl-accent:#5b8cff;
   --idcl-accent-dim:#2f4488;
@@ -59,6 +65,8 @@ const CSS = `
 .idcl-stage{
   position:var(--idcl-position, fixed);
   inset:0;
+  width:100%;
+  height:100%;
   z-index:var(--idcl-z, 60);
   pointer-events:none;
   overflow:visible;
@@ -145,7 +153,7 @@ const CSS = `
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.08), inset 0 2px 6px rgba(0,0,0,.12);
 }
 .idcl-photo svg{ width:100%; height:100%; display:block; }
-.idcl-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
+.idcl-photo img{ width:100%; height:100%; object-fit:cover; object-position:var(--idcl-avatar-pos, center 22%); display:block; }
 .idcl-verified{
   position:absolute; right:-6px; bottom:-6px; width:22px; height:22px; border-radius:50%;
   background:linear-gradient(160deg, var(--idcl-accent), var(--idcl-accent-dim));
@@ -224,20 +232,21 @@ const CSS = `
 `;
 
 export function IDCardLanyard({
-  name = "Maya Chen",
-  role = "Creative Developer",
-  brand = "MAYA CHEN",
-  brandTagline = "Creative Dev Studio",
-  pillars = ["Design", "Code", "Ship"],
-  location = "Brooklyn, NY",
-  idNumber = "MC-042019",
+  name = "Jay Gopal",
+  role = "Lead Systems Engineer",
+  brand = "PULSE 911",
+  brandTagline = "Zero-Latency Dispatch",
+  pillars = ["Sub-10ms Retrieval", "Deterministic AHA", "Acoustic CPR"],
+  location = "VIT Chennai",
+  idNumber = "P911-2026-HQ",
   validThru = "12/2029",
   avatarUrl,
-  site = "mayachen.dev/work",
-  githubUrl,
-  linkedinUrl,
+  avatarObjectPosition = "center 32%",
+  site = "github.com/j4yop",
+  githubUrl = "https://github.com/j4yop",
+  linkedinUrl = "https://www.linkedin.com/in/jaygopaltripathy",
   instagramUrl,
-  emailUrl,
+  emailUrl = "mailto:jay20gopal@gmail.com",
   anchorX = "calc(100% - 130px)",
   anchorY = 6,
   zIndex = 60,
@@ -308,24 +317,16 @@ export function IDCardLanyard({
     // anchor is resolved against the scene rect ("50%", "120px", or "calc(100% - 130px)")
     function resolveAnchorX() {
       const rect = scene!.getBoundingClientRect();
+      const parentRect = scene!.parentElement ? scene!.parentElement.getBoundingClientRect() : null;
+      const sceneW = rect.width > 0 ? rect.width : (parentRect && parentRect.width > 0 ? parentRect.width : (window.innerWidth || 320));
       const v = anchorX.trim();
       const calcMatch = v.match(/^calc\(\s*100%\s*-\s*([\d.]+)px\s*\)$/);
-      if (calcMatch) return rect.width - parseFloat(calcMatch[1]);
-      if (v.endsWith("%")) return rect.width * (parseFloat(v) / 100);
+      if (calcMatch) return sceneW - parseFloat(calcMatch[1]);
+      if (v.endsWith("%")) return sceneW * (parseFloat(v) / 100);
       return parseFloat(v);
     }
 
     const anchor = { x: resolveAnchorX(), y: anchorY };
-
-    function resize() {
-      const rect = scene!.getBoundingClientRect();
-      canvas!.width = rect.width;
-      canvas!.height = rect.height;
-      anchor.x = resolveAnchorX();
-      rail!.style.left = anchor.x + "px";
-      rail!.style.top = anchor.y - 3 + "px";
-    }
-    resize();
 
     const NUM_POINTS = 13;
     const REST_LENGTH = 140;
@@ -338,10 +339,37 @@ export function IDCardLanyard({
 
     type Pt = { x: number; y: number; oldx: number; oldy: number; pinned: boolean };
     const points: Pt[] = [];
+    const initX = anchor.x || (typeof window !== "undefined" && window.innerWidth ? window.innerWidth / 2 : 200);
+    anchor.x = initX;
     for (let i = 0; i < NUM_POINTS; i++) {
       const y = anchor.y + i * SEGMENT_LENGTH;
-      points.push({ x: anchor.x, y, oldx: anchor.x, oldy: y, pinned: i === 0 });
+      points.push({ x: initX, y, oldx: initX, oldy: y, pinned: i === 0 });
     }
+
+    function resize() {
+      if (!scene || !canvas || !rail) return;
+      const rect = scene.getBoundingClientRect();
+      const parentRect = scene.parentElement ? scene.parentElement.getBoundingClientRect() : null;
+      const w = rect.width > 0 ? rect.width : (parentRect && parentRect.width > 0 ? parentRect.width : (typeof window !== "undefined" ? window.innerWidth || 320 : 320));
+      const h = rect.height > 0 ? rect.height : (parentRect && parentRect.height > 0 ? parentRect.height : 600);
+
+      canvas.width = w;
+      canvas.height = h;
+
+      const prevAnchorX = anchor.x;
+      anchor.x = resolveAnchorX();
+      rail.style.left = anchor.x + "px";
+      rail.style.top = anchor.y - 3 + "px";
+
+      if (points && points.length > 0 && Math.abs(prevAnchorX - anchor.x) > 5) {
+        const dx = anchor.x - (points[0]?.x ?? prevAnchorX);
+        for (let i = 0; i < points.length; i++) {
+          points[i].x += dx;
+          points[i].oldx += dx;
+        }
+      }
+    }
+    resize();
 
     let dragging = false;
     let flipped = false;
@@ -363,8 +391,10 @@ export function IDCardLanyard({
 
     function clampToScene(p: { x: number; y: number }) {
       const margin = 18;
-      p.x = Math.max(margin, Math.min(canvas!.width - margin, p.x));
-      p.y = Math.max(anchor.y + 20, Math.min(canvas!.height - 30, p.y));
+      const boundW = canvas && canvas.width > 50 ? canvas.width : 500;
+      const boundH = canvas && canvas.height > 100 ? canvas.height : 650;
+      p.x = Math.max(margin, Math.min(boundW - margin, p.x));
+      p.y = Math.max(anchor.y + 20, Math.min(boundH - 30, p.y));
       return p;
     }
 
@@ -548,13 +578,19 @@ export function IDCardLanyard({
     }
 
     let raf = 0;
+    let isCancelled = false;
     function loop() {
-      updatePoints();
-      applyConstraints();
-      drawRope();
-      drawClip();
-      positionCard();
-      updateTiltAndSheen();
+      if (isCancelled) return;
+      try {
+        updatePoints();
+        applyConstraints();
+        drawRope();
+        drawClip();
+        positionCard();
+        updateTiltAndSheen();
+      } catch (err) {
+        console.error("IDCardLanyard render loop error:", err);
+      }
       raf = requestAnimationFrame(loop);
     }
 
@@ -563,7 +599,9 @@ export function IDCardLanyard({
       e.preventDefault();
       dragging = true;
       setInteracted(true);
-      card!.setPointerCapture(e.pointerId);
+      try {
+        card!.setPointerCapture(e.pointerId);
+      } catch {}
       const pos = clampToScene(getScenePos(e));
       pointer = pos;
       lastPointer = pos;
@@ -581,6 +619,11 @@ export function IDCardLanyard({
     const onWindowUp = (e: PointerEvent) => {
       if (!dragging) return;
       dragging = false;
+      try {
+        if (card!.hasPointerCapture(e.pointerId)) {
+          card!.releasePointerCapture(e.pointerId);
+        }
+      } catch {}
       const pos = getScenePos(e);
       const dist = Math.hypot(pos.x - downPos.x, pos.y - downPos.y);
       if (dist < TAP_THRESHOLD) {
@@ -606,10 +649,18 @@ export function IDCardLanyard({
     window.addEventListener("resize", onResize);
     document.addEventListener("pointerout", onPointerOut);
 
+    const ro = new ResizeObserver(() => {
+      resize();
+    });
+    ro.observe(scene);
+    if (scene.parentElement) ro.observe(scene.parentElement);
+
     loop();
 
     return () => {
+      isCancelled = true;
       cancelAnimationFrame(raf);
+      ro.disconnect();
       card.removeEventListener("pointerdown", onCardDown);
       window.removeEventListener("pointermove", onWindowMove);
       window.removeEventListener("pointerup", onWindowUp);
@@ -664,7 +715,8 @@ export function IDCardLanyard({
                     src={avatarUrl}
                     alt={name}
                     className="w-full h-full object-cover"
-                    loading="lazy"
+                    style={{ objectPosition: avatarObjectPosition }}
+                    loading="eager"
                   />
                 ) : (
                   <svg viewBox="0 0 182 100" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
