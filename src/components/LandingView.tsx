@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'motion/react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Activity,
   Zap,
@@ -20,10 +20,17 @@ import {
   Cpu,
   Volume2,
   ExternalLink,
+  Play,
+  Pause,
+  AlertTriangle,
+  Flame,
+  Search,
 } from 'lucide-react';
-import { EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
-import { EmergencyScenario } from '../types';
+import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
+import { EmergencyScenario, MossQueryResult } from '../types';
 import { PulseLogo } from './PulseLogo';
+import { mossEngine } from '../engine/mossEngine';
+import { audioService } from '../engine/speechSimulation';
 
 interface LandingViewProps {
   onLaunchConsole: (scenario?: EmergencyScenario) => void;
@@ -36,23 +43,75 @@ export const LandingView: React.FC<LandingViewProps> = ({
   onNavigateTab,
   latencyMs,
 }) => {
+  // Interactive Sandbox state
+  const [sandboxQuery, setSandboxQuery] = useState('adult cardiac arrest no pulse gasping');
+  const [sandboxResult, setSandboxResult] = useState<MossQueryResult | null>(null);
+  const [isSandboxQuerying, setIsSandboxQuerying] = useState(false);
+
+  // Audio Latency Simulator state
+  const [activeAudioSim, setActiveAudioSim] = useState<'cloud' | 'pulse911' | null>(null);
+
+  // Metronome preview state
+  const [isMetronomePreviewing, setIsMetronomePreviewing] = useState(false);
+
+  const handleRunSandboxQuery = async (queryText: string) => {
+    setIsSandboxQuerying(true);
+    setSandboxQuery(queryText);
+    const res = await mossEngine.query(queryText);
+    setSandboxResult(res);
+    setIsSandboxQuerying(false);
+  };
+
+  const handleSimulateAudioLatency = async (type: 'cloud' | 'pulse911') => {
+    setActiveAudioSim(type);
+    audioService.playRadioChirp();
+
+    if (type === 'cloud') {
+      // Simulate awkward 610ms cloud delay
+      await new Promise((r) => setTimeout(r, 610));
+      audioService.speakVerbalInstruction(
+        'Start chest compressions immediately in center of chest at 110 beats per minute.'
+      );
+    } else {
+      // Instant sub-260ms response
+      await new Promise((r) => setTimeout(r, 120));
+      audioService.speakVerbalInstruction(
+        'Place hands center of chest. Push hard and fast at 110 beats per minute.'
+      );
+    }
+
+    setTimeout(() => {
+      setActiveAudioSim(null);
+    }, 4500);
+  };
+
+  const toggleMetronomePreview = () => {
+    if (isMetronomePreviewing) {
+      audioService.stopCprMetronome();
+      setIsMetronomePreviewing(false);
+    } else {
+      audioService.startCprMetronome(110);
+      setIsMetronomePreviewing(true);
+    }
+  };
+
   return (
-    <div className="space-y-16 pb-12 max-w-[1400px] mx-auto">
+    <div className="space-y-16 pb-16 max-w-[1400px] mx-auto font-sans">
       {/* 1. HERO SECTION */}
-      <section className="relative pt-6 sm:pt-12 text-center space-y-6">
+      <section className="relative pt-6 sm:pt-10 text-center space-y-6">
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.88 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4 }}
-          className="flex justify-center mb-2"
+          transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+          className="flex justify-center mb-1"
         >
-          <PulseLogo size={58} />
+          <PulseLogo size={58} animated={true} />
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.05 }}
+          transition={{ duration: 0.35, delay: 0.05 }}
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-bold font-mono shadow-xs"
         >
           <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
@@ -60,10 +119,10 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </motion.div>
 
         <motion.h1
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-slate-900 max-w-5xl mx-auto leading-[1.08] font-sans"
+          transition={{ duration: 0.45, delay: 0.1 }}
+          className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-slate-900 max-w-5xl mx-auto leading-[1.06]"
         >
           When Seconds Save Lives,{' '}
           <span className="bg-gradient-to-r from-rose-600 via-rose-500 to-amber-600 bg-clip-text text-transparent">
@@ -73,10 +132,10 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </motion.h1>
 
         <motion.p
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="text-base sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-sans"
+          transition={{ duration: 0.45, delay: 0.18 }}
+          className="text-base sm:text-lg lg:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed"
         >
           <strong className="text-slate-900 font-bold">Pulse911</strong> is the zero-latency emergency dispatch copilot powered by{' '}
           <strong className="text-slate-900 font-bold">Moss (YC F25)</strong> in-process WASM semantic retrieval. Grounded in verified AHA & CDC clinical protocols, delivering spoken resuscitation guidance under the 300ms human panic window.
@@ -84,10 +143,10 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
         {/* Hero CTA Buttons */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="flex flex-wrap items-center justify-center gap-4 pt-2"
+          transition={{ duration: 0.45, delay: 0.25 }}
+          className="flex flex-wrap items-center justify-center gap-4 pt-1"
         >
           <button
             onClick={() => onLaunchConsole()}
@@ -107,12 +166,12 @@ export const LandingView: React.FC<LandingViewProps> = ({
           </button>
         </motion.div>
 
-        {/* Key Metrics Capsule Ribbon */}
+        {/* Metric Capsules */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto pt-6 text-left"
+          transition={{ duration: 0.45, delay: 0.32 }}
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 max-w-4xl mx-auto pt-4 text-left"
         >
           <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xs">
             <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block">Moss WASM Retrieval</span>
@@ -122,7 +181,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
               </span>
               <span className="text-xs font-mono font-bold text-slate-500">ms</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1 font-sans">Zero network roundtrip</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Zero network roundtrip</p>
           </div>
 
           <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xs">
@@ -131,7 +190,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
               <span className="text-2xl font-black text-slate-900 font-mono">&lt; 300</span>
               <span className="text-xs font-mono font-bold text-slate-500">ms</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1 font-sans">Conversational ceiling</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Conversational ceiling</p>
           </div>
 
           <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xs">
@@ -139,7 +198,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-2xl font-black text-slate-900 font-mono">100%</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1 font-sans">AHA & CDC Grounded</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">AHA & CDC Grounded</p>
           </div>
 
           <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xs">
@@ -147,24 +206,57 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-2xl font-black text-indigo-600 font-mono">Auto</span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1 font-sans">ALS Paramedic Dispatch</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">ALS Paramedic Dispatch</p>
           </div>
         </motion.div>
       </section>
 
-      {/* 2. THE 300MS BIOLOGICAL LATENCY PROBLEM */}
+      {/* 2. THE 300MS BIOLOGICAL LATENCY PROBLEM & AUDIO SIMULATOR */}
       <section className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-10 shadow-xs space-y-8">
-        <div className="max-w-3xl space-y-2">
-          <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-rose-600 uppercase tracking-wider">
-            <Clock className="w-3.5 h-3.5" />
-            The Biological Constraint
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-2">
+          <div className="max-w-2xl space-y-2">
+            <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-rose-600 uppercase tracking-wider">
+              <Clock className="w-3.5 h-3.5" />
+              The Biological Constraint
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+              Why 911 Voice AI Fails with Standard Cloud RAG
+            </h2>
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+              In high-stress medical emergencies, human conversational pause tolerance collapses to <strong>300ms</strong>. If an AI takes longer to respond, the panicked caller talks over the assistant or hangs up.
+            </p>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-            Why 911 Voice AI Fails with Standard Cloud RAG
-          </h2>
-          <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-            In high-stress medical emergencies, human conversational pause tolerance collapses to <strong>300ms</strong>. If an AI takes longer to respond, the panicked caller talks over the assistant or hangs up.
-          </p>
+
+          {/* Interactive Audio Simulator Buttons */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 shrink-0">
+            <span className="text-xs font-mono font-bold text-slate-700 block">
+              Audio Turn-Taking A/B Test:
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => handleSimulateAudioLatency('cloud')}
+                disabled={activeAudioSim !== null}
+                className="px-3.5 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 font-mono text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
+              >
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                <span>Hear 610ms Cloud Delay</span>
+              </button>
+
+              <button
+                onClick={() => handleSimulateAudioLatency('pulse911')}
+                disabled={activeAudioSim !== null}
+                className="px-3.5 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-mono text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <span>Hear 264ms Pulse911</span>
+              </button>
+            </div>
+            {activeAudioSim && (
+              <span className="text-[11px] font-mono text-slate-500 block animate-pulse">
+                Playing simulation audio through Web Audio...
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Latency Comparison Bars */}
@@ -172,8 +264,12 @@ export const LandingView: React.FC<LandingViewProps> = ({
           {/* Legacy Cloud RAG Pipeline (FAILED) */}
           <div className="p-6 rounded-2xl bg-rose-50/50 border border-rose-200 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-bold text-rose-700 uppercase tracking-wider">Legacy Cloud RAG (Pinecone / Milvus)</span>
-              <span className="text-xs font-mono font-bold text-rose-600 px-2 py-0.5 rounded-md bg-rose-100">510–750 ms ❌ BREACHED</span>
+              <span className="text-xs font-mono font-bold text-rose-700 uppercase tracking-wider">
+                Legacy Cloud RAG (Pinecone / Milvus)
+              </span>
+              <span className="text-xs font-mono font-bold text-rose-600 px-2 py-0.5 rounded-md bg-rose-100">
+                510–750 ms ❌ BREACHED
+              </span>
             </div>
             <p className="text-xs text-slate-600">
               Cloud network roundtrip alone takes 250–450ms, breaching human conversational rhythm and causing talkover confusion.
@@ -200,8 +296,12 @@ export const LandingView: React.FC<LandingViewProps> = ({
           {/* Pulse911 Moss In-Process Pipeline (WINNING) */}
           <div className="p-6 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-bold text-emerald-800 uppercase tracking-wider">Pulse911 + Moss In-Memory WASM</span>
-              <span className="text-xs font-mono font-bold text-emerald-700 px-2 py-0.5 rounded-md bg-emerald-100">264 ms ✅ INSTANT</span>
+              <span className="text-xs font-mono font-bold text-emerald-800 uppercase tracking-wider">
+                Pulse911 + Moss In-Memory WASM
+              </span>
+              <span className="text-xs font-mono font-bold text-emerald-700 px-2 py-0.5 rounded-md bg-emerald-100">
+                264 ms ✅ INSTANT
+              </span>
             </div>
             <p className="text-xs text-slate-600">
               Colocated WASM retrieval delivers semantic protocol lookup in <strong>3.8ms</strong>, comfortably fitting within the 300ms ceiling.
@@ -227,99 +327,231 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </div>
       </section>
 
-      {/* 3. INPUT -> INTELLIGENCE -> OUTPUT (Explaining the system) */}
-      <section className="space-y-8">
+      {/* 3. LIVE IN-BROWSER MOSS WASM QUERY SANDBOX */}
+      <section className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-10 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-indigo-700 uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              Interactive In-Browser Vector Engine
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 mt-1">
+              Test Moss Semantic Retrieval Live
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Type any emergency complaint or click sample symptoms to measure real-time in-process query execution.
+            </p>
+          </div>
+
+          {sandboxResult && (
+            <div className="bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full text-xs font-mono font-bold text-emerald-800 flex items-center gap-1.5 shadow-2xs self-start sm:self-auto">
+              <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+              <span>Query Latency: {sandboxResult.latencyMs.toFixed(2)} ms</span>
+            </div>
+          )}
+        </div>
+
+        {/* Query Input Box */}
+        <div className="flex flex-col sm:flex-row items-stretch gap-2.5">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={sandboxQuery}
+              onChange={(e) => setSandboxQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleRunSandboxQuery(sandboxQuery)}
+              placeholder="Describe emergency (e.g., chest pain, baby choking, facial droop)..."
+              className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans shadow-inner"
+            />
+          </div>
+
+          <button
+            onClick={() => handleRunSandboxQuery(sandboxQuery)}
+            disabled={isSandboxQuerying}
+            className="px-6 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
+          >
+            {isSandboxQuerying ? (
+              <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
+            )}
+            <span>Execute Vector Query</span>
+          </button>
+        </div>
+
+        {/* Quick Symptom Chips */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <span className="text-xs font-mono font-semibold text-slate-400">Try Quick Symptoms:</span>
+          {[
+            { label: 'Chest Compressions 110 BPM', q: 'adult cardiac arrest chest compressions 110 bpm' },
+            { label: 'Baby Turning Blue', q: '9 month old infant choking not breathing back blows' },
+            { label: 'Facial Droop & Slur', q: 'sudden facial droop slurred speech arm drift stroke' },
+            { label: 'Throat Swelling & Hives', q: 'peanut anaphylactic shock airway closing epipen' },
+            { label: 'Unresponsive Overdose', q: 'fentanyl overdose blue lips narcan nasal spray' },
+          ].map((chip) => (
+            <button
+              key={chip.label}
+              onClick={() => handleRunSandboxQuery(chip.q)}
+              className="px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200/80 text-slate-700 text-xs font-medium transition-all cursor-pointer"
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Query Result Card */}
+        <AnimatePresence mode="wait">
+          {sandboxResult && (
+            <motion.div
+              key={sandboxResult.protocol.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-3 text-xs"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-emerald-800 font-bold uppercase text-[11px]">
+                    Matched AHA Clinical Protocol:
+                  </span>
+                  <span className="font-extrabold text-slate-900 text-sm">
+                    {sandboxResult.protocol.title}
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                    {sandboxResult.protocol.triageLevel}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 font-mono text-slate-500">
+                  <span>Confidence: {(sandboxResult.score * 100).toFixed(1)}%</span>
+                  <span>&bull;</span>
+                  <span className="text-emerald-700 font-bold">{sandboxResult.latencyMs.toFixed(2)} ms</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-mono font-bold text-slate-400 uppercase">
+                  Immediate Spoken Voice Instruction:
+                </span>
+                <p className="text-sm font-semibold text-slate-900 leading-snug">
+                  "{sandboxResult.protocol.verbalResponseText}"
+                </p>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  onClick={() => onLaunchConsole()}
+                  className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer font-sans"
+                >
+                  <span>Open Full Cockpit with Metronome & Paramedic CAD</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+
+      {/* 4. BENTO GRID OF CORE INNOVATIONS */}
+      <section className="space-y-6">
         <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider">
-            System Architecture Overview
+          <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+            High-Stakes Clinical Architecture
           </span>
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-            How Pulse911 Works: Input to Output
+            Engineered for Zero Latency
           </h2>
-          <p className="text-sm text-slate-500">
-            Real-time audio processing designed from scratch for high-stakes clinical triage.
+          <p className="text-xs sm:text-sm text-slate-500">
+            Four interlocking systems ensuring determinism, acoustic synchronization, and sub-10ms response.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1: Input */}
-          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-4 hover:border-slate-300 transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 font-black text-lg font-mono">
-              01
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Bento 1: In-Process WASM */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs space-y-3 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">In-Process Moss Core</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Runs vector indexing directly inside the client process via WebAssembly. Zero network hops, zero cloud cold starts.
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-slate-900">1. Real-Time Voice Input</h3>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Accepts live caller audio via browser microphone or telecom audio stream. Ingests panicked, fragmented speech and converts to text via continuous speech recognition.
-            </p>
-            <ul className="text-xs text-slate-500 space-y-1.5 font-mono">
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                Live Web Speech & Audio API
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                Continuous streaming transcript
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                Ambient audio oscilloscope
-              </li>
-            </ul>
+            <div className="text-[11px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-xl w-fit">
+              3.8ms Average Latency
+            </div>
           </div>
 
-          {/* Card 2: Intelligence */}
-          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-4 hover:border-slate-300 transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 font-black text-lg font-mono">
-              02
+          {/* Bento 2: 110 BPM Metronome */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs space-y-3 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
+                <Heart className="w-5 h-5 animate-pulse" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">110 BPM Metronome</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Acoustic CPR rhythm synthesizer calibrated to AHA guideline pacing, keeping rescuers in the resuscitation pocket.
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-slate-900">2. Moss In-Memory Retrieval</h3>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Queries the colocated Moss WASM engine with cosine vector matching against gold-standard AHA resuscitation protocols in under 5 milliseconds.
-            </p>
-            <ul className="text-xs text-slate-500 space-y-1.5 font-mono">
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                @moss-dev/moss-web WASM core
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                Deterministic triage fallback
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                Zero hallucination protocol binding
-              </li>
-            </ul>
+            <button
+              onClick={toggleMetronomePreview}
+              className={`px-3 py-1.5 rounded-xl border text-[11px] font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                isMetronomePreviewing
+                  ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              {isMetronomePreviewing ? (
+                <>
+                  <Pause className="w-3 h-3 fill-white" />
+                  <span>Stop 110 BPM</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3 h-3 fill-slate-700" />
+                  <span>Test Metronome</span>
+                </>
+              )}
+            </button>
           </div>
 
-          {/* Card 3: Output */}
-          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-4 hover:border-slate-300 transition-all">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 font-black text-lg font-mono">
-              03
+          {/* Bento 3: Grounded Clinical Safety */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs space-y-3 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">AHA & CDC Compliance</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Deterministic matching eliminates hallucinated medical advice. Every guideline cites gold-standard emergency medicine protocols.
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-slate-900">3. Synchronized Action Output</h3>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Speaks calm, step-by-step instructions to caller, starts 110 BPM CPR audio metronome, and auto-dispatches the nearest Advanced Life Support paramedic unit.
-            </p>
-            <ul className="text-xs text-slate-500 space-y-1.5 font-mono">
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                Web Audio 110 BPM Metronome
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                Immediate voice feedback
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                CAD Paramedic Rescue dispatch
-              </li>
-            </ul>
+            <div className="text-[11px] font-mono text-indigo-700 font-bold bg-indigo-50 px-2.5 py-1 rounded-xl w-fit">
+              100% Deterministic Safety
+            </div>
+          </div>
+
+          {/* Bento 4: CAD Paramedic Routing */}
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs space-y-3 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                <Cpu className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">Automated CAD Dispatch</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Immediately dispatches nearest Advanced Life Support (ALS) paramedic unit with live ETA, crew tracking, and station routing.
+              </p>
+            </div>
+            <div className="text-[11px] font-mono text-amber-700 font-bold bg-amber-50 px-2.5 py-1 rounded-xl w-fit">
+              Instant CAD Transmission
+            </div>
           </div>
         </div>
       </section>
 
-      {/* 4. QUICK-LAUNCH SCENARIOS */}
+      {/* 5. QUICK-LAUNCH SCENARIOS */}
       <section className="bg-slate-900 text-white rounded-3xl p-6 sm:p-10 space-y-6 shadow-xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -354,8 +586,11 @@ export const LandingView: React.FC<LandingViewProps> = ({
             };
             const Icon = icons[scen.id] || Heart;
             return (
-              <button
+              <motion.button
                 key={scen.id}
+                whileHover={{ y: -3, scale: 1.015 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                 onClick={() => onLaunchConsole(scen)}
                 className="p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-rose-500/50 text-left transition-all cursor-pointer group flex flex-col justify-between"
               >
@@ -379,13 +614,13 @@ export const LandingView: React.FC<LandingViewProps> = ({
                   <span>Launch case</span>
                   <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>
       </section>
 
-      {/* 5. HACKATHON DELIVERABLES & SUBMISSION DOCK */}
+      {/* 6. HACKATHON DELIVERABLES & SUBMISSION DOCK */}
       <section className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>

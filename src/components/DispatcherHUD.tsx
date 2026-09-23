@@ -9,9 +9,11 @@ import {
   Radio,
   Clock,
   ShieldCheck,
+  Navigation,
 } from 'lucide-react';
 import { EmergencyProtocol, MossQueryResult, DispatchedUnit } from '../types';
 import { CopilotCoachPanel } from './CopilotCoachPanel';
+import { EkgMonitor } from './EkgMonitor';
 
 interface DispatcherHUDProps {
   queryResult: MossQueryResult | null;
@@ -41,6 +43,10 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
     }));
   };
 
+  const verifiedCount = Object.values(checkedSteps).filter(Boolean).length;
+  const totalActions = protocol?.immediateActions.length || 0;
+  const progressPct = totalActions > 0 ? (verifiedCount / totalActions) * 100 : 0;
+
   return (
     <div className="clean-card flex flex-col min-h-[640px] overflow-hidden">
       {/* HUD Header */}
@@ -63,7 +69,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
         {/* Moss Latency Pill */}
         {queryResult && (
           <div className="flex items-center gap-2">
-            <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full text-emerald-800 flex items-center gap-1.5 text-xs font-bold shadow-2xs">
+            <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full text-emerald-800 flex items-center gap-1.5 text-xs font-bold shadow-2xs font-mono">
               <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
               <span>Moss: {queryResult.latencyMs.toFixed(2)} ms</span>
             </div>
@@ -139,62 +145,122 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                 </div>
               </div>
 
-              {/* Immediate Action Checklist */}
+              {/* Dynamic Animated EKG Biometric Oscilloscope */}
+              <EkgMonitor
+                category={protocol.category}
+                cadenceBpm={protocol.cadenceBpm}
+                isMetronomeActive={isMetronomeActive}
+              />
+
+              {/* Immediate Action Checklist with Animated Progress */}
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     <span>Life-Saving Clinical Actions:</span>
                   </h4>
-                  <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                    {Object.values(checkedSteps).filter(Boolean).length} / {protocol.immediateActions.length} Verified
+                  <span className="text-[11px] font-mono text-slate-600 font-bold bg-slate-100 px-2.5 py-0.5 rounded-full">
+                    {verifiedCount} / {totalActions} Verified ({Math.round(progressPct)}%)
                   </span>
+                </div>
+
+                {/* Animated Spring Progress Bar */}
+                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-emerald-500 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressPct}%` }}
+                    transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   {protocol.immediateActions.map((action, idx) => {
                     const isChecked = !!checkedSteps[idx];
                     return (
-                      <div
+                      <motion.div
                         key={idx}
+                        whileTap={{ scale: 0.985 }}
                         onClick={() => toggleStep(idx)}
                         className={`p-3.5 rounded-xl border text-xs flex items-start gap-3 transition-all cursor-pointer select-none ${
                           isChecked
-                            ? 'border-emerald-200 bg-emerald-50/70 text-emerald-900 line-through opacity-75'
-                            : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/50 text-slate-800 shadow-2xs'
+                            ? 'border-emerald-300 bg-emerald-50/80 text-emerald-950 line-through opacity-85 shadow-2xs'
+                            : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/60 text-slate-800 shadow-2xs'
                         }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}}
-                          className="mt-0.5 rounded border-slate-300 text-emerald-600 pointer-events-none"
-                        />
+                        <motion.div
+                          initial={false}
+                          animate={isChecked ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+                          transition={{ duration: 0.2 }}
+                          className="mt-0.5 shrink-0"
+                        >
+                          {isChecked ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 fill-emerald-100" />
+                          ) : (
+                            <div className="w-4 h-4 rounded-full border border-slate-300 bg-white" />
+                          )}
+                        </motion.div>
                         <span className="leading-relaxed flex-1 font-medium">{action}</span>
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Paramedic Unit Auto-Dispatch Card */}
+              {/* Paramedic Unit Auto-Dispatch Card with Route Tracker */}
               {dispatchedUnit && (
-                <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 space-y-2.5">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                  className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-4.5 space-y-3 shadow-2xs"
+                >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Truck className="w-4 h-4 text-emerald-600" />
-                      <span className="text-xs font-bold text-slate-900">CAD Dispatched: {dispatchedUnit.name}</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                        <Truck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block leading-tight">{dispatchedUnit.name}</span>
+                        <span className="text-[10px] text-slate-500 font-mono">{dispatchedUnit.station}</span>
+                      </div>
                     </div>
-                    <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
-                      {dispatchedUnit.status} &bull; ETA ~{dispatchedUnit.etaMinutes} mins
-                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1 rounded-full bg-emerald-100/80 text-emerald-800 font-bold border border-emerald-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
+                        {dispatchedUnit.status} &bull; ETA ~{dispatchedUnit.etaMinutes} mins
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="text-[11px] text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200/70 font-mono">
-                    <span className="text-slate-400">Assigned Equipment: </span>
-                    <span className="font-bold text-slate-800">{protocol.unitRecommendation.requiredEquipment.join(', ')}</span>
+                  {/* Dispatch Route Progression Indicator */}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200/70 space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
+                      <span className="text-emerald-700 font-bold flex items-center gap-1">
+                        <Navigation className="w-3 h-3 text-emerald-600" />
+                        En Route Code 3 (Lights & Sirens)
+                      </span>
+                      <span className="text-slate-400">GPS Telemetry Stream Active</span>
+                    </div>
+
+                    {/* Animated Progress Track */}
+                    <div className="relative w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                      <motion.div
+                        animate={{ x: ['-20%', '100%'] }}
+                        transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
+                        className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-emerald-400 via-emerald-600 to-emerald-400 rounded-full opacity-80"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-slate-600 font-mono pt-1">
+                      <span className="text-slate-400">Assigned Equipment:</span>
+                      <span className="font-bold text-slate-800 text-right truncate max-w-[260px]">
+                        {protocol.unitRecommendation.requiredEquipment.join(', ')}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {/* Contraindications & Critical Warnings */}

@@ -64,14 +64,14 @@ function DockItem({
     const [isFocused, setIsFocused] = React.useState(false)
     const showLabel = showLabels && (isHovered || isFocused)
 
-    // Calculate distance from mouse to center of item
-    const distance = useTransform(mouseX, (val: number) => {
+    // Calculate distance from mouse to center of item using Motion React function syntax
+    const distance = useTransform(() => {
         if (!ref.current) return magneticDistance + 1
         const rect = ref.current.getBoundingClientRect()
         const center = isVertical
             ? rect.top + rect.height / 2
             : rect.left + rect.width / 2
-        return val - center
+        return mouseX.get() - center
     })
 
     // Scale based on distance - closer = larger
@@ -82,10 +82,10 @@ function DockItem({
     const smoothScale = useSpring(scale, springConfig)
 
     // Calculate the size based on scale
-    const size = useTransform(smoothScale, (s) => s * iconSize)
+    const size = useTransform(() => smoothScale.get() * iconSize)
 
     // Floating effect
-    const y = useTransform(smoothScale, (s) => (s - 1) * -10)
+    const y = useTransform(() => (smoothScale.get() - 1) * -10)
     const smoothY = useSpring(y, springConfig)
 
     return (
