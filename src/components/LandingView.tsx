@@ -29,6 +29,8 @@ import {
 import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
 import { EmergencyScenario, MossQueryResult } from '../types';
 import { PulseLogo } from './PulseLogo';
+import { HeroSection } from '@/components/ui/hero-section';
+import { Icons } from '@/components/ui/icons';
 import { mossEngine } from '../engine/mossEngine';
 import { audioService } from '../engine/speechSimulation';
 
@@ -97,74 +99,60 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
   return (
     <div className="space-y-16 pb-16 max-w-[1400px] mx-auto font-sans">
-      {/* 1. HERO SECTION */}
-      <section className="relative pt-6 sm:pt-10 text-center space-y-6">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.88 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-          className="flex justify-center mb-1"
-        >
+      {/* 1. HERO SECTION (21st.dev / Launch UI Component) */}
+      <section className="relative pt-2 text-center space-y-6">
+        <div className="flex justify-center mb-[-36px] relative z-20">
           <PulseLogo size={58} animated={true} />
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.05 }}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-bold font-mono shadow-xs"
-        >
-          <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
-          <span>YC FALL 2026 &bull; MOSS ZERO LATENCY SPRINT (TRACK 1)</span>
-        </motion.div>
-
-        <motion.h1
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.1 }}
-          className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-slate-900 max-w-5xl mx-auto leading-[1.06]"
-        >
-          When Seconds Save Lives,{' '}
-          <span className="bg-gradient-to-r from-rose-600 via-rose-500 to-amber-600 bg-clip-text text-transparent">
-            400ms Cloud Latency
-          </span>{' '}
-          is Fatal.
-        </motion.h1>
-
-        <motion.p
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.18 }}
-          className="text-base sm:text-lg lg:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed"
-        >
-          <strong className="text-slate-900 font-bold">Pulse911</strong> is the zero-latency emergency dispatch copilot powered by{' '}
-          <strong className="text-slate-900 font-bold">Moss (YC F25)</strong> in-process WASM semantic retrieval. Grounded in verified AHA & CDC clinical protocols, delivering spoken resuscitation guidance under the 300ms human panic window.
-        </motion.p>
-
-        {/* Hero CTA Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.25 }}
-          className="flex flex-wrap items-center justify-center gap-4 pt-1"
-        >
-          <button
-            onClick={() => onLaunchConsole()}
-            className="group px-7 py-3.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm sm:text-base transition-all shadow-lg shadow-rose-600/25 hover:shadow-rose-600/35 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2.5 cursor-pointer"
-          >
-            <Radio className="w-4 h-4 animate-pulse" />
-            <span>Launch Live Emergency Console</span>
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-          </button>
-
-          <button
-            onClick={() => onNavigateTab('benchmark')}
-            className="px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-sm sm:text-base transition-all shadow-xs hover:border-slate-300 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 cursor-pointer"
-          >
-            <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
-            <span>View Moss Latency Proof</span>
-          </button>
-        </motion.div>
+        <HeroSection
+          badge={{
+            text: "YC Fall 2026 • Real-Time Voice AI Sprint",
+            action: {
+              text: "Sub-10ms Benchmark",
+              href: "#benchmark",
+              onClick: (e: React.MouseEvent) => {
+                e.preventDefault();
+                onNavigateTab('benchmark');
+              },
+            },
+          }}
+          title="When Seconds Save Lives, 400ms Cloud Latency is Fatal."
+          description="Pulse911 is the zero-latency emergency dispatch copilot powered by Moss (YC F25) in-process WASM semantic retrieval. Grounded in verified AHA & CDC clinical protocols, delivering spoken resuscitation guidance under the 300ms human panic window."
+          actions={[
+            {
+              text: "Launch Emergency Console",
+              href: "#console",
+              variant: "glow",
+              icon: <Radio className="w-4 h-4 text-white animate-pulse" />,
+              onClick: (e: React.MouseEvent) => {
+                e.preventDefault();
+                onLaunchConsole();
+              },
+            },
+            {
+              text: "Run 50-Query Benchmark",
+              href: "#benchmark",
+              variant: "default",
+              icon: <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />,
+              onClick: (e: React.MouseEvent) => {
+                e.preventDefault();
+                onNavigateTab('benchmark');
+              },
+            },
+            {
+              text: "GitHub",
+              href: "https://github.com/j4yop/pulse911",
+              variant: "default",
+              icon: <Icons.gitHub className="w-4 h-4" />,
+            },
+          ]}
+          image={{
+            light: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1600&q=80",
+            dark: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1600&q=80",
+            alt: "Pulse911 Zero-Latency Emergency Dispatch Console with Moss WASM Triage",
+          }}
+        />
 
         {/* Metric Capsules */}
         <motion.div
