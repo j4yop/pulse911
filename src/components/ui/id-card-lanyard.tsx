@@ -325,30 +325,6 @@ export function IDCardLanyard({
 
     const anchor = { x: resolveAnchorX(), y: anchorY };
 
-    function resize() {
-      const rect = scene!.getBoundingClientRect();
-      const parentRect = scene!.parentElement ? scene!.parentElement.getBoundingClientRect() : null;
-      const w = rect.width > 0 ? rect.width : (parentRect && parentRect.width > 0 ? parentRect.width : (window.innerWidth || 320));
-      const h = rect.height > 0 ? rect.height : (parentRect && parentRect.height > 0 ? parentRect.height : 600);
-
-      canvas!.width = w;
-      canvas!.height = h;
-
-      const prevAnchorX = anchor.x;
-      anchor.x = resolveAnchorX();
-      rail!.style.left = anchor.x + "px";
-      rail!.style.top = anchor.y - 3 + "px";
-
-      if (points.length > 0 && Math.abs(prevAnchorX - anchor.x) > 5) {
-        const dx = anchor.x - (points[0].x || prevAnchorX);
-        for (let i = 0; i < points.length; i++) {
-          points[i].x += dx;
-          points[i].oldx += dx;
-        }
-      }
-    }
-    resize();
-
     const NUM_POINTS = 13;
     const REST_LENGTH = 140;
     const SEGMENT_LENGTH = REST_LENGTH / (NUM_POINTS - 1);
@@ -360,12 +336,37 @@ export function IDCardLanyard({
 
     type Pt = { x: number; y: number; oldx: number; oldy: number; pinned: boolean };
     const points: Pt[] = [];
-    const initX = anchor.x || (window.innerWidth ? window.innerWidth / 2 : 200);
+    const initX = anchor.x || (typeof window !== "undefined" && window.innerWidth ? window.innerWidth / 2 : 200);
     anchor.x = initX;
     for (let i = 0; i < NUM_POINTS; i++) {
       const y = anchor.y + i * SEGMENT_LENGTH;
       points.push({ x: initX, y, oldx: initX, oldy: y, pinned: i === 0 });
     }
+
+    function resize() {
+      if (!scene || !canvas || !rail) return;
+      const rect = scene.getBoundingClientRect();
+      const parentRect = scene.parentElement ? scene.parentElement.getBoundingClientRect() : null;
+      const w = rect.width > 0 ? rect.width : (parentRect && parentRect.width > 0 ? parentRect.width : (typeof window !== "undefined" ? window.innerWidth || 320 : 320));
+      const h = rect.height > 0 ? rect.height : (parentRect && parentRect.height > 0 ? parentRect.height : 600);
+
+      canvas.width = w;
+      canvas.height = h;
+
+      const prevAnchorX = anchor.x;
+      anchor.x = resolveAnchorX();
+      rail.style.left = anchor.x + "px";
+      rail.style.top = anchor.y - 3 + "px";
+
+      if (points && points.length > 0 && Math.abs(prevAnchorX - anchor.x) > 5) {
+        const dx = anchor.x - (points[0]?.x ?? prevAnchorX);
+        for (let i = 0; i < points.length; i++) {
+          points[i].x += dx;
+          points[i].oldx += dx;
+        }
+      }
+    }
+    resize();
 
     let dragging = false;
     let flipped = false;
@@ -574,13 +575,19 @@ export function IDCardLanyard({
     }
 
     let raf = 0;
+    let isCancelled = false;
     function loop() {
-      updatePoints();
-      applyConstraints();
-      drawRope();
-      drawClip();
-      positionCard();
-      updateTiltAndSheen();
+      if (isCancelled) return;
+      try {
+        updatePoints();
+        applyConstraints();
+        drawRope();
+        drawClip();
+        positionCard();
+        updateTiltAndSheen();
+      } catch (err) {
+        console.error("IDCardLanyard render loop error:", err);
+      }
       raf = requestAnimationFrame(loop);
     }
 
@@ -589,7 +596,9 @@ export function IDCardLanyard({
       e.preventDefault();
       dragging = true;
       setInteracted(true);
-      card!.setPointerCapture(e.pointerId);
+      try {
+        card!.setPointerCapture(e.pointerId);
+      } catch {}
       const pos = clampToScene(getScenePos(e));
       pointer = pos;
       lastPointer = pos;
@@ -607,6 +616,11 @@ export function IDCardLanyard({
     const onWindowUp = (e: PointerEvent) => {
       if (!dragging) return;
       dragging = false;
+      try {
+        if (card!.hasPointerCapture(e.pointerId)) {
+          card!.releasePointerCapture(e.pointerId);
+        }
+      } catch {}
       const pos = getScenePos(e);
       const dist = Math.hypot(pos.x - downPos.x, pos.y - downPos.y);
       if (dist < TAP_THRESHOLD) {
@@ -641,6 +655,7 @@ export function IDCardLanyard({
     loop();
 
     return () => {
+      isCancelled = true;
       cancelAnimationFrame(raf);
       ro.disconnect();
       card.removeEventListener("pointerdown", onCardDown);
