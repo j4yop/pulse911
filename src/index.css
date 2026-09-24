@@ -38,9 +38,18 @@
   }
 }
 
+@keyframes border-beam {
+  100% {
+    offset-distance: 100%;
+  }
+}
+
 @layer utilities {
   .animate-aurora {
     animation: aurora 20s linear infinite;
+  }
+  .animate-border-beam {
+    animation: border-beam calc(var(--duration, 12) * 1s) infinite linear;
   }
 }
 
