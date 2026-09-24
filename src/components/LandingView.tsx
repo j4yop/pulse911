@@ -31,6 +31,7 @@ import { HeroSection } from '@/components/ui/hero-section';
 import { Icons } from '@/components/ui/icons';
 import { AsciiGlitchRipple } from '@/components/ui/ascii-glitch-ripple';
 import { IDCardLanyard } from '@/components/ui/id-card-lanyard';
+import { CornerButton } from '@/components/ui/corner-button';
 import dispatcherAvatar from '../assets/dispatcher-photo.jpeg';
 import heroConsolePreview from '../assets/hero-console-preview.jpg';
 import { audioService } from '../engine/speechSimulation';
@@ -117,6 +118,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
               href: "#console",
               variant: "glow",
               icon: <Radio className="w-4 h-4 text-white animate-pulse" />,
+              className: "bg-rose-600 hover:bg-rose-500 text-white font-bold shadow-md shadow-rose-500/25",
               onClick: (e: React.MouseEvent) => {
                 e.preventDefault();
                 onLaunchConsole();
@@ -125,8 +127,9 @@ export const LandingView: React.FC<LandingViewProps> = ({
             {
               text: "Run 50-Query Benchmark",
               href: "#benchmark",
-              variant: "default",
+              variant: "outline",
               icon: <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />,
+              className: "bg-slate-900 hover:bg-slate-800 text-white border-slate-900 font-bold hover:text-white shadow-xs",
               onClick: (e: React.MouseEvent) => {
                 e.preventDefault();
                 onNavigateTab('benchmark');
@@ -135,8 +138,9 @@ export const LandingView: React.FC<LandingViewProps> = ({
             {
               text: "GitHub",
               href: "https://github.com/j4yop/pulse911",
-              variant: "default",
-              icon: <Icons.gitHub className="w-4 h-4" />,
+              variant: "outline",
+              icon: <Icons.gitHub className="w-4 h-4 text-slate-700" />,
+              className: "bg-white/90 hover:bg-slate-100 border-slate-200/90 text-slate-700 hover:text-slate-900 font-semibold shadow-2xs",
             },
           ]}
           image={{
@@ -526,7 +530,72 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </div>
       </section>
 
-      {/* 7. DISPATCHER ID CARD LANYARD */}
+      {/* 7. CLOSING CONVERSION / CALL-TO-ACTION BANNER */}
+      <section className="relative rounded-3xl bg-gradient-to-b from-white to-slate-50/80 border border-slate-200/90 p-8 sm:p-12 shadow-xs text-center overflow-hidden">
+        {/* Subtle decorative glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-rose-500/5 blur-3xl pointer-events-none rounded-full" />
+
+        <div className="relative z-10 max-w-3xl mx-auto space-y-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-mono font-bold uppercase tracking-wider shadow-2xs">
+            <Radio className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+            <span>Ready for Live Dispatch Simulation</span>
+          </div>
+
+          <div className="space-y-2.5">
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
+              Experience Zero-Latency 911 Dispatch in Action
+            </h2>
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto font-sans">
+              Test real-time speech transcription, sub-10ms Moss WASM protocol retrieval, and acoustic CPR metronome synchronization under authentic high-stress scenarios.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 pt-2">
+            <CornerButton
+              onClick={() => onLaunchConsole()}
+              accentColor="#f43f5e"
+              textColor="#ffffff"
+              icon={<ArrowRight className="w-4 h-4 text-white" />}
+              className="px-6 py-3.5 text-sm font-bold shadow-md shadow-rose-500/25"
+            >
+              <span className="flex items-center gap-2">
+                <Radio className="w-4 h-4 text-white animate-pulse" />
+                Launch Emergency Console
+              </span>
+            </CornerButton>
+
+            <CornerButton
+              onClick={() => onNavigateTab('benchmark')}
+              accentColor="#0f172a"
+              textColor="#ffffff"
+              icon={<ArrowRight className="w-4 h-4 text-slate-300" />}
+              className="px-6 py-3.5 text-sm font-bold border border-slate-700/60 shadow-xs"
+            >
+              <span className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
+                Run 50-Query Benchmark
+              </span>
+            </CornerButton>
+          </div>
+
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-mono text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+              100% Client-Side In-Memory
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+              AHA 2025 Clinical Grounded
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+              Zero Network Roundtrip
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* 8. DISPATCHER ID CARD LANYARD */}
       <section className="relative min-h-[640px] lg:min-h-[680px] w-full rounded-3xl bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border border-slate-800 shadow-xl overflow-hidden flex flex-col justify-between p-4 sm:p-6 my-8">
         {/* Subtle grid background */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b10_1px,transparent_1px),linear-gradient(to_bottom,#1e293b10_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
