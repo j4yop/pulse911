@@ -33,7 +33,6 @@ import { audioService } from './engine/speechSimulation';
 import { TopLoader } from './components/TopLoader';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuroraBackground } from '@/components/ui/aurora-background';
-import { CyberGlitchText } from '@/components/ui/cyber-glitch-text';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { StatsCounter } from '@/components/ui/stats-counter';
 import { GlassDock, DockItem } from '@/components/ui/glass-dock';
@@ -364,7 +363,7 @@ export const App: React.FC = () => {
 
                     <div className="flex items-center gap-3">
                       <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white font-sans">
-                        <CyberGlitchText text="Zero-Latency Emergency Dispatch Console" />
+                        Zero-Latency Emergency Dispatch Console
                       </h1>
                     </div>
                     <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-sans">
