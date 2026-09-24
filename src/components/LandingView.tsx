@@ -23,19 +23,16 @@ import {
   Play,
   Pause,
   Flame,
-  Search,
 } from 'lucide-react';
 import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
-import { EmergencyScenario, MossQueryResult } from '../types';
+import { EmergencyScenario } from '../types';
 import { PulseLogo } from './PulseLogo';
 import { HeroSection } from '@/components/ui/hero-section';
 import { Icons } from '@/components/ui/icons';
 import { AsciiGlitchRipple } from '@/components/ui/ascii-glitch-ripple';
-import { Progress } from '@/components/ui/progress';
 import { IDCardLanyard } from '@/components/ui/id-card-lanyard';
 import dispatcherAvatar from '../assets/dispatcher-photo.jpeg';
 import heroConsolePreview from '../assets/hero-console-preview.jpg';
-import { mossEngine } from '../engine/mossEngine';
 import { audioService } from '../engine/speechSimulation';
 
 interface LandingViewProps {
@@ -49,20 +46,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
   onNavigateTab,
   latencyMs,
 }) => {
-  // Interactive Sandbox state
-  const [sandboxQuery, setSandboxQuery] = useState('adult cardiac arrest no pulse gasping');
-  const [sandboxResult, setSandboxResult] = useState<MossQueryResult | null>(null);
-  const [isSandboxQuerying, setIsSandboxQuerying] = useState(false);
   // Metronome preview state
   const [isMetronomePreviewing, setIsMetronomePreviewing] = useState(false);
-
-  const handleRunSandboxQuery = async (queryText: string) => {
-    setIsSandboxQuerying(true);
-    setSandboxQuery(queryText);
-    const res = await mossEngine.query(queryText);
-    setSandboxResult(res);
-    setIsSandboxQuerying(false);
-  };
 
 
   const toggleMetronomePreview = () => {
@@ -291,154 +276,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </div>
       </section>
 
-      {/* 3. LIVE IN-BROWSER MOSS WASM QUERY SANDBOX */}
-      <section className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-10 shadow-xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-indigo-700 uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              Interactive In-Browser Vector Engine
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 mt-1">
-              Test Moss Semantic Retrieval Live
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Type any emergency complaint or click sample symptoms to measure real-time in-process query execution.
-            </p>
-          </div>
-
-          {sandboxResult && (
-            <div className="bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-full text-xs font-mono font-bold text-emerald-800 flex items-center gap-1.5 shadow-2xs self-start sm:self-auto">
-              <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              <span>Query Latency: {sandboxResult.latencyMs.toFixed(2)} ms</span>
-            </div>
-          )}
-        </div>
-
-        {/* Query Input Box */}
-        <div className="flex flex-col sm:flex-row items-stretch gap-2.5">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={sandboxQuery}
-              onChange={(e) => setSandboxQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleRunSandboxQuery(sandboxQuery)}
-              placeholder="Describe emergency (e.g., chest pain, baby choking, facial droop)..."
-              className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-sans shadow-inner"
-            />
-          </div>
-
-          <button
-            onClick={() => handleRunSandboxQuery(sandboxQuery)}
-            disabled={isSandboxQuerying}
-            className="px-6 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
-          >
-            {isSandboxQuerying ? (
-              <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-            ) : (
-              <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
-            )}
-            <span>Execute Vector Query</span>
-          </button>
-        </div>
-
-        {/* Vector Search Execution Progress */}
-        <AnimatePresence>
-          {isSandboxQuerying && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-1.5"
-            >
-              <div className="flex justify-between items-center text-[11px] font-mono text-slate-500">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                  Scanning 10 embedded AHA clinical protocol vectors in-process...
-                </span>
-                <span className="font-semibold text-rose-600">Retrieving protocol</span>
-              </div>
-              <Progress value={90} className="h-1.5 bg-slate-100" indicatorClassName="bg-rose-500 transition-all duration-300" />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Quick Symptom Chips */}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <span className="text-xs font-mono font-semibold text-slate-400">Try Quick Symptoms:</span>
-          {[
-            { label: 'Chest Compressions 110 BPM', q: 'adult cardiac arrest chest compressions 110 bpm' },
-            { label: 'Baby Turning Blue', q: '9 month old infant choking not breathing back blows' },
-            { label: 'Facial Droop & Slur', q: 'sudden facial droop slurred speech arm drift stroke' },
-            { label: 'Throat Swelling & Hives', q: 'peanut anaphylactic shock airway closing epipen' },
-            { label: 'Unresponsive Overdose', q: 'fentanyl overdose blue lips narcan nasal spray' },
-          ].map((chip) => (
-            <button
-              key={chip.label}
-              onClick={() => handleRunSandboxQuery(chip.q)}
-              className="px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200/80 text-slate-700 text-xs font-medium transition-all cursor-pointer"
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Query Result Card */}
-        <AnimatePresence mode="wait">
-          {sandboxResult && (
-            <motion.div
-              key={sandboxResult.protocol.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2 }}
-              className="p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-3 text-xs"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200/60 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-emerald-800 font-bold uppercase text-[11px]">
-                    Matched AHA Clinical Protocol:
-                  </span>
-                  <span className="font-extrabold text-slate-900 text-sm">
-                    {sandboxResult.protocol.title}
-                  </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
-                    {sandboxResult.protocol.triageLevel}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 font-mono text-slate-500">
-                  <span>Confidence: {(sandboxResult.score * 100).toFixed(1)}%</span>
-                  <span>&bull;</span>
-                  <span className="text-emerald-700 font-bold">{sandboxResult.latencyMs.toFixed(2)} ms</span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-mono font-bold text-slate-400 uppercase">
-                  Immediate Spoken Voice Instruction:
-                </span>
-                <p className="text-sm font-semibold text-slate-900 leading-snug">
-                  "{sandboxResult.protocol.verbalResponseText}"
-                </p>
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <button
-                  onClick={() => onLaunchConsole()}
-                  className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer font-sans"
-                >
-                  <span>Open Full Cockpit with Metronome & Paramedic CAD</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </section>
-
-      {/* 4. BENTO GRID OF CORE INNOVATIONS */}
+      {/* 3. BENTO GRID OF CORE INNOVATIONS */}
       <section className="space-y-6">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
