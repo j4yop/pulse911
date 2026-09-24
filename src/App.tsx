@@ -160,7 +160,11 @@ export const App: React.FC = () => {
 
 
   return (
-    <AuroraBackground className="min-h-screen text-slate-900 clinical-grid selection:bg-rose-500/20 selection:text-rose-600">
+    <AuroraBackground
+      showRadialGradient={activeTab !== 'console'}
+      intensity={activeTab === 'console' ? 'vibrant' : 'subtle'}
+      className="min-h-screen text-slate-900 clinical-grid selection:bg-rose-500/20 selection:text-rose-600"
+    >
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -203,12 +207,8 @@ export const App: React.FC = () => {
           {activeTab === 'console' && (
             <div key="console" className="animate-appear space-y-6">
               {/* Clean Welcoming Hero Header Card */}
-              <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 transition-all">
-                <div className="space-y-2 max-w-3xl">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold font-mono shadow-2xs">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>POWERED BY MOSS (YC F25) &bull; SUB-10MS IN-PROCESS RETRIEVAL</span>
-                  </div>
+              <div className="bg-white/75 backdrop-blur-xl border border-white/80 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 transition-all">
+                <div className="space-y-1.5 max-w-3xl">
                   <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 font-sans">
                     Zero-Latency Emergency Dispatch Console
                   </h1>
@@ -219,7 +219,7 @@ export const App: React.FC = () => {
 
                 {/* Live Console Telemetry Badges */}
                 <div className="flex flex-wrap items-center gap-2.5 pt-1 lg:pt-0 shrink-0">
-                  <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200/90 text-xs font-mono text-slate-700 shadow-2xs">
+                  <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200/90 text-xs font-mono text-slate-700 shadow-2xs">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
@@ -227,10 +227,10 @@ export const App: React.FC = () => {
                     <span className="font-bold text-slate-900">ENGINE:</span>
                     <span className="text-emerald-700 font-semibold">{queryResult?.engine ? 'Moss WASM' : 'Moss Local'}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200/90 text-xs font-mono text-slate-700 shadow-2xs">
+                  <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200/90 text-xs font-mono text-slate-700 shadow-2xs">
                     <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                     <span className="font-bold text-slate-900">LATENCY:</span>
-                    <span className="text-emerald-600 font-extrabold">{latencyMs !== null ? `${latencyMs.toFixed(1)} ms` : '1.2 ms'}</span>
+                    <span className="text-emerald-600 font-extrabold">{latencyMs !== null ? `${latencyMs.toFixed(1)} ms` : '0.1 ms'}</span>
                   </div>
                 </div>
               </div>
@@ -263,10 +263,10 @@ export const App: React.FC = () => {
                         whileTap={{ scale: 0.98 }}
                         transition={{ type: 'spring', stiffness: 450, damping: 28 }}
                         onClick={() => handleProcessTranscript(scen.callerSpeechTranscript, scen, true)}
-                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between relative shadow-xs ${
+                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between relative shadow-xs backdrop-blur-md ${
                           isSelected
                             ? 'bg-rose-50/90 border-rose-500 ring-2 ring-rose-500/20 shadow-md'
-                            : 'bg-white hover:bg-slate-50/80 border-slate-200/90 hover:border-slate-300'
+                            : 'bg-white/75 hover:bg-white/90 border-slate-200/80 hover:border-slate-300'
                         }`}
                       >
                         <div className="flex items-center justify-between w-full mb-2">
@@ -317,7 +317,7 @@ export const App: React.FC = () => {
               </div>
 
               {/* Bottom Clean Telemetry Ribbon */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-4.5 shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
+              <div className="bg-white/75 backdrop-blur-xl border border-slate-200/80 rounded-2xl p-4.5 shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0 shadow-2xs">
                     <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
