@@ -14,7 +14,8 @@ interface HeroAction {
   text: string;
   href: string;
   icon?: React.ReactNode;
-  variant?: "default" | "glow";
+  variant?: "default" | "glow" | "outline" | "secondary" | "ghost";
+  className?: string;
   onClick?: (e: React.MouseEvent) => void;
 }
 
@@ -106,7 +107,7 @@ export function HeroSection({
                   variant={action.variant}
                   size="lg"
                   asChild
-                  className="rounded-xl shadow-xs"
+                  className={cn("rounded-xl shadow-xs", action.className)}
                 >
                   <a
                     href={action.href}
