@@ -88,11 +88,16 @@ export const Card = ({
         rotateX: rotate,
         scale,
         boxShadow:
-          "0 0 #0000004d, 0 9px 20px #0000004a, 0 37px 37px #00000042, 0 84px 50px #00000026, 0 149px 60px #0000000a, 0 233px 65px #00000003",
+          "0 0 #00000066, 0 12px 30px #00000055, 0 45px 50px #0000004d, 0 95px 65px #00000033, 0 160px 80px #00000014, 0 240px 95px #00000008, inset 0 1px 1px rgba(255, 255, 255, 0.15)",
       }}
-      className={`max-w-5xl mt-6 sm:mt-10 md:mt-14 mx-auto h-[26rem] sm:h-[34rem] md:h-[42rem] w-full border-4 border-slate-700/60 p-2 md:p-4 bg-slate-950/95 rounded-[28px] sm:rounded-[30px] shadow-2xl ${className || ''}`}
+      className={`relative max-w-5xl mt-6 sm:mt-10 md:mt-14 mx-auto h-[26rem] sm:h-[34rem] md:h-[42rem] w-full border-[3.5px] border-neutral-800/90 ring-1 ring-white/[0.08] p-2.5 sm:p-3.5 md:p-4 bg-[#0a0a0c] rounded-[28px] sm:rounded-[32px] shadow-2xl ${className || ''}`}
     >
-      <div className="h-full w-full overflow-hidden rounded-xl sm:rounded-2xl bg-slate-900 border border-slate-800/80">
+      {/* Front camera lens / ambient sensor indicator */}
+      <div className="absolute top-1 sm:top-1.5 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-neutral-900 border border-neutral-700/80 flex items-center justify-center pointer-events-none z-20">
+        <div className="w-1 h-1 rounded-full bg-[#050507] ring-1 ring-white/10" />
+      </div>
+
+      <div className="h-full w-full overflow-hidden rounded-xl sm:rounded-2xl bg-black border border-white/[0.08] shadow-inner relative">
         {children}
       </div>
     </motion.div>
