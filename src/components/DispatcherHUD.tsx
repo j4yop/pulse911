@@ -79,7 +79,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
 
       {/* Main Content Area */}
       <div className="flex-1 p-6 overflow-y-auto space-y-5">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="popLayout">
           {!protocol ? (
             <motion.div
               key="standby"
