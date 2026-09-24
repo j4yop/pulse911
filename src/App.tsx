@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import {
   Heart,
   Baby,
@@ -25,6 +25,7 @@ import { mossEngine } from './engine/mossEngine';
 import { audioService } from './engine/speechSimulation';
 import { TopLoader } from './components/TopLoader';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AuroraBackground } from '@/components/ui/aurora-background';
 import { cn } from '@/lib/utils';
 
 export const App: React.FC = () => {
@@ -33,14 +34,27 @@ export const App: React.FC = () => {
   const initialTab = TAB_IDS.find((t) => t === new URLSearchParams(window.location.search).get('tab'));
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'overview');
 
-  // Deep-linkable tabs (?tab=benchmark) — shareable demo URLs for judges.
+  // Deep-linkable tabs (?tab=console) — shareable demo URLs and history sync.
   useEffect(() => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', activeTab);
-    window.history.replaceState(null, '', url);
+    const handlePopState = () => {
+      const tabParam = new URLSearchParams(window.location.search).get('tab');
+      const matchedTab = TAB_IDS.find((t) => t === tabParam);
+      if (matchedTab && matchedTab !== activeTab) {
+        setActiveTab(matchedTab);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, [activeTab]);
 
-  const handleSelectTab = (tab: TabId) => setActiveTab(tab);
+  const handleSelectTab = (tab: TabId) => {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('tab') !== tab) {
+      url.searchParams.set('tab', tab);
+      window.history.pushState(null, '', url);
+    }
+  };
   const [activeScenario, setActiveScenario] = useState<EmergencyScenario | null>(EMERGENCY_SCENARIOS[0]);
   const [currentTranscript, setCurrentTranscript] = useState<string>(EMERGENCY_SCENARIOS[0].callerSpeechTranscript);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -146,7 +160,7 @@ export const App: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 clinical-grid flex flex-col selection:bg-rose-500/20 selection:text-rose-600">
+    <AuroraBackground className="min-h-screen text-slate-900 clinical-grid selection:bg-rose-500/20 selection:text-rose-600">
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -171,15 +185,8 @@ export const App: React.FC = () => {
         )}
       >
         <ErrorBoundary fallbackTitle="Application View Recovered">
-          <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
-            <motion.div
-              key="overview"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
-            >
+            <div key="overview" className="animate-appear">
               <LandingView
                 onLaunchConsole={(scen) => {
                   if (scen) {
@@ -190,21 +197,14 @@ export const App: React.FC = () => {
                 onNavigateTab={(tab) => handleSelectTab(tab)}
                 latencyMs={latencyMs}
               />
-            </motion.div>
+            </div>
           )}
 
           {activeTab === 'console' && (
-            <motion.div
-              key="console"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-6"
-            >
-              {/* Clean Welcoming Hero Header */}
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-1">
-                <div className="space-y-1">
+            <div key="console" className="animate-appear space-y-6">
+              {/* Clean Welcoming Hero Header Card */}
+              <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 transition-all">
+                <div className="space-y-2 max-w-3xl">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold font-mono shadow-2xs">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span>POWERED BY MOSS (YC F25) &bull; SUB-10MS IN-PROCESS RETRIEVAL</span>
@@ -212,9 +212,26 @@ export const App: React.FC = () => {
                   <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 font-sans">
                     Zero-Latency Emergency Dispatch Console
                   </h1>
-                  <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-3xl">
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-sans">
                     Click any emergency scenario below or speak into the live microphone to test in-memory protocol retrieval under the 300ms human conversational threshold.
                   </p>
+                </div>
+
+                {/* Live Console Telemetry Badges */}
+                <div className="flex flex-wrap items-center gap-2.5 pt-1 lg:pt-0 shrink-0">
+                  <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200/90 text-xs font-mono text-slate-700 shadow-2xs">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    <span className="font-bold text-slate-900">ENGINE:</span>
+                    <span className="text-emerald-700 font-semibold">{queryResult?.engine ? 'Moss WASM' : 'Moss Local'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200/90 text-xs font-mono text-slate-700 shadow-2xs">
+                    <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                    <span className="font-bold text-slate-900">LATENCY:</span>
+                    <span className="text-emerald-600 font-extrabold">{latencyMs !== null ? `${latencyMs.toFixed(1)} ms` : '1.2 ms'}</span>
+                  </div>
                 </div>
               </div>
 
@@ -341,45 +358,26 @@ export const App: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {activeTab === 'benchmark' && (
-            <motion.div
-              key="benchmark"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-            >
+            <div key="benchmark" className="animate-appear">
               <LatencyBenchmark />
-            </motion.div>
+            </div>
           )}
 
           {activeTab === 'architecture' && (
-            <motion.div
-              key="architecture"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-            >
+            <div key="architecture" className="animate-appear">
               <ArchitectureView />
-            </motion.div>
+            </div>
           )}
 
           {activeTab === 'prd' && (
-            <motion.div
-              key="prd"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-            >
+            <div key="prd" className="animate-appear">
               <PRDView />
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
         </ErrorBoundary>
       </main>
 
@@ -389,7 +387,7 @@ export const App: React.FC = () => {
           Built for YC Fall 2026 &times; Moss Zero Latency Builder Sprint
         </div>
       </footer>
-    </div>
+    </AuroraBackground>
   );
 };
 
