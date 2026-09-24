@@ -123,7 +123,7 @@ export function HeroSection({
           </div>
         }
       >
-        <div className="relative w-full h-full rounded-xl sm:rounded-2xl overflow-hidden bg-slate-950 flex flex-col justify-center items-center">
+        <div className="relative w-full h-full rounded-xl sm:rounded-2xl overflow-hidden bg-black flex flex-col justify-center items-center">
           <img
             src={imageSrc}
             alt={image.alt}
