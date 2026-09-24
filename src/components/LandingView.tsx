@@ -41,7 +41,6 @@ export const LandingView: React.FC<LandingViewProps> = ({
   onNavigateTab,
   latencyMs,
 }) => {
-
   return (
     <div className="space-y-16 pb-16 w-full max-w-7xl mx-auto font-sans">
       {/* 1. HERO SECTION (21st.dev / Launch UI Component) */}
