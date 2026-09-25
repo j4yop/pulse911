@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import { TopLoader } from './components/TopLoader';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -79,12 +79,20 @@ export const App: React.FC = () => {
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   /** Increments per processed call — keys/cancels async AI enrichment per scenario. */
   const [callRequestId, setCallRequestId] = useState(0);
+  /**
+   * Monotonic token for the current call, bumped synchronously at the top of
+   * `handleProcessTranscript`. Background Moss corroboration compares against
+   * this before writing, so a slow refinement from a previous call can never
+   * land on top of a newer one.
+   */
+  const callTokenRef = useRef(0);
 
   const handleProcessTranscript = useCallback(
     async (text: string, scenario?: EmergencyScenario, speakAudio = true) => {
       setIsProcessing(true);
       setCurrentTranscript(text);
       setCallRequestId((n) => n + 1);
+      const callToken = ++callTokenRef.current;
       audioService.playRadioChirp();
 
       try {
@@ -151,6 +159,39 @@ export const App: React.FC = () => {
           if (speakAudio && audioFeedbackEnabled) {
             audioService.speakVerbalInstruction(UNIVERSAL_SAFETY_FLOOR);
           }
+        }
+
+        // ── Moss corroboration (background, non-gating) ───────────────────
+        // The decision above is already final: spoken and dispatched. This can
+        // only make the SAME decision better attested — it can never re-decide.
+        //
+        // Deliberately refused, because each would contradict what the
+        // dispatcher has already heard and acted on:
+        //   • a different protocol  → we already spoke and dispatched ours
+        //   • an abstain            → we already spoke the safety floor
+        // A local abstain is therefore left alone too: Moss may not resurrect a
+        // protocol after the caller was told we could not identify the
+        // emergency. Surfacing that disagreement is future work, not a swap.
+        if (protocol) {
+          void mossEngine
+            .refineWithMoss(text)
+            .then((refined) => {
+              if (callToken !== callTokenRef.current) return; // superseded
+              if (!refined) return; // runtime not warm — keep the local result
+              const refinedProtocol = matchedProtocol(refined.outcome);
+              if (!refinedProtocol || refinedProtocol.id !== protocol.id) return;
+              setQueryResult({
+                ...refined,
+                // State the real provenance: the local matcher decided, Moss
+                // agreed. Labelling this plain "Moss WASM" would imply the
+                // safety decision came from the semantic engine.
+                engine: 'Moss WASM Runtime — corroborated local triage',
+              });
+              setLatencyMs(refined.latencyMs);
+            })
+            .catch(() => {
+              /* Enrichment only. A failed corroboration is never a triage error. */
+            });
         }
       } catch (err) {
         console.error('[Pulse911] Error processing transcript:', err);
