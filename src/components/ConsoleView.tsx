@@ -25,6 +25,7 @@ import { BorderBeam } from '@/components/ui/border-beam';
 import { StatsCounter } from '@/components/ui/stats-counter';
 import { EmergencyScenario, MossQueryResult, DispatchedUnit } from '../types';
 import { EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
+import { matchedProtocol } from '../engine/triageGate';
 import { cn } from '@/lib/utils';
 
 const SCENARIO_PRESETS: Record<string, { code: string; glow: string }> = {
@@ -339,7 +340,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             isProcessing={isProcessing}
             activeScenario={activeScenario}
             currentTranscript={currentTranscript}
-            spokenInstruction={queryResult?.protocol.verbalResponseText}
+            spokenInstruction={matchedProtocol(queryResult?.outcome)?.verbalResponseText}
             onClearCall={onClearCall}
           />
         </div>

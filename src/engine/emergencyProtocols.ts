@@ -32,7 +32,12 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
     },
     keywords: [
       'cardiac arrest', 'not breathing', 'heart attack', 'cpr', 'chest compressions',
-      'unconscious', 'no pulse', 'collapsed', 'passed out', 'chest pain', 'defibrillator', 'aed'
+      'unconscious', 'no pulse', 'collapsed', 'passed out', 'chest pain', 'defibrillator', 'aed',
+      // Arrest indicators that callers actually use. Agonal breathing and
+      // unresponsiveness are cardinal signs of arrest; without these the engine
+      // refused to match a textbook cardiac-arrest call.
+      'gasping', 'agonal', 'unresponsive', 'not responding', 'not awake', 'stopped breathing',
+      'blue lips', 'no heartbeat'
     ],
     citations: 'American Heart Association (AHA) 2026 Guidelines for CPR & ECC'
   },
@@ -68,7 +73,9 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
     },
     keywords: [
       'baby choking', 'infant choking', 'toddler not breathing', 'swallowed object', 'blue lips',
-      'cant breathe', 'choking on food', 'silent crying', 'back slaps', 'airway blocked'
+      'cant breathe', 'choking on food', 'silent crying', 'back slaps', 'airway blocked',
+      // Callers say "choking" far more often than any of the phrases above.
+      'choking', 'choke', 'swallowed', 'something stuck'
     ],
     citations: 'American Academy of Pediatrics (AAP) Pediatric Airway Emergency Standards 2026'
   },

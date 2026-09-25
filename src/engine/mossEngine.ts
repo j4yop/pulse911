@@ -1,7 +1,7 @@
 import type { SearchResult } from '@moss-dev/moss-web';
-import type { EmergencyProtocol, MossQueryResult } from '../types';
+import type { EmergencyProtocol, MossQueryResult, TriageOutcome, AbstainReason } from '../types';
 import { EMERGENCY_PROTOCOLS } from './emergencyProtocols';
-import { resolveTopProtocol } from './retrievalCore';
+import { resolveTriageOutcome, MIN_CONFIDENCE } from './retrievalCore';
 
 /**
  * Local structural type for the SDK client. The real `@moss-dev/moss-web` module
@@ -38,6 +38,24 @@ export type EngineMode = 'moss-wasm' | 'local-fallback';
 
 const INDEX_NAME = 'pulse911-protocols-v1';
 
+/**
+ * Hard deadline for the entire Moss cold start (index create + load + WASM
+ * model init).
+ *
+ * This is a SAFETY control, not a performance tweak. The Moss path performs
+ * real network round-trips to Moss Cloud and compiles a multi-megabyte ONNX
+ * model. In a sandboxed browser, on a poor connection, or when the service is
+ * unreachable, that can take tens of seconds or never settle at all. Because
+ * the caller was previously awaiting `mossEngine.query()` directly, a stalled
+ * cold start left the dispatcher looking at a frozen console with no protocol
+ * and no guidance — the worst possible outcome.
+ *
+ * The deterministic local triage is therefore the GUARANTEED path, and Moss is
+ * treated as a best-effort enhancement that must yield inside this budget or be
+ * abandoned for the rest of the session.
+ */
+const MOSS_COLD_START_BUDGET_MS = 4000;
+
 /** Flatten a protocol into one indexable text block (retrieved verbatim on match). */
 function protocolToDocText(p: EmergencyProtocol): string {
   return [
@@ -70,8 +88,20 @@ class Pulse911RetrievalEngine {
   /** Kick off async initialization; safe to call multiple times. */
   public init(): Promise<void> {
     if (!this.initPromise) {
-      this.initPromise = this.initInternal().catch((e: unknown) => {
+      this.initPromise = Promise.race([
+        this.initInternal(),
+        new Promise<void>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Moss cold start exceeded ${MOSS_COLD_START_BUDGET_MS}ms budget`)),
+            MOSS_COLD_START_BUDGET_MS
+          )
+        ),
+      ]).catch((e: unknown) => {
         this.lastInitError = e instanceof Error ? e.message : String(e);
+        // Abandon the WASM path for the rest of the session so we do not pay
+        // this timeout on every subsequent query.
+        this.mode = 'local-fallback';
+        this.client = null;
         console.warn(`[Pulse911] Moss runtime unavailable, using local-fallback: ${this.lastInitError}`);
       });
     }
@@ -128,55 +158,100 @@ class Pulse911RetrievalEngine {
   }
 
   /**
-   * Runs ONE retrieval for the transcript. `latencyMs` is the real measured cost of
-   * the executed work — never synthesized.
+   * Runs ONE triage for the transcript.
+   *
+   * ── Critical path policy ────────────────────────────────────────────────
+   * The DECISION is made by the deterministic local matcher, synchronously.
+   * That is deliberate: the safety-critical voice path must never wait on a
+   * network round-trip, a WASM compile, or a third-party service to tell a
+   * caller whether someone is breathing. An earlier version awaited the Moss
+   * cold start here, which left the dispatcher staring at an empty console for
+   * seconds on first use — the worst possible failure mode for this product.
+   *
+   * Moss is therefore warmed in the BACKGROUND and used to refine the outcome
+   * once ready (see `refineWithMoss`). It is an enhancement, never a
+   * precondition, and never a source of a hang.
+   *
+   * SAFETY: this may resolve to an `abstain` outcome. It must never invent a
+   * protocol — the old `?? EMERGENCY_PROTOCOLS[0]` fallback meant any miss
+   * became cardiac arrest, which was then spoken and dispatched.
    */
   public async query(transcript: string, topK = 3): Promise<MossQueryResult> {
     this.totalQueries += 1;
-    await this.init();
 
-    if (this.client && this.mode === 'moss-wasm') {
-      try {
-        const t0 = performance.now();
-        const result: SearchResult = await this.client.query(INDEX_NAME, transcript, { topK });
-        const measured = result.timeTakenMs ?? performance.now() - t0;
-
-        const best = result.docs?.[0];
-        if (best) {
-          const protocol =
-            EMERGENCY_PROTOCOLS.find((p) => p.id === best.id) ??
-            EMERGENCY_PROTOCOLS.find((p) => p.id === best.metadata?.protocolId) ??
-            EMERGENCY_PROTOCOLS[0];
-          return {
-            protocol,
-            score: best.score,
-            latencyMs: +measured.toFixed(2),
-            engine: 'Moss WASM Runtime (@moss-dev/moss-web)',
-            vectorDistance: 1 - best.score,
-            tokensEvaluated: transcript.split(/\s+/).filter(Boolean).length,
-          };
-        }
-      } catch (e: unknown) {
-        console.warn('[Pulse911] Moss query failed, degrading to local-fallback:', e);
-        this.mode = 'local-fallback';
-      }
-    }
+    // Warm the WASM runtime in the background. Never awaited on the hot path.
+    void this.init();
 
     return this.localQuery(transcript);
   }
 
-  /** Honest local fallback: real measurement of real work via the shared pure ranker, clearly labeled. */
+  /**
+   * Optional refinement: once the Moss runtime is warm, re-run the transcript
+   * through the real WASM index and return a better-scored outcome. Returns
+   * null when Moss is not ready, so callers can keep the local result.
+   */
+  public async refineWithMoss(transcript: string, topK = 3): Promise<MossQueryResult | null> {
+    if (!this.client || this.mode !== 'moss-wasm') return null;
+    try {
+      const result: SearchResult = await Promise.race([
+        this.client.query(INDEX_NAME, transcript, { topK }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Moss query timed out')), MOSS_COLD_START_BUDGET_MS)
+        ),
+      ]);
+      const docs = result.docs ?? [];
+      if (docs.length === 0) return null;
+
+      const top = docs[0];
+      const second = docs[1];
+      const topScore = top?.score ?? 0;
+      const margin = topScore > 0 ? (topScore - (second?.score ?? 0)) / topScore : 0;
+      const confidence = +(margin * Math.min(1, Math.max(0, topScore))).toFixed(3);
+      const protocol =
+        EMERGENCY_PROTOCOLS.find((p) => p.id === top.id) ??
+        EMERGENCY_PROTOCOLS.find((p) => p.id === top.metadata?.protocolId);
+
+      if (!protocol || confidence < MIN_CONFIDENCE) {
+        return {
+          outcome: this.abstain(!protocol ? 'no-anchor-match' : 'low-confidence'),
+          score: +topScore.toFixed(4),
+          latencyMs: +(result.timeTakenMs ?? 0).toFixed(2),
+          engine: 'Moss WASM Runtime (@moss-dev/moss-web)',
+          vectorDistance: 1 - topScore,
+          tokensEvaluated: transcript.split(/\s+/).filter(Boolean).length,
+        };
+      }
+
+      return {
+        outcome: { kind: 'matched', protocol, confidence, margin: +margin.toFixed(3), anchors: [] },
+        score: +topScore.toFixed(4),
+        latencyMs: +(result.timeTakenMs ?? 0).toFixed(2),
+        engine: 'Moss WASM Runtime (@moss-dev/moss-web)',
+        vectorDistance: 1 - topScore,
+        tokensEvaluated: transcript.split(/\s+/).filter(Boolean).length,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private abstain(reason: AbstainReason): TriageOutcome {
+    return { kind: 'abstain', reason, confidence: 0, anchors: [] };
+  }
+
+  /** Honest local fallback: real measurement of real work via the shared pure triage, clearly labeled. */
   private localQuery(transcript: string): MossQueryResult {
     const t0 = performance.now();
-    const match = resolveTopProtocol(transcript, EMERGENCY_PROTOCOLS);
+    const outcome = resolveTriageOutcome(transcript, EMERGENCY_PROTOCOLS);
     const latencyMs = +(performance.now() - t0).toFixed(2);
+    const score = outcome.kind === 'matched' ? outcome.confidence : 0;
 
     return {
-      protocol: match.protocol,
-      score: match.score,
+      outcome,
+      score,
       latencyMs,
       engine: 'Local Fallback (deterministic keyword pass)',
-      vectorDistance: match.score > 0 ? Math.max(0, 1 - match.score / 10) : 1,
+      vectorDistance: outcome.kind === 'matched' ? +(1 - outcome.confidence).toFixed(3) : 1,
       tokensEvaluated: transcript.split(/\s+/).filter(Boolean).length,
     };
   }

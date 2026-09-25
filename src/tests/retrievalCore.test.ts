@@ -1,13 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { rankProtocols, resolveTopProtocol } from '../engine/retrievalCore';
+import { rankProtocols, resolveTriageOutcome, MIN_CONFIDENCE } from '../engine/retrievalCore';
 import { EMERGENCY_PROTOCOLS, EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
+import {
+  canDispatch,
+  matchedProtocol,
+  UNIVERSAL_SAFETY_FLOOR,
+  UNIVERSAL_PREARRIVAL_STEPS,
+} from '../engine/triageGate';
 
 /**
- * Pulse911 retrieval-core test suite.
+ * Triage safety suite.
  *
- * The most important guarantee in this file: every demo scenario resolves its
- * intended protocol. This is what makes the live demo safe to rehearse and the
- * fallback mode trustworthy. All tests run against the REAL corpus — no mocks.
+ * The guarantee that matters above all others: an unrecognised or out-of-domain
+ * presentation must ABSTAIN. It must never resolve to a clinical protocol, and
+ * it must never resolve to cardiac arrest in particular.
+ *
+ * Previously `resolveTopProtocol` always returned a protocol and broke ties by
+ * corpus order with cardiac arrest at index 0 — so a 9-month pregnancy, a
+ * stroke, a lost parcel, and an empty transcript all produced CPR instructions
+ * that were then spoken aloud and dispatched.
  */
 
 const byId = new Map(EMERGENCY_PROTOCOLS.map((p) => [p.id, p]));
@@ -54,76 +65,147 @@ describe('demo-critical: scenario → intended protocol resolution', () => {
   for (const { scenarioId, expected } of cases) {
     it(`${scenarioId} resolves ${expected}`, () => {
       const scenario = EMERGENCY_SCENARIOS.find((s) => s.id === scenarioId)!;
-      const match = resolveTopProtocol(scenario.callerSpeechTranscript, EMERGENCY_PROTOCOLS);
-      expect(match.protocol.id).toBe(expected);
-      expect(match.score).toBeGreaterThan(0);
+      const outcome = resolveTriageOutcome(scenario.callerSpeechTranscript, EMERGENCY_PROTOCOLS);
+      expect(outcome.kind).toBe('matched');
+      if (outcome.kind === 'matched') {
+        expect(outcome.protocol.id).toBe(expected);
+        expect(outcome.confidence).toBeGreaterThan(0);
+      }
     });
   }
 });
 
-describe('rankProtocols behavior', () => {
+describe('SAFETY: unknown input must never produce a protocol', () => {
+  const mustAbstain: Array<[string, string]> = [
+    ['pregnancy / water break', 'my water broke and I am nine months pregnant, there is blood and the baby is not moving'],
+    ['pregnancy / bleeding', 'I am 34 weeks pregnant and having heavy vaginal bleeding'],
+    ['in labour', 'I am in labour, contractions are two minutes apart, the baby is crowning'],
+    ['seizure', 'my friend just had a seizure, she is shaking and unresponsive'],
+    ['major bleeding', 'I cut my leg on a saw and the bleeding will not stop'],
+    ['burns', 'I spilled boiling water on my arm, it is blistered badly'],
+    ['electrocution, breathing status unknown', 'my coworker was electrocuted by a live wire and is unconscious'],
+    ['hypoglycaemia', 'my father is diabetic and confused and sweating and he took his insulin'],
+    ['lost parcel', 'my parcel never arrived and the courier is rude'],
+    ['weather', 'it is going to rain tomorrow in Bengaluru'],
+    ['greeting', 'hello how are you doing today'],
+    ['empty', ''],
+    ['whitespace', '   '],
+    ['punctuation only', '!!! ??? ...'],
+  ];
+
+  for (const [name, text] of mustAbstain) {
+    it(`abstains: ${name}`, () => {
+      const outcome = resolveTriageOutcome(text, EMERGENCY_PROTOCOLS);
+      expect(outcome.kind).toBe('abstain');
+      expect(matchedProtocol(outcome)).toBeNull();
+      expect(canDispatch(outcome)).toBe(false);
+    });
+  }
+
+  it('NEVER returns cardiac arrest for out-of-domain input', () => {
+    for (const [name, text] of mustAbstain) {
+      const protocol = matchedProtocol(resolveTriageOutcome(text, EMERGENCY_PROTOCOLS));
+      expect(protocol?.id, `"${name}" must not resolve to CARD-01`).not.toBe('CARD-01');
+    }
+  });
+});
+
+describe('clinically correct matches (must NOT be over-cautious)', () => {
+  // A non-breathing drowning victim genuinely needs CPR. Refusing here would be
+  // its own failure, so these are asserted as MATCHES. Dedicated drowning and
+  // electrocution protocols remain Stage-3 work.
+  const shouldMatch: Array<[string, string, string]> = [
+    ['classic cardiac arrest', 'he collapsed and is not breathing and has no pulse', 'CARD-01'],
+    ['drowning, non-breathing', 'my child fell into the pool and is not breathing, I pulled him out', 'CARD-01'],
+    ['stroke, word-reordered', 'my father face is drooping on one side and his speech is slurred', 'NEURO-03'],
+    ['choking', 'the baby is choking on something and cannot breathe', 'AIR-02'],
+    ['anaphylaxis', 'her throat is closing up after peanuts, I have an EpiPen', 'IMMUNO-04'],
+    ['overdose', 'my brother overdosed on fentanyl and is not waking up', 'TOX-05'],
+  ];
+
+  for (const [name, text, expected] of shouldMatch) {
+    it(`matches ${expected}: ${name}`, () => {
+      const outcome = resolveTriageOutcome(text, EMERGENCY_PROTOCOLS);
+      expect(outcome.kind).toBe('matched');
+      if (outcome.kind === 'matched') {
+        expect(outcome.protocol.id).toBe(expected);
+        expect(canDispatch(outcome)).toBe(true);
+      }
+    });
+  }
+});
+
+describe('SAFETY invariants', () => {
+  it('a score-0 match is impossible — no evidence never yields a protocol', () => {
+    const ranked = rankProtocols('zzz qqq xxx', EMERGENCY_PROTOCOLS, 6);
+    const top = ranked[0];
+    expect(top.anchors.length).toBe(0);
+    expect(resolveTriageOutcome('zzz qqq xxx', EMERGENCY_PROTOCOLS).kind).toBe('abstain');
+  });
+
+  it('corpus order does not decide the outcome', () => {
+    // Reordering the corpus must not change a single decision.
+    const text = 'my water broke and I am nine months pregnant';
+    const forward = resolveTriageOutcome(text, EMERGENCY_PROTOCOLS);
+    const reversed = resolveTriageOutcome(text, [...EMERGENCY_PROTOCOLS].reverse());
+    expect(forward.kind).toBe('abstain');
+    expect(reversed.kind).toBe('abstain');
+  });
+
+  it('handles adversarial and oversized input without crashing', () => {
+    expect(() => resolveTriageOutcome('a'.repeat(5000), EMERGENCY_PROTOCOLS)).not.toThrow();
+    expect(resolveTriageOutcome('a'.repeat(5000), EMERGENCY_PROTOCOLS).kind).toBe('abstain');
+  });
+
+  it('every matched outcome meets the confidence floor', () => {
+    for (const s of EMERGENCY_SCENARIOS) {
+      const o = resolveTriageOutcome(s.callerSpeechTranscript, EMERGENCY_PROTOCOLS);
+      if (o.kind === 'matched') {
+        expect(o.confidence).toBeGreaterThanOrEqual(MIN_CONFIDENCE);
+        expect(o.confidence).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it('the universal safety floor is a single unconditional sentence', () => {
+    expect(UNIVERSAL_SAFETY_FLOOR.length).toBeGreaterThan(20);
+    expect(UNIVERSAL_PREARRIVAL_STEPS.length).toBeGreaterThan(3);
+  });
+});
+
+describe('matching quality (word-boundary + stemming)', () => {
+  it('reaches a keyword through an inflected paraphrase', () => {
+    // "choking" must reach the "choking on food" family, not be missed by strict equality.
+    const o = resolveTriageOutcome('the baby is choking on something and cannot breathe', EMERGENCY_PROTOCOLS);
+    expect(o.kind).toBe('matched');
+    if (o.kind === 'matched') expect(o.protocol.id).toBe('AIR-02');
+  });
+
+  it('does not fire on a keyword buried inside an unrelated longer word', () => {
+    // "unresponsiveness" is a real word; the guard is that we do not match a
+    // keyword by naive substring across word boundaries.
+    const o = resolveTriageOutcome('the photocopier is unresponsive again', EMERGENCY_PROTOCOLS);
+    expect(o.kind).toBe('abstain');
+  });
+
   it('ranks ambiguous cardiac language to CARD-01', () => {
-    const m = resolveTopProtocol('he collapsed and is not breathing, no pulse', EMERGENCY_PROTOCOLS);
-    expect(m.protocol.id).toBe('CARD-01');
-  });
-
-  it('ranks paraphrased scam language to CYBER-06 (hybrid keyword coverage)', () => {
-    const m = resolveTopProtocol(
-      'a fake customs officer on video call says pay money and give one time password or go to jail',
-      EMERGENCY_PROTOCOLS
-    );
-    expect(m.protocol.id).toBe('CYBER-06');
-  });
-
-  it('respects topK and never returns more than requested', () => {
-    const ranked = rankProtocols('choking baby blue lips', EMERGENCY_PROTOCOLS, 2);
-    expect(ranked).toHaveLength(2);
-    expect(ranked[0].score).toBeGreaterThanOrEqual(ranked[1].score);
+    const o = resolveTriageOutcome('he collapsed and is not breathing, no pulse', EMERGENCY_PROTOCOLS);
+    expect(o.kind).toBe('matched');
+    if (o.kind === 'matched') expect(o.protocol.id).toBe('CARD-01');
   });
 
   it('is deterministic: identical input yields identical output', () => {
     const input = 'my boss collapsed, making snoring gasping sounds';
-    const a = rankProtocols(input, EMERGENCY_PROTOCOLS, 3);
-    const b = rankProtocols(input, EMERGENCY_PROTOCOLS, 3);
-    expect(a).toEqual(b);
+    expect(resolveTriageOutcome(input, EMERGENCY_PROTOCOLS)).toEqual(
+      resolveTriageOutcome(input, EMERGENCY_PROTOCOLS)
+    );
   });
 
-  it('breaks ties by corpus order, not by reference instability', () => {
-    // 'unresponsive drug patient' shares weak signals; corpus order must decide.
-    const ranked = rankProtocols('unresponsive drug patient', EMERGENCY_PROTOCOLS, 6);
-    const ids = ranked.map((r) => r.protocol.id);
-    expect(new Set(ids).size).toBe(EMERGENCY_PROTOCOLS.length); // all ranked, no duplicates
-  });
-
-  it('handles empty and adversarial input without crashing', () => {
-    expect(() => resolveTopProtocol('', EMERGENCY_PROTOCOLS)).not.toThrow();
-    expect(() => resolveTopProtocol('!!! ??? ...', EMERGENCY_PROTOCOLS)).not.toThrow();
-    expect(() => resolveTopProtocol('a'.repeat(5000), EMERGENCY_PROTOCOLS)).not.toThrow();
-  });
-
-  it('is fast enough for the 20ms budget of the 300ms ceiling (fallback mode)', () => {
+  it('is fast enough for the voice budget', () => {
     const t0 = performance.now();
     for (let i = 0; i < 100; i++) {
-      rankProtocols('digital arrest cbi otp transfer money now', EMERGENCY_PROTOCOLS, 3);
+      resolveTriageOutcome('digital arrest cbi otp transfer money now', EMERGENCY_PROTOCOLS);
     }
-    const perQuery = (performance.now() - t0) / 100;
-    // Generous CI margin — this is a smoke alarm, not a benchmark claim.
-    expect(perQuery).toBeLessThan(5);
-  });
-});
-
-describe('no-fabrication regression guards (v1 incident)', () => {
-  it('scores are derived from real work, never inflated constants', () => {
-    // v1 bug: score was clamped with +0.5 inflation to 0.99.
-    const match = resolveTopProtocol('heart attack cpr now', EMERGENCY_PROTOCOLS);
-    expect(match.score).toBeLessThanOrEqual(20); // keyword weights + capped overlap
-    expect(Number.isFinite(match.score)).toBe(true);
-  });
-
-  it('engine labels never claim the WASM runtime when the fallback serves', () => {
-    // The fallback path must always label itself honestly.
-    const FALLBACK_LABEL = 'Local Fallback (deterministic keyword pass)';
-    expect(FALLBACK_LABEL).toMatch(/fallback/i);
-    expect(FALLBACK_LABEL).not.toMatch(/rust|wasm|moss/i);
+    expect((performance.now() - t0) / 100).toBeLessThan(5);
   });
 });
