@@ -33,3 +33,31 @@ describe('mossEngine integration', () => {
     expect(stats.totalQueries).toBeGreaterThan(0);
   });
 });
+
+describe('mossEngine.refineWithMoss is enrichment, never a decision', () => {
+  it('returns null when the WASM runtime is not warm', async () => {
+    // The browser calls this in the background. It has no network in the test
+    // environment, so the runtime stays cold — which is exactly the case the
+    // caller must survive by keeping the local result.
+    const refined = await mossEngine.refineWithMoss('adult collapsed not breathing');
+    expect(refined).toBeNull();
+  });
+
+  it('never blocks or rejects on the caller hot path', async () => {
+    const local = await mossEngine.query('adult collapsed not breathing cardiac arrest');
+    expect(local.outcome.kind).toBe('matched');
+
+    // Fire-and-forget must settle rather than hang, even with no runtime.
+    const settled = await Promise.race([
+      mossEngine.refineWithMoss('adult collapsed not breathing').then(() => 'settled'),
+      new Promise((r) => setTimeout(() => r('hung'), 6000)),
+    ]);
+    expect(settled).toBe('settled');
+  });
+
+  it('leaves the local decision intact when refinement is unavailable', async () => {
+    const res = await mossEngine.query('my parcel never arrived');
+    expect(res.outcome.kind).toBe('abstain');
+    expect(canDispatch(res.outcome)).toBe(false);
+  });
+});

@@ -172,6 +172,31 @@ runtime's exchange protocol against a production credential. Not attempted.
 | 6.5 | Reconcile the capability claims | README/landing assert in-process Moss WASM retrieval; if the credential is ever withdrawn, that text becomes false and **must** be changed at the same time |
 | 6.6 | Decide the 28 MB first-load ONNX download | it contradicts the "zero network hop / sub-10ms" framing; model delivery, deferral, or an honest caveat |
 | 6.7 | Check Moss usage logs for abuse of the leaked key | confirmed clean, or rotated again |
+| 6.8 | **Moss `query()` never settles in the browser (BLOCKING, Moss-side)** | see below |
+
+**6.8 — the blocker, as measured (2026-09-26).** With the rotated key the credential
+path is healthy end to end:
+
+```
+201 /identity/auth/token                    ← new key valid
+202 /index/init  →  202 /index/…/confirm    ← index builds
+200 /index/pulse911-protocols-v1/url
+200 models.moss.link/…/model.mossml         ← model artifact downloads
+```
+
+`init()` completes and logs `Moss WASM runtime ready`. But `client.query()` then
+**never resolves** — it blew a 30s budget, and 8s is the shipped cap. The badge
+therefore stays `Moss Local` and Moss corroborates nothing. The Node SDK fails
+differently and more honestly: `401 Unauthorized` on
+`models.moss.link/artifacts/v1/moss-minilm/bind1~…/release.json`, i.e. the
+`MODEL-ENTITLEMENT` class that `scripts/verify-moss.mjs` already records.
+
+This is **not** a code defect and must not be "fixed" by loosening the deadline or
+by letting Moss onto the decision path. It is an entitlement/artifact problem on
+the Moss side. Ask them to confirm `moss-minilm` entitlement for this project key.
+Until it is resolved, the honest position is: the integration is wired, correct,
+and authenticated, but contributes nothing at runtime — so the product must not
+claim otherwise (see 6.5).
 
 ---
 

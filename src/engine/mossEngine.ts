@@ -39,22 +39,20 @@ export type EngineMode = 'moss-wasm' | 'local-fallback';
 const INDEX_NAME = 'pulse911-protocols-v1';
 
 /**
- * Hard deadline for the entire Moss cold start (index create + load + WASM
- * model init).
+ * Hard deadline for ONE background Moss refinement query.
  *
- * This is a SAFETY control, not a performance tweak. The Moss path performs
- * real network round-trips to Moss Cloud and compiles a multi-megabyte ONNX
- * model. In a sandboxed browser, on a poor connection, or when the service is
- * unreachable, that can take tens of seconds or never settle at all. Because
- * the caller was previously awaiting `mossEngine.query()` directly, a stalled
- * cold start left the dispatcher looking at a frozen console with no protocol
- * and no guidance — the worst possible outcome.
+ * This is a SAFETY control, not a performance tweak — but note carefully what
+ * it does and does not cover. It bounds the *refinement* query only. It
+ * deliberately does NOT bound `init()`: an earlier version applied this budget
+ * to the cold start too, which could never complete inside 8s (the runtime
+ * compiles a multi-megabyte ONNX model), so initialization always "failed" and
+ * was permanently disabled for the session. Warming up slowly is fine.
  *
- * The deterministic local triage is therefore the GUARANTEED path, and Moss is
- * treated as a best-effort enhancement that must yield inside this budget or be
- * abandoned for the rest of the session.
+ * Nothing on the dispatcher-facing path awaits this. The local deterministic
+ * triage has already decided, spoken, and dispatched by the time a refinement
+ * starts, so a stalled or slow Moss query can delay a badge — never a decision.
  */
-const MOSS_COLD_START_BUDGET_MS = 4000;
+const MOSS_REFINEMENT_BUDGET_MS = 8000;
 
 /** Flatten a protocol into one indexable text block (retrieved verbatim on match). */
 function protocolToDocText(p: EmergencyProtocol): string {
@@ -85,21 +83,27 @@ class Pulse911RetrievalEngine {
   private lastInitError: string | null = null;
   private totalQueries = 0;
 
-  /** Kick off async initialization; safe to call multiple times. */
+  /**
+   * Kick off async initialization; safe to call multiple times.
+   *
+   * There is deliberately NO deadline here. An earlier version raced `init`
+   * against the 4s budget, which was a mistake in both directions: the runtime
+   * must download and compile a ~28MB ONNX model, so initialization essentially
+   * never completes inside 4s. The race therefore *always* rejected, and its
+   * catch handler set `mode = 'local-fallback'` and `client = null` — which
+   * permanently disabled Moss for the rest of the session, so `refineWithMoss`
+   * returned null forever and the runtime never contributed to anything.
+   *
+   * The budget belongs on the QUERY path (`refineWithMoss`), which is the only
+   * thing a dispatcher ever waits on. Warming up slowly is fine; failing to
+   * finish warming is not.
+   */
   public init(): Promise<void> {
     if (!this.initPromise) {
-      this.initPromise = Promise.race([
-        this.initInternal(),
-        new Promise<void>((_, reject) =>
-          setTimeout(
-            () => reject(new Error(`Moss cold start exceeded ${MOSS_COLD_START_BUDGET_MS}ms budget`)),
-            MOSS_COLD_START_BUDGET_MS
-          )
-        ),
-      ]).catch((e: unknown) => {
+      this.initPromise = this.initInternal().catch((e: unknown) => {
         this.lastInitError = e instanceof Error ? e.message : String(e);
         // Abandon the WASM path for the rest of the session so we do not pay
-        // this timeout on every subsequent query.
+        // this failure on every subsequent query.
         this.mode = 'local-fallback';
         this.client = null;
         console.warn(`[Pulse911] Moss runtime unavailable, using local-fallback: ${this.lastInitError}`);
@@ -196,7 +200,7 @@ class Pulse911RetrievalEngine {
       const result: SearchResult = await Promise.race([
         this.client.query(INDEX_NAME, transcript, { topK }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Moss query timed out')), MOSS_COLD_START_BUDGET_MS)
+          setTimeout(() => reject(new Error('Moss query timed out')), MOSS_REFINEMENT_BUDGET_MS)
         ),
       ]);
       const docs = result.docs ?? [];
@@ -230,7 +234,14 @@ class Pulse911RetrievalEngine {
         vectorDistance: 1 - topScore,
         tokensEvaluated: transcript.split(/\s+/).filter(Boolean).length,
       };
-    } catch {
+    } catch (err) {
+      // Was `catch { return null }`. A silent catch here is what let a broken
+      // Moss path look identical to a healthy one for an entire release.
+      console.warn(
+        `[Pulse911] Moss refinement unavailable, keeping local triage: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
       return null;
     }
   }
