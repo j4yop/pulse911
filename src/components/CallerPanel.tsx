@@ -41,6 +41,11 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
   // Web Speech recognition hook for live microphone
   const recognitionRef = useRef<any>(null);
   const [speechNotice, setSpeechNotice] = useState<string | null>(null);
+  // Interim transcripts fire on every partial word. Buffer them and only dispatch
+  // once the speaker pauses, so a single sentence does not trigger dozens of
+  // retrievals + speech calls (this was a major source of runtime jank).
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestRef = useRef('');
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -55,9 +60,15 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
         for (let i = event.resultIndex; i < event.results.length; i++) {
           transcript += event.results[i][0].transcript;
         }
-        if (transcript.trim()) {
-          onProcessTranscript(transcript);
-        }
+        const text = transcript.trim();
+        if (!text) return;
+
+        latestRef.current = text;
+        if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+        settleTimerRef.current = setTimeout(() => {
+          const settled = latestRef.current.trim();
+          if (settled) onProcessTranscript(settled);
+        }, 650);
       };
 
       rec.onerror = (e: any) => {
@@ -71,6 +82,10 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
 
       recognitionRef.current = rec;
     }
+
+    return () => {
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+    };
   }, [onProcessTranscript]);
 
   const toggleMic = () => {
@@ -156,26 +171,26 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
   };
 
   return (
-    <div className="clean-card flex flex-col min-h-[640px] overflow-hidden">
+    <div className="clean-card flex flex-col min-h-[520px] sm:min-h-[640px] overflow-hidden">
       {/* Channel Header */}
-      <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shadow-xs">
+      <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shadow-xs shrink-0">
             <PhoneCall className="w-5 h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-sm font-bold text-slate-900">Caller Voice Channel</h3>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Live Ingestion
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">Real-time caller speech stream & automated audio guidance</p>
+            <p className="text-xs text-slate-500 mt-0.5 hidden sm:block">Real-time caller speech stream & automated audio guidance</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {activeScenario && (
             <motion.button
               whileTap={{ scale: 0.95 }}
@@ -236,15 +251,15 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
       )}
 
       {/* Medical Waveform Visualizer & Equalizer Bars */}
-      <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex items-center justify-between gap-4">
-        <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+      <div className="px-4 sm:px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex items-center justify-between gap-4">
+        <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5 shrink-0">
           <Volume2 className="w-3.5 h-3.5 text-slate-400" />
-          <span>Audio Ingestion Level</span>
+          <span className="hidden sm:inline">Audio Ingestion Level</span>
         </span>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           {/* 12-Band Dynamic EQ Visualizer */}
-          <div className="flex items-center gap-1 h-6 px-2 bg-slate-100/80 rounded-lg">
+          <div className="flex items-center gap-1 h-6 px-2 bg-slate-100/80 rounded-lg overflow-hidden">
             {[6, 12, 18, 14, 22, 16, 20, 10, 15, 8, 14, 18].map((h, i) => (
               <motion.div
                 key={i}
@@ -273,7 +288,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
       </div>
 
       {/* Main Conversation Stream */}
-      <div className="flex-1 p-6 overflow-y-auto space-y-5">
+      <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-5">
         {/* Caller Speech Bubble */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
@@ -315,13 +330,13 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
             transition={{ type: 'spring', stiffness: 350, damping: 25 }}
             className="space-y-1.5"
           >
-            <div className="flex items-center justify-between text-xs font-bold text-rose-700">
-              <span className="flex items-center gap-1.5">
-                <Bot className="w-4 h-4 text-rose-600" />
-                <span>AI Spoken Directive (Heard in Caller's Ear):</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-rose-700">
+              <span className="flex items-center gap-1.5 min-w-0">
+                <Bot className="w-4 h-4 text-rose-600 shrink-0" />
+                <span className="truncate">AI Spoken Directive (Heard in Caller's Ear):</span>
               </span>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -351,7 +366,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
       {/* Quick Prompt Ideas & Custom Input */}
       <div className="border-t border-slate-100 bg-slate-50/60 p-4 space-y-3">
         {/* Quick Suggestion Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs text-slate-500">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs text-slate-500">
           <span className="font-semibold text-slate-600 text-[11px] shrink-0 flex items-center gap-1">
             <Sparkles className="w-3 h-3 text-amber-500" />
             Try prompts:

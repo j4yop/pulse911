@@ -28,13 +28,15 @@ export function GlassDock({ items, className, dockClassName }: GlassDockProps) {
   return (
     <div
       ref={containerRef}
-      className={cn("w-full flex items-center justify-center relative", className)}
+      className={cn("w-full max-w-full flex items-center justify-center relative", className)}
     >
       <div
         className={cn(
-          "relative flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 rounded-2xl sm:rounded-full",
+          "relative flex items-center gap-1.5 sm:gap-3 px-3 sm:px-6 py-2.5 sm:py-3 rounded-2xl sm:rounded-full",
           "bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl border border-white/90 dark:border-neutral-800",
           "shadow-[0_10px_35px_-5px_rgba(15,23,42,0.12),0_0_0_1px_rgba(255,255,255,0.8)_inset]",
+          // Mobile: horizontal swipe rail (8 controls never fit a phone width).
+          "max-w-full overflow-x-auto no-scrollbar overscroll-x-contain",
           dockClassName
         )}
         onMouseLeave={() => setHoveredIndex(null)}
@@ -80,7 +82,7 @@ export function GlassDock({ items, className, dockClassName }: GlassDockProps) {
               }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
               className={cn(
-                "relative p-2.5 sm:p-3 rounded-xl sm:rounded-full transition-all cursor-pointer flex items-center justify-center group",
+                "relative shrink-0 p-2 sm:p-3 rounded-xl sm:rounded-full transition-all cursor-pointer flex items-center justify-center group touch-manipulation",
                 isActive
                   ? "bg-rose-600 text-white shadow-md shadow-rose-500/25 ring-2 ring-rose-500/20"
                   : "bg-slate-100/80 hover:bg-slate-200/90 text-slate-700 hover:text-slate-950 dark:bg-neutral-800 dark:text-neutral-300"

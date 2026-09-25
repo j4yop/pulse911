@@ -35,6 +35,11 @@ interface HeroProps {
     light: string;
     dark: string;
     alt: string;
+    /** Optional modern-format source (WebP/AVIF) — served first via <picture>. */
+    lightModern?: string;
+    darkModern?: string;
+    width?: number;
+    height?: number;
   };
   className?: string;
 }
@@ -59,6 +64,7 @@ export function HeroSection({
   }
 
   const imageSrc = resolvedTheme === "dark" ? image.dark : image.light;
+  const modernSrc = resolvedTheme === "dark" ? image.darkModern : image.lightModern;
 
   return (
     <section
@@ -100,19 +106,22 @@ export function HeroSection({
             </p>
 
             {/* Actions */}
-            <div className="relative z-10 flex animate-appear justify-center gap-4 delay-300 pb-2 sm:pb-4">
+            <div className="relative z-10 flex animate-appear flex-col items-stretch justify-center gap-3 delay-300 pb-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 sm:pb-4">
               {actions.map((action, index) => (
                 <Button
                   key={index}
                   variant={action.variant}
                   size="lg"
                   asChild
-                  className={cn("rounded-xl shadow-xs", action.className)}
+                  className={cn(
+                    'rounded-xl shadow-xs w-full sm:w-auto min-h-11 touch-manipulation',
+                    action.className
+                  )}
                 >
                   <a
                     href={action.href}
                     onClick={action.onClick}
-                    className="flex items-center gap-2 font-bold"
+                    className="flex items-center justify-center gap-2 font-bold whitespace-nowrap"
                   >
                     {action.icon}
                     {action.text}
@@ -124,12 +133,25 @@ export function HeroSection({
         }
       >
         <div className="relative w-full h-full rounded-xl sm:rounded-2xl overflow-hidden bg-black flex flex-col justify-center items-center">
-          <img
-            src={imageSrc}
-            alt={image.alt}
-            className="w-full h-full object-cover object-top select-none pointer-events-none"
-            draggable={false}
-          />
+          <picture>
+            {modernSrc && (
+              <source
+                srcSet={modernSrc}
+                type={modernSrc.endsWith(".webp") ? "image/webp" : "image/avif"}
+              />
+            )}
+            <img
+              src={imageSrc}
+              alt={image.alt}
+              width={image.width}
+              height={image.height}
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+              className="w-full h-full object-cover object-top select-none pointer-events-none"
+              draggable={false}
+            />
+          </picture>
           <Glow
             variant="top"
             className="pointer-events-none animate-appear-zoom delay-1000"
