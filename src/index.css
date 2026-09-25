@@ -3,7 +3,7 @@
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --color-background: hsl(var(--background));
@@ -63,7 +63,7 @@
     --blue-300: #93c5fd;
     --violet-200: #ddd6fe;
     --blue-400: #60a5fa;
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-sans: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
@@ -90,7 +90,7 @@
   }
 
   .dark {
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-sans: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -267,4 +267,58 @@
 }
 .btn-tactile:active {
   transform: scale(0.97);
+}
+
+/* ── Mobile ergonomics ─────────────────────────────────────────────── */
+
+/* Horizontal chip/prompt rails: hide the scrollbar for a clean touch swipe. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Respect iOS safe areas so sticky docks/footers are not clipped by the home bar. */
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Prevent long unbroken strings (URLs, IDs) from blowing out mobile layouts. */
+.break-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ── Rendering performance ─────────────────────────────────────────── */
+
+/* Let the browser skip rendering work for far off-screen sections. */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 640px;
+}
+
+/* On touch devices, disable hover-lift transforms that feel sticky/broken. */
+@media (hover: none) {
+  .hover-lift-reset {
+    transform: none !important;
+  }
+}
+
+/* Global motion preference: collapse decorative animations for users who ask. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-aurora,
+  .animate-heartbeat,
+  .animate-pulse-subtle {
+    animation: none !important;
+  }
 }
