@@ -35,8 +35,10 @@ export function GlassDock({ items, className, dockClassName }: GlassDockProps) {
           "relative flex items-center gap-1.5 sm:gap-3 px-3 sm:px-6 py-2.5 sm:py-3 rounded-2xl sm:rounded-full",
           "bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl border border-white/90 dark:border-neutral-800",
           "shadow-[0_10px_35px_-5px_rgba(15,23,42,0.12),0_0_0_1px_rgba(255,255,255,0.8)_inset]",
-          // Mobile: horizontal swipe rail (8 controls never fit a phone width).
-          "max-w-full overflow-x-auto no-scrollbar overscroll-x-contain",
+          // Mobile only: a horizontal swipe rail (8 controls never fit a phone width).
+          // Must be reset at sm+ — `overflow-x: auto` also computes overflow-y to
+          // `auto`, which would clip the hover tooltip that pops above the dock.
+          "max-w-full overflow-x-auto no-scrollbar overscroll-x-contain sm:overflow-x-visible",
           dockClassName
         )}
         onMouseLeave={() => setHoveredIndex(null)}
