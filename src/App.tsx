@@ -186,7 +186,7 @@ export const App: React.FC = () => {
     <AuroraBackground
       showRadialGradient={activeTab !== 'console'}
       intensity={activeTab === 'console' ? 'vibrant' : 'subtle'}
-      className="min-h-dvh text-slate-900 clinical-grid selection:bg-rose-500/20 selection:text-rose-600 overflow-x-hidden"
+      className="min-h-dvh text-slate-900 clinical-grid selection:bg-rose-500/20 selection:text-rose-600 overflow-x-clip"
     >
       {/* Top Navbar */}
       <Navbar
