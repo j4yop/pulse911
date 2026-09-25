@@ -1,7 +1,19 @@
-import { MossClient, type SearchResult } from '@moss-dev/moss-web';
+import type { SearchResult } from '@moss-dev/moss-web';
 import type { EmergencyProtocol, MossQueryResult } from '../types';
 import { EMERGENCY_PROTOCOLS } from './emergencyProtocols';
 import { resolveTopProtocol } from './retrievalCore';
+
+/**
+ * Local structural type for the SDK client. The real `@moss-dev/moss-web` module
+ * (and its multi-megabyte WASM payload) is imported DYNAMICALLY in `initInternal`
+ * so it never sits on the critical first-paint path. This keeps the landing page
+ * and deterministic fallback featherweight.
+ */
+type MossClientInstance = {
+  createIndex(name: string, docs: Array<{ id: string; text: string; metadata: Record<string, string> }>): Promise<unknown>;
+  loadIndex(name: string): Promise<unknown>;
+  query(name: string, query: string, options: { topK: number }): Promise<SearchResult>;
+};
 
 /**
  * Pulse911 Retrieval Engine — REAL @moss-dev/moss-web (YC F25) integration.
@@ -46,8 +58,10 @@ function protocolToMetadata(p: EmergencyProtocol): Record<string, string> {
     triageLevel: p.triageLevel,
     code: p.code,
   };
-}class Pulse911RetrievalEngine {
-  private client: MossClient | null = null;
+}
+
+class Pulse911RetrievalEngine {
+  private client: MossClientInstance | null = null;
   private mode: EngineMode = 'local-fallback';
   private initPromise: Promise<void> | null = null;
   private lastInitError: string | null = null;
@@ -72,7 +86,10 @@ function protocolToMetadata(p: EmergencyProtocol): Record<string, string> {
       throw new Error('VITE_MOSS_PROJECT_ID / VITE_MOSS_PROJECT_KEY not configured');
     }
 
-    this.client = new MossClient(projectId, projectKey);
+    // Dynamic import: the SDK + WASM runtime is fetched only once a Moss query
+    // is actually needed, keeping it off the initial page-load critical path.
+    const { MossClient } = await import('@moss-dev/moss-web');
+    this.client = new MossClient(projectId, projectKey) as unknown as MossClientInstance;
 
     // Idempotent ingestion: create the index (no-op-safe), then load into runtime memory.
     const docs = EMERGENCY_PROTOCOLS.map((p) => ({

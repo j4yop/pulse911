@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Activity,
@@ -23,13 +23,23 @@ import { PulseLogo } from './PulseLogo';
 import { HeroSection } from '@/components/ui/hero-section';
 import { Icons } from '@/components/ui/icons';
 import { AsciiGlitchRipple } from '@/components/ui/ascii-glitch-ripple';
-import { IDCardLanyard } from '@/components/ui/id-card-lanyard';
 import { CornerButton } from '@/components/ui/corner-button';
 import { GlowCard } from '@/components/ui/glow-card';
-import { AgentBentoGrid } from '@/components/ui/agent-bento-grid';
-import { ExpandableBentoGrid, BentoGridItem } from '@/components/ui/expandable-bento-grid';
+import { LazyMount, BlockPlaceholder } from './Deferred';
 import dispatcherAvatar from '../assets/dispatcher-photo.jpeg';
 import heroConsolePreview from '../assets/hero-console-preview.jpg';
+import heroConsolePreviewWebp from '../assets/hero-console-preview.webp';
+
+// Type-only import: erased at build time, so it costs nothing at runtime.
+import type { BentoGridItem } from '@/components/ui/expandable-bento-grid';
+
+// ── Deferred (code-split) below-the-fold widgets ────────────────────────────
+// These are the heaviest, most animation-dense widgets on the page (physics
+// loop, canvas QR/barcode rendering, dozens of infinite motion loops). Loading
+// them up front is what made the landing page stutter on open.
+const IDCardLanyard = lazy(() => import('@/components/ui/id-card-lanyard'));
+const AgentBentoGrid = lazy(() => import('@/components/ui/agent-bento-grid'));
+const ExpandableBentoGrid = lazy(() => import('@/components/ui/expandable-bento-grid'));
 
 interface LandingViewProps {
   onLaunchConsole: (scenario?: EmergencyScenario) => void;
@@ -214,7 +224,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
   ];
 
   return (
-    <div className="space-y-16 pb-16 w-full max-w-7xl mx-auto font-sans">
+    <div className="space-y-10 sm:space-y-16 pb-10 sm:pb-16 w-full max-w-7xl mx-auto font-sans">
       {/* 1. HERO SECTION (21st.dev / Launch UI Component) */}
       <section className="relative text-center">
         <HeroSection
@@ -231,30 +241,30 @@ export const LandingView: React.FC<LandingViewProps> = ({
           }}
           title={
             <>
-              <span className="block whitespace-nowrap">
+              <span className="block whitespace-normal sm:whitespace-nowrap">
                 <AsciiGlitchRipple
                   as="span"
-                  className="cursor-pointer select-none whitespace-nowrap transition-colors duration-200 hover:text-slate-700"
+                  className="cursor-pointer select-none whitespace-normal sm:whitespace-nowrap transition-colors duration-200 hover:text-slate-700"
                   dur={900}
                   spread={1.2}
                 >
                   When Seconds Save Lives,
                 </AsciiGlitchRipple>
               </span>
-              <span className="block mt-1 sm:mt-2 whitespace-nowrap">
+              <span className="block mt-1 sm:mt-2 whitespace-normal sm:whitespace-nowrap">
                 <AsciiGlitchRipple
                   as="span"
-                  className="cursor-pointer select-none whitespace-nowrap transition-colors duration-200 hover:text-slate-700"
+                  className="cursor-pointer select-none whitespace-normal sm:whitespace-nowrap transition-colors duration-200 hover:text-slate-700"
                   dur={900}
                   spread={1.2}
                 >
                   400ms Cloud Latency is
                 </AsciiGlitchRipple>
               </span>
-              <span className="block mt-1 sm:mt-2 whitespace-nowrap">
+              <span className="block mt-1 sm:mt-2 whitespace-normal sm:whitespace-nowrap">
                 <AsciiGlitchRipple
                   as="span"
-                  className="cursor-pointer select-none whitespace-nowrap transition-colors duration-200 hover:text-rose-600"
+                  className="cursor-pointer select-none whitespace-normal sm:whitespace-nowrap transition-colors duration-200 hover:text-rose-600"
                   dur={900}
                   spread={1.2}
                 >
@@ -298,6 +308,10 @@ export const LandingView: React.FC<LandingViewProps> = ({
           image={{
             light: heroConsolePreview,
             dark: heroConsolePreview,
+            lightModern: heroConsolePreviewWebp,
+            darkModern: heroConsolePreviewWebp,
+            width: 1376,
+            height: 768,
             alt: "Pulse911 Zero-Latency Emergency Dispatch Console with Moss WASM Triage",
           }}
         />
@@ -330,7 +344,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.32 }}
-          className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 max-w-4xl mx-auto mt-4 sm:mt-5 pt-1 text-left"
+          className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 max-w-4xl mx-auto mt-4 sm:mt-5 pt-1 text-left"
         >
           <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xs">
             <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block">Moss WASM Retrieval</span>
@@ -371,7 +385,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
       </section>
 
       {/* 2. THE 300MS BIOLOGICAL LATENCY PROBLEM */}
-      <section className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-10 shadow-xs space-y-8">
+      <section className="cv-auto bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-10 shadow-xs space-y-8">
         <div className="pb-2">
           <div className="max-w-3xl space-y-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-rose-600 uppercase tracking-wider">
@@ -456,7 +470,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
       </section>
 
       {/* 3. BENTO GRID OF CORE INNOVATIONS (SkillRoute-styled Glow Cards) */}
-      <section className="space-y-8 py-4">
+      <section className="cv-auto space-y-8 py-4">
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
             High-Stakes Clinical Architecture
@@ -589,7 +603,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
       </section>
 
       {/* 5. AGENT BENTO GRID */}
-      <section className="relative overflow-hidden bg-[#070709] text-white rounded-3xl p-6 sm:p-10 space-y-8 border border-white/[0.08] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)]">
+      <section className="relative overflow-hidden bg-[#070709] text-white rounded-3xl p-5 sm:p-10 space-y-8 border border-white/[0.08] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)]">
         {/* Subtle dark ambient glows */}
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-48 bg-rose-500/[0.06] blur-[100px] pointer-events-none rounded-full" />
         <div className="absolute -bottom-24 right-10 w-80 h-48 bg-indigo-500/[0.04] blur-[100px] pointer-events-none rounded-full" />
@@ -616,13 +630,15 @@ export const LandingView: React.FC<LandingViewProps> = ({
           </button>
         </div>
 
-        <div className="relative z-10">
-          <AgentBentoGrid />
-        </div>
+        <LazyMount minHeight={520} className="relative z-10">
+          <Suspense fallback={<BlockPlaceholder className="h-[420px] border-white/10 bg-white/[0.03]" />}>
+            <AgentBentoGrid />
+          </Suspense>
+        </LazyMount>
       </section>
 
       {/* 6. HACKATHON DELIVERABLES & SUBMISSION DOCK (EXPANDABLE BENTO GRID) */}
-      <section className="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs">
+      <section className="cv-auto bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-3xl p-5 sm:p-8 shadow-xs">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
             <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
@@ -639,11 +655,15 @@ export const LandingView: React.FC<LandingViewProps> = ({
           </span>
         </div>
 
-        <ExpandableBentoGrid items={deliverablesItems} />
+        <LazyMount minHeight={260}>
+          <Suspense fallback={<BlockPlaceholder className="h-[220px]" />}>
+            <ExpandableBentoGrid items={deliverablesItems} />
+          </Suspense>
+        </LazyMount>
       </section>
 
       {/* 7. CLOSING CONVERSION / CALL-TO-ACTION BANNER */}
-      <section className="relative rounded-3xl bg-gradient-to-b from-white to-slate-50/80 border border-slate-200/90 p-8 sm:p-12 shadow-xs text-center overflow-hidden">
+      <section className="cv-auto relative rounded-3xl bg-gradient-to-b from-white to-slate-50/80 border border-slate-200/90 p-6 sm:p-12 shadow-xs text-center overflow-hidden">
         {/* Subtle decorative glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-rose-500/5 blur-3xl pointer-events-none rounded-full" />
 
@@ -708,7 +728,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
       </section>
 
       {/* 8. DISPATCHER ID CARD LANYARD */}
-      <section className="relative min-h-[640px] lg:min-h-[680px] w-full rounded-3xl bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border border-slate-800 shadow-xl overflow-hidden flex flex-col justify-between p-4 sm:p-6 my-8">
+      <section className="relative min-h-[520px] sm:min-h-[640px] lg:min-h-[680px] w-full rounded-3xl bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border border-slate-800 shadow-xl overflow-hidden flex flex-col justify-between p-4 sm:p-6 my-8">
         {/* Subtle grid background */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b10_1px,transparent_1px),linear-gradient(to_bottom,#1e293b10_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
@@ -724,27 +744,31 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </div>
 
         {/* Lanyard Physics Component */}
-        <div className="relative flex-1 w-full min-h-[540px] flex items-center justify-center">
-          <IDCardLanyard
-            name="Jay Gopal"
-            role="Lead Systems Engineer"
-            brand="PULSE 911"
-            brandTagline="Zero-Latency Dispatch"
-            pillars={["Sub-10ms Retrieval", "Deterministic AHA", "Acoustic CPR"]}
-            location="VIT Chennai"
-            idNumber="P911-2026-HQ"
-            validThru="12/2029"
-            avatarUrl={dispatcherAvatar}
-            avatarObjectPosition="center 32%"
-            site="github.com/j4yop"
-            githubUrl="https://github.com/j4yop"
-            linkedinUrl="https://www.linkedin.com/in/jaygopaltripathy"
-            emailUrl="mailto:jay20gopal@gmail.com"
-            anchorX="50%"
-            anchorY={12}
-            positionMode="absolute"
-            showHint={true}
-          />
+        <div className="relative flex-1 w-full min-h-[440px] sm:min-h-[540px] flex items-center justify-center">
+          <LazyMount minHeight={320} className="w-full">
+            <Suspense fallback={<BlockPlaceholder className="h-[320px] border-white/10 bg-white/[0.03]" />}>
+            <IDCardLanyard
+              name="Jay Gopal"
+              role="Lead Systems Engineer"
+              brand="PULSE 911"
+              brandTagline="Zero-Latency Dispatch"
+              pillars={['Sub-10ms Retrieval', 'Deterministic AHA', 'Acoustic CPR']}
+              location="VIT Chennai"
+              idNumber="P911-2026-HQ"
+              validThru="12/2029"
+              avatarUrl={dispatcherAvatar}
+              avatarObjectPosition="center 32%"
+              site="github.com/j4yop"
+              githubUrl="https://github.com/j4yop"
+              linkedinUrl="https://www.linkedin.com/in/jaygopaltathy"
+              emailUrl="mailto:jay20gopal@gmail.com"
+              anchorX="50%"
+              anchorY={12}
+              positionMode="absolute"
+              showHint={true}
+            />
+            </Suspense>
+          </LazyMount>
         </div>
 
         <div className="relative z-10 text-center font-mono text-[11px] text-slate-500 pt-3 border-t border-slate-800/80">
