@@ -8,6 +8,7 @@ import { EmergencyScenario, MossQueryResult, DispatchedUnit } from './types';
 import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from './engine/emergencyProtocols';
 import { mossEngine } from './engine/mossEngine';
 import { audioService } from './engine/speechSimulation';
+import { canDispatch, matchedProtocol, UNIVERSAL_SAFETY_FLOOR } from './engine/triageGate';
 import { cn } from '@/lib/utils';
 
 // ── Route-level code splitting ──────────────────────────────────────────────
@@ -27,27 +28,15 @@ const ArchitectureView = lazy(() =>
 );
 const PRDView = lazy(() => import('./components/PRDView').then((m) => ({ default: m.PRDView })));
 
-const INITIAL_QUERY_RESULT: MossQueryResult = {
-  protocol: EMERGENCY_PROTOCOLS[0],
-  score: 1.0,
-  latencyMs: 0.1,
-  engine: 'Local Fallback (deterministic keyword pass)',
-  vectorDistance: 0.05,
-  tokensEvaluated: EMERGENCY_SCENARIOS[0].callerSpeechTranscript.split(/\s+/).filter(Boolean).length,
-};
-
-const INITIAL_DISPATCHED_UNIT: DispatchedUnit = {
-  id: 'MEDIC-14',
-  name: 'Medic Engine 14 (ALS Paramedic Rescue)',
-  type: 'ALS Paramedic Rescue Engine + Battalion Medic',
-  station: 'Station 4 • Downtown Core',
-  etaMinutes: 4,
-  status: 'DISPATCHED',
-  crew: 'Captain R. Torres, Paramedic J. Vance',
-};
-
 const TAB_IDS = ['overview', 'console', 'benchmark', 'architecture', 'prd'] as const;
 type TabId = (typeof TAB_IDS)[number];
+
+// NOTE: there is deliberately NO pre-seeded protocol and NO pre-dispatched unit.
+// Previously `INITIAL_QUERY_RESULT` hardcoded cardiac arrest at score 1.0 and
+// `INITIAL_DISPATCHED_UNIT` showed MEDIC-14 as already dispatched, so the console
+// displayed a confident cardiac protocol before a single word was spoken. The
+// console now opens in true CAD Standby and only ever shows a protocol that the
+// triage engine actually matched.
 
 export const App: React.FC = () => {
   const initialTab = TAB_IDS.find((t) => t === new URLSearchParams(window.location.search).get('tab'));
@@ -78,15 +67,16 @@ export const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
-  const [activeScenario, setActiveScenario] = useState<EmergencyScenario | null>(EMERGENCY_SCENARIOS[0]);
-  const [currentTranscript, setCurrentTranscript] = useState<string>(EMERGENCY_SCENARIOS[0].callerSpeechTranscript);
+  // Start in true standby: no scenario, no transcript, no protocol, no unit.
+  const [activeScenario, setActiveScenario] = useState<EmergencyScenario | null>(null);
+  const [currentTranscript, setCurrentTranscript] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [queryResult, setQueryResult] = useState<MossQueryResult | null>(INITIAL_QUERY_RESULT);
-  const [dispatchedUnit, setDispatchedUnit] = useState<DispatchedUnit | null>(INITIAL_DISPATCHED_UNIT);
+  const [queryResult, setQueryResult] = useState<MossQueryResult | null>(null);
+  const [dispatchedUnit, setDispatchedUnit] = useState<DispatchedUnit | null>(null);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const [audioFeedbackEnabled, setAudioFeedbackEnabled] = useState(true);
-  /** Measured latency of the last query. */
-  const [latencyMs, setLatencyMs] = useState<number | null>(0.1);
+  /** Measured latency of the last query. Null until a real query has run. */
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
   /** Increments per processed call — keys/cancels async AI enrichment per scenario. */
   const [callRequestId, setCallRequestId] = useState(0);
 
@@ -103,52 +93,64 @@ export const App: React.FC = () => {
         setQueryResult(res);
         setLatencyMs(res.latencyMs);
 
-        if (scenario) {
-          setActiveScenario(scenario);
-        } else {
-          setActiveScenario({
-            id: 'scen_live_call',
-            title: 'Live Inbound 911 Call (Real-Time Ingest)',
-            tagline: 'Live voice audio / freeform speech transcribed & routed via Moss',
-            iconName: 'PhoneCall',
-            callerProfile: 'Live Caller (Direct Audio Stream)',
-            callerSpeechTranscript: text,
-            callerLocation: {
-              address: 'Triangulating Cell Tower GPS',
-              city: 'Metro Dispatch Sector 4',
-              coordinates: '37.7749° N, 122.4194° W'
-            },
-            reportedVitals: {
-              consciousness: 'TRIAGED IN REAL TIME',
-              breathing: 'VAD MONITORED',
-              pulse: res.protocol.cadenceBpm ? `${res.protocol.cadenceBpm} BPM TARGET` : 'MONITORED',
-            },
-            triagePriority: (res.protocol.triageLevel.includes('1')
-              ? 'ESI-1 (Immediate Resuscitation)'
-              : 'ESI-2 (Emergent)') as any,
+        // SAFETY GATE — the single point deciding what may be spoken or sent.
+        const protocol = matchedProtocol(res.outcome);
+
+        if (protocol) {
+          setActiveScenario(
+            scenario ?? {
+              id: 'scen_live_call',
+              title: 'Live Inbound 911 Call (Real-Time Ingest)',
+              tagline: 'Live voice audio / freeform speech transcribed & routed via Moss',
+              iconName: 'PhoneCall',
+              callerProfile: 'Live Caller (Direct Audio Stream)',
+              callerSpeechTranscript: text,
+              callerLocation: {
+                address: 'Triangulating Cell Tower GPS',
+                city: 'Metro Dispatch Sector 4',
+                coordinates: '37.7749\u00b0 N, 122.4194\u00b0 W',
+              },
+              reportedVitals: {
+                consciousness: 'TRIAGED IN REAL TIME',
+                breathing: 'VAD MONITORED',
+                pulse: protocol.cadenceBpm ? `${protocol.cadenceBpm} BPM TARGET` : 'MONITORED',
+              },
+              triagePriority: (protocol.triageLevel.includes('1')
+                ? 'ESI-1 (Immediate Resuscitation)'
+                : 'ESI-2 (Emergent)') as any,
+            }
+          );
+
+          // Auto-assign CAD Unit — only ever for a matched protocol.
+          setDispatchedUnit({
+            id: 'MEDIC-14',
+            name: 'Medic Engine 14 (ALS Paramedic Rescue)',
+            type: protocol.unitRecommendation.unitType,
+            station: 'Station 4 \u2022 Downtown Core',
+            etaMinutes: Math.floor(Math.random() * 2) + 3, // Simulated demo ETA
+            status: 'DISPATCHED',
+            crew: 'Captain R. Torres, Paramedic J. Vance',
           });
-        }
 
-        // Auto-assign CAD Unit
-        const assigned: DispatchedUnit = {
-          id: 'MEDIC-14',
-          name: 'Medic Engine 14 (ALS Paramedic Rescue)',
-          type: res.protocol.unitRecommendation.unitType,
-          station: 'Station 4 • Downtown Core',
-          etaMinutes: Math.floor(Math.random() * 2) + 3, // Simulated demo ETA — live CAD integration is out of scope for this sprint
-          status: 'DISPATCHED',
-          crew: 'Captain R. Torres, Paramedic J. Vance',
-        };
-        setDispatchedUnit(assigned);
+          if (speakAudio && audioFeedbackEnabled) {
+            audioService.speakVerbalInstruction(protocol.verbalResponseText);
+          }
 
-        // Speak verbal instructions through Web Speech API if enabled
-        if (speakAudio && audioFeedbackEnabled) {
-          audioService.speakVerbalInstruction(res.protocol.verbalResponseText);
-        }
+          if (protocol.cadenceBpm && isMetronomeActive) {
+            audioService.startCprMetronome(protocol.cadenceBpm);
+          }
+        } else {
+          // ABSTAIN: no protocol, no unit, no CPR pacer. Do not guess, do not
+          // speak a clinical protocol, do not dispatch. Only the universal
+          // zero-risk safety floor is spoken.
+          setActiveScenario(scenario ?? null);
+          setDispatchedUnit(null);
+          setIsMetronomeActive(false);
+          audioService.stopCprMetronome();
 
-        // If it is cardiac arrest, suggest metronome
-        if (res.protocol.cadenceBpm && isMetronomeActive) {
-          audioService.startCprMetronome(res.protocol.cadenceBpm);
+          if (speakAudio && audioFeedbackEnabled) {
+            audioService.speakVerbalInstruction(UNIVERSAL_SAFETY_FLOOR);
+          }
         }
       } catch (err) {
         console.error('[Pulse911] Error processing transcript:', err);
@@ -160,10 +162,14 @@ export const App: React.FC = () => {
   );
 
   const handleToggleMetronome = (active: boolean) => {
-    setIsMetronomeActive(active);
-    if (active && queryResult?.protocol.cadenceBpm) {
-      audioService.startCprMetronome(queryResult.protocol.cadenceBpm);
+    // The metronome is a CPR pacer, so it is only ever available for a
+    // MATCHED protocol. On abstain it can never be started.
+    const protocol = matchedProtocol(queryResult?.outcome);
+    if (active && protocol?.cadenceBpm) {
+      setIsMetronomeActive(true);
+      audioService.startCprMetronome(protocol.cadenceBpm);
     } else {
+      setIsMetronomeActive(false);
       audioService.stopCprMetronome();
     }
   };

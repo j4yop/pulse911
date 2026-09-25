@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import {
   Zap,
   CheckCircle2,
@@ -10,10 +10,23 @@ import {
   Clock,
   ShieldCheck,
   Navigation,
+  ShieldAlert,
+  MessageCircleQuestion,
+  UserCheck,
 } from 'lucide-react';
 import { EmergencyProtocol, MossQueryResult, DispatchedUnit } from '../types';
 import { CopilotCoachPanel } from './CopilotCoachPanel';
 import { EkgMonitor } from './EkgMonitor';
+import { EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
+import { cn } from '@/lib/utils';
+import {
+  matchedProtocol,
+  abstainMessage,
+  confidenceOf,
+  UNIVERSAL_PREARRIVAL_STEPS,
+  UNIVERSAL_SAFETY_FLOOR,
+  CLARIFYING_QUESTIONS,
+} from '../engine/triageGate';
 
 interface DispatcherHUDProps {
   queryResult: MossQueryResult | null;
@@ -33,8 +46,17 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   requestId,
 }) => {
   const [checkedSteps, setCheckedSteps] = useState<Record<number, boolean>>({});
+  /** Manual override: a human dispatcher may select a protocol we refused. */
+  const [overrideProtocol, setOverrideProtocol] = useState<EmergencyProtocol | null>(null);
 
-  const protocol = queryResult?.protocol;
+  const abstained = queryResult?.outcome?.kind === 'abstain';
+  const protocol = overrideProtocol ?? (queryResult ? matchedProtocol(queryResult.outcome) : null);
+  const confidence = confidenceOf(queryResult?.outcome);
+
+  // A new query invalidates any previous manual override.
+  useEffect(() => {
+    setOverrideProtocol(null);
+  }, [queryResult]);
 
   const toggleStep = (idx: number) => {
     setCheckedSteps((prev) => ({
@@ -69,9 +91,20 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
         {/* Moss Latency Pill */}
         {queryResult && (
           <div className="flex items-center gap-2">
-            <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full text-emerald-800 flex items-center gap-1.5 text-xs font-bold shadow-2xs font-mono">
+            <div
+              className={cn(
+                'border px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold shadow-2xs font-mono',
+                abstained
+                  ? 'bg-amber-50 border-amber-200 text-amber-800'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              )}
+            >
               <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              <span>Moss: {queryResult.latencyMs.toFixed(2)} ms</span>
+              <span>
+                {abstained
+                  ? 'ABSTAINED'
+                  : `Moss: ${queryResult.latencyMs.toFixed(2)} ms · conf ${(confidence * 100).toFixed(0)}%`}
+              </span>
             </div>
           </div>
         )}
@@ -79,8 +112,8 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
 
       {/* Main Content Area */}
       <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-5">
-        <AnimatePresence mode="popLayout">
-          {!protocol ? (
+        <>
+          {!protocol && !abstained ? (
             <motion.div
               key="standby"
               initial={{ opacity: 0 }}
@@ -98,7 +131,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                 </p>
               </div>
             </motion.div>
-          ) : (
+          ) : protocol ? (
             <motion.div
               key={protocol.id}
               initial={{ opacity: 0, y: 6 }}
@@ -281,8 +314,86 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
               {/* Async AI Copilot Coach */}
               <CopilotCoachPanel transcript={transcript} protocol={protocol} requestId={requestId} />
             </motion.div>
+          ) : (
+            /* ── ABSTAIN: we refused to guess. Say so, and do something useful. ── */
+            <motion.div
+              key="abstain"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-4"
+            >
+              <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
+                  <h2 className="text-base font-black text-amber-950 leading-tight">
+                    Triage abstained — no protocol selected
+                  </h2>
+                </div>
+                <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                  {queryResult && queryResult.outcome.kind === 'abstain'
+                    ? abstainMessage(queryResult.outcome)
+                    : ''}{' '}
+                  No clinical protocol was selected, no instructions were spoken, and no unit was
+                  dispatched.
+                </p>
+                <p className="text-[11px] text-amber-800/80 font-mono">
+                  REASON:{' '}
+                  {queryResult?.outcome.kind === 'abstain' ? queryResult.outcome.reason : 'unknown'}
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-2.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                  <MessageCircleQuestion className="w-4 h-4 text-amber-600" />
+                  <span>Ask the caller — in this order:</span>
+                </h4>
+                <ol className="space-y-1.5 text-xs text-slate-700 list-decimal list-inside font-sans">
+                  {CLARIFYING_QUESTIONS.map((q, i) => (
+                    <li key={i}>{q}</li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>Safe to do right now:</span>
+                </h4>
+                <ul className="space-y-1 text-xs text-emerald-950 list-disc list-inside font-sans">
+                  {UNIVERSAL_PREARRIVAL_STEPS.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+                <div className="pt-2 mt-1 border-t border-emerald-200 text-xs text-emerald-950 font-semibold leading-relaxed">
+                  {UNIVERSAL_SAFETY_FLOOR}
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-slate-500" />
+                  <span>Dispatcher override — triage is refusing, you are not</span>
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {EMERGENCY_PROTOCOLS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setOverrideProtocol(p)}
+                      className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-[11px] font-mono font-bold text-slate-700 cursor-pointer touch-manipulation"
+                    >
+                      {p.id}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] font-mono text-slate-500">
+                  When a human overrides an abstain, the human owns the call.
+                </p>
+              </div>
+            </motion.div>
           )}
-        </AnimatePresence>
+        </>
       </div>
     </div>
   );
