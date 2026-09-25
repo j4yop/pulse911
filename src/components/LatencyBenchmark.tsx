@@ -20,7 +20,6 @@ import {
   Info,
 } from 'lucide-react';
 import { mossEngine } from '../engine/mossEngine';
-import confetti from 'canvas-confetti';
 import { Progress, ProgressCircle } from '@/components/ui/progress';
 
 interface VectorDbBenchmark {
@@ -194,7 +193,9 @@ export const LatencyBenchmark: React.FC = () => {
 
     setIsRunningTest(false);
 
+    // Confetti is only needed at the end of a run — load it on demand.
     try {
+      const { default: confetti } = await import('canvas-confetti');
       confetti({
         particleCount: 50,
         spread: 60,
@@ -239,7 +240,7 @@ export const LatencyBenchmark: React.FC = () => {
           </div>
 
           {/* Caller Stress Simulator Slider */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 min-w-[280px]">
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 w-full sm:min-w-[280px]">
             <div className="flex items-center justify-between text-xs font-mono">
               <span className="font-bold text-slate-700 flex items-center gap-1.5">
                 <Flame className="w-3.5 h-3.5 text-amber-500" />

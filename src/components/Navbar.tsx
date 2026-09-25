@@ -210,8 +210,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <PulseLogo size={32} animated={false} />
               <span className="text-lg font-black tracking-tight text-slate-900 font-sans flex items-center leading-none">
                 Pulse<span className="text-rose-600">911</span>
-              </span>
-            </button>
+              </span>            </button>
           </div>
 
           {/* Desktop Mega Menu Navigation Links */}
@@ -436,7 +435,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               variant="default"
               size="default"
               className={cn(
-                'whitespace-nowrap shrink-0 my-auto -translate-y-[1px]',
+                'whitespace-nowrap shrink-0 my-auto -translate-y-[1px] hidden sm:inline-flex touch-manipulation',
                 activeTab === 'console' && 'ring-2 ring-[#b18597]/70'
               )}
             >
