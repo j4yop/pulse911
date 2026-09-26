@@ -11,10 +11,21 @@ import { resolveTriageOutcome, MIN_CONFIDENCE } from './retrievalCore';
  * and deterministic fallback featherweight.
  */
 type MossClientInstance = {
-  createIndex(name: string, docs: Array<{ id: string; text: string; metadata: Record<string, string> }>): Promise<unknown>;
+  createIndex(name: string, docs: Array<{ id: string; text: string; metadata: Record<string, string> }>): Promise<{ docCount?: number } | undefined>;
   loadIndex(name: string): Promise<unknown>;
   query(name: string, query: string, options: { topK: number }): Promise<SearchResult>;
+  getIndex(name: string): Promise<{ docCount: number; status: string; updatedAt?: string }>;
 };
+
+/** True only for the one failure that is safe to ignore: the index is already there. */
+function isAlreadyExists(err: unknown): boolean {
+  const status = (err as { status?: number; statusCode?: number })?.status
+    ?? (err as { statusCode?: number })?.statusCode;
+  if (status === 409) return true;
+  return /already exists|already_exists|conflict/i.test(
+    err instanceof Error ? err.message : String(err)
+  );
+}
 
 /**
  * Pulse911 Retrieval Engine — REAL @moss-dev/moss-web (YC F25) integration.
@@ -43,7 +54,15 @@ export type EngineMode = 'moss-wasm' | 'local-fallback';
  * six-document index, so the name is versioned. The old `pulse911-protocols-v1`
  * index is now orphaned in Moss Cloud and can be deleted.
  */
-const INDEX_NAME = 'pulse911-kb-v2';
+/**
+ * Corpus version, and the only thing that makes ingestion take effect.
+ *
+ * BUMP THIS whenever `toIndexPayload()` changes. `createIndex` is a no-op when
+ * the name already exists, so a new corpus under an old name is silently never
+ * uploaded — the app would keep serving the previous snapshot while reporting
+ * the new document count. That is how 11 protocols went missing.
+ */
+const INDEX_NAME = 'pulse911-kb-v3';
 
 /**
  * Hard deadline for ONE background Moss refinement query.
@@ -151,17 +170,50 @@ class Pulse911RetrievalEngine {
     // actionable fact (186 of them), so retrieval has something to retrieve.
     const docs = toIndexPayload();
 
+    let created = false;
     try {
-      await this.client.createIndex(INDEX_NAME, docs);
-    } catch {
-      // Index already exists in Moss Cloud — continue to load.
+      const result = await this.client.createIndex(INDEX_NAME, docs);
+      created = true;
+      console.log(
+        `[Pulse911] Created Moss index "${INDEX_NAME}" from ${result?.docCount ?? docs.length} documents.`
+      );
+    } catch (err) {
+      // Only "already exists" is safe to continue past. The old `catch {}`
+      // accepted every failure — a 401 or a quota error would be swallowed and
+      // the app would then load a stale index believing ingestion had worked.
+      if (!isAlreadyExists(err)) throw err;
+      console.log(
+        `[Pulse911] Moss index "${INDEX_NAME}" already exists — loading the existing snapshot.`
+      );
     }
 
     await this.client.loadIndex(INDEX_NAME);
+
+    // Verify the loaded index against the corpus instead of asserting it. The
+    // SDK reports the real docCount; the previous log printed the size of the
+    // payload we *tried* to send, which stayed 197 while the index held 186.
+    let remoteCount: number | null = null;
+    try {
+      remoteCount = (await this.client.getIndex(INDEX_NAME))?.docCount ?? null;
+    } catch {
+      remoteCount = null;
+    }
+    if (remoteCount !== null && remoteCount !== docs.length) {
+      this.mossUnavailableReason =
+        `index "${INDEX_NAME}" holds ${remoteCount} documents but the corpus has ${docs.length}` +
+        ` — bump INDEX_NAME to re-ingest`;
+      this.mode = 'local-fallback';
+      this.mossReady = false;
+      throw new Error(this.mossUnavailableReason);
+    }
+
     this.mode = 'moss-wasm';
     this.mossReady = true;
     this.mossUnavailableReason = null;
-    console.log(`[Pulse911] Moss WASM runtime ready — index "${INDEX_NAME}" (${docs.length} knowledge documents) loaded in-process.`);
+    console.log(
+      `Moss WASM runtime ready — index "${INDEX_NAME}" (${created ? 'created' : 'existing'}, ` +
+        `${remoteCount ?? 'unverified'} documents) loaded in-process.`
+    );
   }
 
   /**

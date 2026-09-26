@@ -505,7 +505,26 @@ this looking healthy, the engine now records why Moss is not serving and the
 console states it plainly: **"Moss unavailable — local triage only"**, with the
 reason in the tooltip. The app no longer implies a corpus it is not reading.
 
-Note: `pulse911-kb-v2` was created with 186 documents, before the 11 expansion
-protocols. `createIndex` failures are swallowed and the existing index is loaded,
-so **bump the index name** whenever the corpus changes or the new protocols are
-silently missing.
+### The stale index, fixed
+
+`pulse911-kb-v2` had been created with 186 documents, before the 11 expansion
+protocols. `createIndex` is a no-op when the name already exists, so the new
+corpus was never uploaded — and the log printed the size of the payload it
+*tried* to send, so it read "197 documents" while the index held 186. Eleven
+protocols were missing from Moss retrieval and the app said they were there.
+
+Three fixes:
+
+1. **`INDEX_NAME` is now `pulse911-kb-v3`**, with a comment stating that the name
+   *is* the corpus version and must be bumped whenever `toIndexPayload()` changes.
+2. **`catch` no longer swallows everything.** Only "already exists" continues; a
+   401 or quota error now propagates instead of silently loading a stale index.
+3. **The document count is read back from Moss** via `getIndex().docCount` and
+   compared against the corpus. A mismatch refuses to report ready and names the
+   fix, rather than logging a number nobody verified.
+
+Verified in-browser: the first run returned `202` on `/index/init` and logged
+`Created Moss index "pulse911-kb-v3" from 197 documents`; the second logged
+`already exists` and `(existing, 197 documents)` — that 197 read back from Moss,
+matching the corpus. `npm test` pins the index name and guards the unverified-log
+pattern.
