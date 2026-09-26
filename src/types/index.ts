@@ -59,12 +59,24 @@ export interface EmergencyScenario {
   callerProfile: string;
   callerSpeechTranscript: string;
   simulatedAudioUrl?: string;
-  callerLocation: {
+  /**
+   * Optional on purpose.
+   *
+   * The live-call path used to hardcode a location — "Triangulating Cell Tower
+   * GPS", "Metro Dispatch Sector 4", 37.7749° N / 122.4194° W — and render it
+   * under a map-pin icon. None of it came from anywhere: there is no
+   * geolocation in this app, and those are San Francisco coordinates hardcoded
+   * in source. A dispatcher seeing a map pin has no way to know it is invented.
+   *
+   * So a live call has no location until something real supplies one.
+   */
+  callerLocation?: {
     address: string;
     city: string;
     coordinates: string;
   };
-  reportedVitals: {
+  /** Optional: only populated where a real monitor or a scenario supplies it. */
+  reportedVitals?: {
     consciousness: string;
     breathing: string;
     pulse: string;

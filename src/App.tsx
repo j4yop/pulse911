@@ -153,20 +153,16 @@ export const App: React.FC = () => {
           scenario ?? {
             id: 'scen_live_call',
             title: 'Live Inbound 911 Call (Real-Time Ingest)',
-            tagline: 'Live voice audio / freeform speech transcribed & routed via Moss',
+            tagline: 'Live voice audio / freeform speech, triaged in-browser',
             iconName: 'PhoneCall',
             callerProfile: 'Live Caller (Direct Audio Stream)',
             callerSpeechTranscript: text,
-            callerLocation: {
-              address: 'Triangulating Cell Tower GPS',
-              city: 'Metro Dispatch Sector 4',
-              coordinates: '37.7749\u00b0 N, 122.4194\u00b0 W',
-            },
-            reportedVitals: {
-              consciousness: 'TRIAGED IN REAL TIME',
-              breathing: 'VAD MONITORED',
-              pulse: protocol.cadenceBpm ? `${protocol.cadenceBpm} BPM TARGET` : 'MONITORED',
-            },
+            // No location, no vitals. Nothing in this app supplies either, so
+            // the honest values are absent rather than invented. The previous
+            // version hardcoded "Triangulating Cell Tower GPS", "Metro Dispatch
+            // Sector 4" and San Francisco coordinates and rendered them under a
+            // map-pin icon; `reportedVitals` claimed a monitor was attached when
+            // none is. See EmergencyScenario.callerLocation.
             triagePriority: (protocol.triageLevel.includes('1')
               ? 'ESI-1 (Immediate Resuscitation)'
               : 'ESI-2 (Emergent)') as any,

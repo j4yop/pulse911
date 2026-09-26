@@ -251,29 +251,35 @@ runtime's exchange protocol against a production credential. Not attempted.
 | 6.7 | Check Moss usage logs for abuse of the leaked key | confirmed clean, or rotated again |
 | 6.8 | **Moss `query()` never settles in the browser (BLOCKING, Moss-side)** | see below |
 
-**6.8 — the blocker, as measured (2026-09-26).** With the rotated key the credential
-path is healthy end to end:
+**6.8 — the blocker, as MEASURED (2026-09-26).** With the rotated key the
+credential path is healthy end to end:
 
 ```
 201 /identity/auth/token                    ← new key valid
 202 /index/init  →  202 /index/…/confirm    ← index builds
-200 /index/pulse911-protocols-v1/url
 200 models.moss.link/…/model.mossml         ← model artifact downloads
+14s   [Pulse911] Moss WASM runtime ready — index "pulse911-kb-v2" (186 documents)
 ```
 
-`init()` completes and logs `Moss WASM runtime ready`. But `client.query()` then
-**never resolves** — it blew a 30s budget, and 8s is the shipped cap. The badge
-therefore stays `Moss Local` and Moss corroborates nothing. The Node SDK fails
-differently and more honestly: `401 Unauthorized` on
-`models.moss.link/artifacts/v1/moss-minilm/bind1~…/release.json`, i.e. the
-`MODEL-ENTITLEMENT` class that `scripts/verify-moss.mjs` already records.
+**`init()` completes.** The runtime genuinely initialises, in ~14s for the
+186-document corpus. The failure is one layer down: **`client.query()` never
+resolves.** Proven by raising the refinement budget from 8s to 60s and polling
+for 130s — the budget fired exactly 60s after the warm query and the badge never
+left `Moss Local`. It is hung, not slow, so a longer budget buys nothing and
+only risks a leaked promise. The budget is back at 8s.
 
-This is **not** a code defect and must not be "fixed" by loosening the deadline or
-by letting Moss onto the decision path. It is an entitlement/artifact problem on
-the Moss side. Ask them to confirm `moss-minilm` entitlement for this project key.
-Until it is resolved, the honest position is: the integration is wired, correct,
-and authenticated, but contributes nothing at runtime — so the product must not
-claim otherwise (see 6.5).
+The Node SDK fails differently and more honestly: `401 Unauthorized` on
+`models.moss.link/artifacts/v1/moss-minilm/bind1~…/release.json`, i.e. the
+`MODEL-ENTITLEMENT` class that `scripts/verify-moss.mjs` already records. Note
+the browser fetches a *different* artifact (`sealed1~…`, HTTP 200), so the two
+paths disagree about which build they are entitled to.
+
+This is **not** a code defect and must not be "fixed" by loosening the deadline
+or by letting Moss onto the decision path. It is an entitlement/artifact or SDK
+defect on the Moss side. Report it with the evidence above; until it is resolved
+the honest position is: the integration is wired, correct, authenticated and
+initialising — but contributes nothing at runtime, so the product must not claim
+otherwise (6.5, now enforced by tests).
 
 ---
 

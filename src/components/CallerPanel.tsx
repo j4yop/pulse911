@@ -23,6 +23,14 @@ interface CallerPanelProps {
   currentTranscript: string;
   spokenInstruction?: string;
   onClearCall: () => void;
+  /**
+   * Measured retrieval latency for the current call, in ms.
+   *
+   * This badge used to read a hardcoded "Turnaround: < 264ms" — a fixed number
+   * presented as a measurement. It now shows what was actually measured, and
+   * says "measuring" until there is something to show.
+   */
+  retrievalLatencyMs?: number | null;
 }
 
 export const CallerPanel: React.FC<CallerPanelProps> = ({
@@ -32,6 +40,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
   currentTranscript,
   spokenInstruction,
   onClearCall,
+  retrievalLatencyMs,
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [customInput, setCustomInput] = useState('');
@@ -296,11 +305,20 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
               <User className="w-3.5 h-3.5 text-slate-500" />
               Caller Inbound Speech:
             </span>
-            {activeScenario && (
+            {activeScenario?.callerLocation ? (
               <span className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
                 <MapPin className="w-3 h-3 text-slate-400" />
                 {activeScenario.callerLocation.city}
               </span>
+            ) : (
+              /* A live call has no location because nothing supplies one. Showing
+                 a map pin here would mean inventing one. */
+              activeScenario && (
+                <span className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
+                  <MapPin className="w-3 h-3 text-slate-300" />
+                  No location data
+                </span>
+              )
             )}
           </div>
 
@@ -349,7 +367,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
                 </motion.button>
 
                 <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold font-mono">
-                  Turnaround: &lt; 264ms
+                  Turnaround: {retrievalLatencyMs != null ? `${retrievalLatencyMs.toFixed(2)}ms measured` : 'measuring'}
                 </span>
               </div>
             </div>
