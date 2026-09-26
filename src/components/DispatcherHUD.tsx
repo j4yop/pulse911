@@ -46,6 +46,10 @@ interface DispatcherHUDProps {
   transcriptSource: 'mic' | 'typed' | null;
   /** Mirrors the microphone lifecycle so the mic is visible when this panel is scrolled. */
   micState: MicState;
+  /** Real Moss availability, so the console never implies it is working. */
+  mossStatus: { ready: boolean; serving: boolean; reason: string | null } | null;
+  /** Speech heard while a question was open but not understood. */
+  clarifyHeard: string | null;
   route: RouteVerdict | null;
   clarify: ClarifyState | null;
   onClarifyAnswer: (questionId: string, optionLabel: string) => void;
@@ -64,6 +68,8 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   guidance,
   transcriptSource,
   micState,
+  mossStatus,
+  clarifyHeard,
   route,
   clarify,
   onClarifyAnswer,
@@ -173,6 +179,14 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                 )}
               >
                 {transcriptSource === 'mic' ? 'From microphone' : 'Typed'}
+              </span>
+            )}
+            {mossStatus && !mossStatus.serving && (
+              <span
+                className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                title={mossStatus.reason ?? 'Moss runtime is not serving queries'}
+              >
+                Moss unavailable &mdash; local triage only
               </span>
             )}
             {(micState === 'listening' || micState === 'starting') && (
@@ -544,10 +558,22 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                     }
                     return (
                       <>
-                        <p className="text-sm text-slate-900 font-sans font-semibold leading-snug">
+                        <p
+                          data-testid="clarify-question"
+                          className="text-sm text-slate-900 font-sans font-semibold leading-snug"
+                        >
                           {q.text}
                         </p>
                         <p className="text-[10px] font-mono text-slate-500">{q.rationale}</p>
+                        {clarifyHeard && (
+                          <p
+                            data-testid="clarify-unheard"
+                            className="text-[11px] font-mono text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5"
+                          >
+                            Heard &ldquo;{clarifyHeard}&rdquo; &mdash; not an answer I can use. Tap an
+                            option, or repeat more clearly.
+                          </p>
+                        )}
                         <div className="flex flex-wrap gap-1.5 pt-1">
                           {q.options.map((o) => (
                             <button

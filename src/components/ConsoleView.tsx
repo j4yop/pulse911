@@ -63,7 +63,11 @@ export interface ConsoleViewProps {
   guidance: CategoryMatch[];
   transcriptSource: 'mic' | 'typed' | null;
   micState: MicState;
+  mossStatus: { ready: boolean; serving: boolean; reason: string | null } | null;
   onMicStateChange: (s: MicState) => void;
+  onSpokenAnswer: (spoken: string) => boolean;
+  awaitingAnswerFor: string | null;
+  clarifyHeard: string | null;
   route: RouteVerdict | null;
   clarify: ClarifyState | null;
   onClarifyAnswer: (questionId: string, optionLabel: string) => void;
@@ -97,7 +101,11 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
   guidance,
   transcriptSource,
   micState,
+  mossStatus,
   onMicStateChange,
+  onSpokenAnswer,
+  awaitingAnswerFor,
+  clarifyHeard,
   route,
   clarify,
   onClarifyAnswer,
@@ -396,6 +404,9 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             onClearCall={onClearCall}
             retrievalLatencyMs={queryResult?.latencyMs ?? null}
             onMicStateChange={onMicStateChange}
+            onSpokenAnswer={onSpokenAnswer}
+            awaitingAnswerFor={awaitingAnswerFor}
+            clarifyHeard={clarifyHeard}
           />
         </div>
 
@@ -416,6 +427,8 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             guidance={guidance}
             transcriptSource={transcriptSource}
             micState={micState}
+            mossStatus={mossStatus}
+            clarifyHeard={clarifyHeard}
             route={route}
             clarify={clarify}
             onClarifyAnswer={onClarifyAnswer}
