@@ -24,6 +24,7 @@ import {
 } from '../types';
 import { speakableCategories, type CategoryMatch } from '../engine/guidanceCategories';
 import type { RouteVerdict } from '../engine/routing';
+import { CLARIFY_QUESTIONS, nextQuestion, type ClarifyState } from '../engine/clarify';
 import { CopilotCoachPanel } from './CopilotCoachPanel';
 import { EkgMonitor } from './EkgMonitor';
 import { EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
@@ -34,7 +35,6 @@ import {
   confidenceOf,
   UNIVERSAL_PREARRIVAL_STEPS,
   UNIVERSAL_SAFETY_FLOOR,
-  CLARIFYING_QUESTIONS,
 } from '../engine/triageGate';
 
 interface DispatcherHUDProps {
@@ -42,6 +42,9 @@ interface DispatcherHUDProps {
   dispatchIntent: DispatchIntent | null;
   guidance: CategoryMatch[];
   route: RouteVerdict | null;
+  clarify: ClarifyState | null;
+  onClarifyAnswer: (questionId: string, optionLabel: string) => void;
+  onStopClarify: () => void;
   overrideLog: OverrideRecord[];
   onOverride: (protocol: EmergencyProtocol) => void;
   onTriggerMetronome: (active: boolean) => void;
@@ -55,6 +58,9 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   dispatchIntent,
   guidance,
   route,
+  clarify,
+  onClarifyAnswer,
+  onStopClarify,
   overrideLog,
   onOverride,
   onTriggerMetronome,
@@ -140,6 +146,31 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
       {/* Main Content Area */}
       <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-5">
         <>
+          {/* Dispatcher-confirmed provenance. Hoisted ABOVE the matched/abstain
+              branch on purpose: while this lived inside the abstain card it
+              disappeared the instant the answers resolved a protocol — exactly
+              when the dispatcher most needs to see why. */}
+          {clarify?.resolvedProtocolId && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 space-y-1.5">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-800">
+                Protocol confirmed by your answers
+              </span>
+              <ul className="space-y-0.5">
+                {clarify.answers.map((a) => (
+                  <li key={a.questionId} className="text-[10px] font-mono text-emerald-900/80">
+                    {a.question} &rarr; <span className="font-bold">{a.optionLabel}</span>
+                    {!a.contributed && (
+                      <span className="text-emerald-700/60"> (not used for matching)</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[10px] font-mono text-emerald-700/80 pt-1">
+                Confirmed by a dispatcher, not inferred. The answers are the record.
+              </p>
+            </div>
+          )}
+
           {!protocol && !abstained ? (
             <motion.div
               key="standby"
@@ -414,17 +445,88 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                 </p>
               </div>
 
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-2.5">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                  <MessageCircleQuestion className="w-4 h-4 text-amber-600" />
-                  <span>Ask the caller — in this order:</span>
-                </h4>
-                <ol className="space-y-1.5 text-xs text-slate-700 list-decimal list-inside font-sans">
-                  {CLARIFYING_QUESTIONS.map((q, i) => (
-                    <li key={i}>{q}</li>
-                  ))}
-                </ol>
-              </div>
+              {/* The clarifying loop, replacing a static list of five questions:
+                  one at a time, answered by tap, re-triaging after each, and
+                  stopping the moment the answers resolve a protocol. */}
+              {clarify && !clarify.stoppedByDispatcher && !clarify.resolvedProtocolId && (
+                <div className="bg-white border-2 border-amber-300 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                      <MessageCircleQuestion className="w-4 h-4 text-amber-600" />
+                      <span>
+                        {nextQuestion(clarify)
+                          ? `Ask the caller — question ${clarify.answers.length + 1} of ${CLARIFY_QUESTIONS.length}`
+                          : 'No more clarifying questions'}
+                      </span>
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={onStopClarify}
+                      className="text-[10px] font-mono text-slate-500 hover:text-slate-800 underline shrink-0"
+                    >
+                      stop asking
+                    </button>
+                  </div>
+
+                  {(() => {
+                    const q = nextQuestion(clarify);
+                    if (!q) {
+                      return (
+                        <p className="text-xs text-slate-600 font-sans">
+                          All questions answered and still no confident match. The guidance above
+                          and the dispatcher override below are the remaining options.
+                        </p>
+                      );
+                    }
+                    return (
+                      <>
+                        <p className="text-sm text-slate-900 font-sans font-semibold leading-snug">
+                          {q.text}
+                        </p>
+                        <p className="text-[10px] font-mono text-slate-500">{q.rationale}</p>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {q.options.map((o) => (
+                            <button
+                              key={o.label}
+                              type="button"
+                              onClick={() => onClarifyAnswer(q.id, o.label)}
+                              className="px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-[11px] font-mono font-bold text-amber-900 cursor-pointer touch-manipulation"
+                            >
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  {clarify.answers.length > 0 && (
+                    <div className="pt-2 mt-1 border-t border-slate-200 space-y-1">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                        Answered
+                      </span>
+                      <ul className="space-y-0.5">
+                        {clarify.answers.map((a) => (
+                          <li key={a.questionId} className="text-[10px] font-mono text-slate-600">
+                            {a.question} &rarr;{' '}
+                            <span className="font-bold text-slate-800">{a.optionLabel}</span>
+                            {!a.contributed && (
+                              <span className="text-slate-400"> (not used for matching)</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {clarify?.stoppedByDispatcher && (
+                <p className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 rounded-xl p-2.5">
+                  Clarifying stopped by dispatcher. The abstention still stands — use the guidance
+                  above or the override below.
+                </p>
+              )}
 
               {/* Broad, low-risk guidance. This is what makes an abstention a
                   real answer rather than a refusal: we cannot name the condition,
