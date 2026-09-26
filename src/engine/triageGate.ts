@@ -1,4 +1,14 @@
-import type { TriageOutcome, EmergencyProtocol } from '../types';
+import type { TriageOutcome, EmergencyProtocol, OverrideRecord } from '../types';
+
+/**
+ * Operator identity recorded on override audit entries.
+ *
+ * There is no authentication in this build. Rather than invent a dispatcher
+ * name — the same fabrication removed from the dispatch card — every override
+ * is attributed to this explicit, visible placeholder, so the audit log never
+ * implies an identity it cannot actually verify.
+ */
+export const UNAUTHENTICATED_OPERATOR = 'unauthenticated dispatcher (no auth in this build)';
 
 /**
  * The one predicate that decides whether the app is allowed to SAY a clinical
@@ -75,4 +85,39 @@ export function confidenceOf(outcome: TriageOutcome | null | undefined): number 
 /** Exhaustive switch so a new outcome kind becomes a compile error. */
 export function assertNever(x: never): never {
   throw new Error(`Unhandled triage outcome: ${JSON.stringify(x)}`);
+}
+
+/**
+ * Build the audit record for a human overriding a triage abstention.
+ *
+ * Pure and exported so the audit trail is unit-testable rather than buried in a
+ * React event handler — this is the record that makes the override accountable,
+ * so it needs to be verifiable, not just wired.
+ *
+ * Returns null unless the outcome really is an abstention: an "override" of a
+ * protocol triage already chose is not an override, and logging it as one would
+ * corrupt the trail.
+ */
+export function createOverrideRecord(args: {
+  outcome: TriageOutcome | null | undefined;
+  transcript: string;
+  chosen: EmergencyProtocol;
+  operator?: string;
+  now?: Date;
+  seq?: number;
+}): OverrideRecord | null {
+  const { outcome, transcript, chosen, now = new Date(), seq = 0 } = args;
+  if (!outcome || outcome.kind !== 'abstain') return null;
+
+  return {
+    id: `ovr_${now.getTime().toString(36)}_${seq}`,
+    atIso: now.toISOString(),
+    operator: args.operator ?? UNAUTHENTICATED_OPERATOR,
+    transcript,
+    presentedReason: outcome.reason,
+    presentedConfidence: outcome.confidence,
+    chosenProtocolId: chosen.id,
+    chosenProtocolCode: chosen.code,
+    chosenProtocolTitle: chosen.title,
+  };
 }
