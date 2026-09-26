@@ -167,20 +167,57 @@ safety net; unflagged, it widens the harm surface.
 
 ---
 
-## Stage 5 — Permanent guardrails (stop this class of bug forever)
+## Stage 5 — Permanent guardrails — DONE
 
-- 5.1 `goldenCorpus.test.ts` — ~120 labelled caller phrases → expected `kind` + protocol.
-- 5.2 `abstainInvariants.test.ts` — **the load-bearing test**:
+- 5.1 **Done.** `src/eval/goldenCorpus.ts` — **124 labelled caller phrases**.
+  Labelled by clinical expectation, never by engine output, so it can catch
+  drift instead of confirming itself.
+- 5.2 **Done.** `src/tests/abstainInvariants.test.ts` — the load-bearing suite:
   - score 0 ⇒ `abstain`, never `CARD-01`
-  - corpus order is irrelevant to outcome
+  - corpus order is irrelevant to outcome (reversed, rotated, and decoy-at-index-0)
   - empty / punctuation-only / 5k-char input ⇒ `abstain`
-  - anchor-deleted mutants abstain and never flip to a *different* protocol
-- 5.3 `corpusLint.test.ts` — citations/reviewer present; ≥1 golden phrase per protocol.
-- 5.4 CI fails the build on eval regression (TPR ≥ 0.97, OOD-FPR ≤ 0.02).
-- 5.5 Remove the existing test that **asserts the tie-break bug as desired behaviour**
-  (`retrievalCore.test.ts:91`) — **done in Stage 1**.
-- 5.6 `assertNever` exhaustiveness on `outcome.kind`, so a new call site cannot speak
-  or dispatch without the compiler asking.
+  - anchor-deleted mutants never flip to a *different* protocol
+  - length must not create evidence from a weak keyword, nor dilute a decisive sign
+- 5.3 **Done.** `src/tests/corpusLint.test.ts` — provenance ratchet, unique ids,
+  no fabricated citations, ≥1 golden phrase per protocol, and an assertion that
+  exactly one speech/dispatch gate exists.
+- 5.4 **Done.** CI (`.github/workflows/ci.yml`) fails on eval regression.
+  Measured: **TPR 1.0000, OOD-FPR 0.0000** over 124 cases. No auto-merge, no
+  deploy job — merging clinical content is a human decision.
+- 5.5 **Done** in Stage 1.
+- 5.6 **Done.** `assertNever` on `outcome.kind`, covered by a test.
+
+### What the guardrails caught immediately
+
+Building them exposed four real defects, none of which any existing test saw:
+
+1. **Recall was 48%.** Overdose, anaphylaxis, stroke, infant choking and cyber
+   scam — all abstaining on textbook presentations of our *own* protocols. The
+   keyword vocabulary was far too sparse.
+2. **A single long keyword could decide alone.** `"cannot move his arm"`
+   (weight 4) satisfied the weight test by itself, so *"he fell off a ladder and
+   cannot move his arm"* selected **NEURO-03** for a trauma call. Added
+   `MIN_ANCHOR_COUNT = 2` — distinct findings, not total weight.
+3. **A duplicated keyword counted as two findings.** `cardiac arrest` appeared
+   twice in CARD-01's list, so merely *mentioning* it in conversation cleared the
+   two-anchor bar. Anchors are now a `Set`, so no future data edit can do this.
+4. **A decisive anchor has to be observed, not named.** `cardiac arrest` was
+   declared decisive, so *"i read about cardiac arrest in the news"* produced a
+   protocol whose spoken line is *"push hard and fast… do not stop."* Decisive
+   anchors are now observed signs only, declared per protocol.
+
+Also fixed: `AIR-02` briefly matched an **adult** choking call after a `silent`
+keyword was added — the *infant* protocol would have given back slaps and chest
+thrusts to an adult who needs abdominal thrusts. Every AIR-02 term is now
+child-specific, and the golden corpus pins adult choking as a known gap.
+
+### The gap backlog is a ratchet
+
+`totalGapCases()` is asserted against a number that only moves deliberately.
+48 phrases currently prove a missing protocol — obstetric (8), burns (6),
+seizure (5), major bleeding (5), trauma (5), diabetic (4), mental health (4),
+adult choking (3), and more. Adding a protocol means flipping its entries and
+lowering the number. Nothing gets quietly half-done.
 
 ---
 
@@ -256,10 +293,9 @@ claim otherwise (see 6.5).
 ## Suggested order
 
 1. **Stage 2** — the largest user-visible win; abstention is only useful if it asks.
-2. **Stage 5** — before the corpus grows, not after.
-3. **Stage 3** — blocked on clinician time; 3.5 dark-flagging means it can ship
+2. **Stage 3** — blocked on clinician time; 3.5 dark-flagging means it can ship
    dark and be enabled later.
-4. **Stage 6** — 6.2 is a sponsor email and is now the critical path: 6.8 blocks
+3. **Stage 6** — 6.2 is a sponsor email and is now the critical path: 6.8 blocks
    Moss from contributing anything at runtime.
 
 ---

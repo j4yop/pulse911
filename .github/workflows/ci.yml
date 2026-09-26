@@ -1,0 +1,79 @@
+name: CI
+
+# This is the guardrail for a safety-critical triage system, not a convenience
+# pipeline. A red build here means a caller could have been told the wrong thing,
+# so the gates are strict on purpose:
+#
+#   - the golden corpus is labelled by clinical expectation, never by engine
+#     output, so it can actually catch drift
+#   - TPR >= 0.97 catches the system getting *worse* at recognising real calls
+#   - OOD-FPR <= 0.02 catches it inventing a protocol for a lost parcel
+#   - the provenance ratchet catches unreviewed clinical content being added
+#
+# There is deliberately no auto-merge and no deploy job. Merging is a human
+# decision about clinical content.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: typecheck, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc -b
+
+      - name: Unit, golden-corpus and safety-invariant tests
+        # Includes the abstain invariants, the 124-case golden corpus with its
+        # TPR/OOD-FPR gates, the provenance ratchet, and the guard that fails if
+        # fabricated dispatch state reappears anywhere in src/.
+        run: npx vitest run --reporter=verbose
+
+      - name: Production build
+        run: npm run build
+
+      - name: Assert no clinical credential is committed
+        # A VITE_ key is inlined into the public bundle by design, but the real
+        # key must never live in git. This fails the build if one appears.
+        run: |
+          if git ls-files --error-unmatch .env.local >/dev/null 2>&1; then
+            echo "::error::.env.local is committed — it contains the Moss project key"
+            exit 1
+          fi
+          echo "no committed credential file"
+
+  eval-report:
+    name: triage evaluation report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Print corpus metrics and the known-gap backlog
+        # The gap list is the project's clinical to-do list. It belongs in CI
+        # output where it is read every push, not buried in a test file.
+        run: npx vitest run src/tests/goldenCorpus.test.ts --reporter=verbose

@@ -20,6 +20,35 @@ export interface EmergencyProtocol {
   };
   keywords: string[];
   citations: string;
+  /**
+   * How many DISTINCT keyword anchors must fire before this protocol may be
+   * selected. Defaults to `MIN_ANCHOR_COUNT` (2).
+   *
+   * The default of two is a clinical safety rule: an emergency described well
+   * enough to act on presents as more than one finding, and one finding is a
+   * hypothesis. It is the wrong rule for a non-clinical protocol whose guidance
+   * is safe to show on a single mention — CYBER-06 sets 1, because "someone is
+   * scamming my grandmother" is already enough to justify scam advice, and
+   * demanding two clinical anchors defeats the point of the protocol.
+   *
+   * Lowering this is a clinical decision, not a tuning knob.
+   */
+  minAnchorCount?: number;
+  /**
+   * Anchors decisive enough to select this protocol on their own, with no
+   * second finding required.
+   *
+   * This exists because the two-anchor default is right for almost everything
+   * and wrong for one specific thing: a caller who says "he is not breathing"
+   * has reported a cardinal sign of arrest, and making them find a second
+   * finding before we help is not caution, it is neglect.
+   *
+   * It is deliberately a declared list rather than a rule about phrase
+   * length, because "is not breathing" and "is unresponsive" are both single
+   * findings and only one of them is decisive. An undeclared protocol gets no
+   * decisive anchors and therefore keeps the strict two-anchor default.
+   */
+  decisiveAnchors?: string[];
 }
 
 export interface EmergencyScenario {

@@ -37,7 +37,29 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
       // unresponsiveness are cardinal signs of arrest; without these the engine
       // refused to match a textbook cardiac-arrest call.
       'gasping', 'agonal', 'unresponsive', 'not responding', 'not awake', 'stopped breathing',
-      'blue lips', 'no heartbeat'
+      'blue lips', 'no heartbeat',
+      // Callers describe agonal breathing and collapse in their own words. These
+      // were found by the golden corpus: textbook arrest calls were abstaining.
+      'not breathing normally', 'barely breathing', 'agonal breathing', 'no pulse and cannot breathe',
+      'unresponsive and cold', 'on the floor unresponsive', 'stopped breathing', 'blue and not breathing',
+      'not breathing and has no pulse', 'collapsed and is not breathing'
+    ],
+    // Cardinal signs of arrest. Each of these alone justifies the protocol.
+    //
+    // Deliberately NOT listed: "unconscious", "unresponsive", "collapsed",
+    // "passed out", "chest pain". Those are real findings but not decisive —
+    // "first ever seizure and he is not responding" and "he fell off a ladder
+    // and is unconscious" both carry one, and this protocol starts with chest
+    // compressions and no "check breathing first" step.
+    // Only things a caller *observes or does* — never a diagnosis label.
+    //
+    // "cardiac arrest" was listed here and it was wrong: "i read about cardiac
+    // arrest in the news" then produced this protocol, whose spoken line is
+    // "push hard and fast... do not stop". A decisive anchor has to be something
+    // reported about the patient, not something named in conversation.
+    decisiveAnchors: [
+      'not breathing', 'not breathing normally', 'stopped breathing',
+      'no pulse', 'no heartbeat', 'chest compressions', 'not breathing and has no pulse',
     ],
     citations: 'American Heart Association (AHA) 2026 Guidelines for CPR & ECC'
   },
@@ -75,7 +97,15 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
       'baby choking', 'infant choking', 'toddler not breathing', 'swallowed object', 'blue lips',
       'cant breathe', 'choking on food', 'silent crying', 'back slaps', 'airway blocked',
       // Callers say "choking" far more often than any of the phrases above.
-      'choking', 'choke', 'swallowed', 'something stuck'
+      'choking', 'choke', 'swallowed', 'something stuck',
+      // The specific objects infants actually swallow, and the silent infant.
+      'swallowed a coin', 'swallowed a button', 'swallowed a bead', 'coin', 'button',
+      'cannot cry', 'month old', 'month-old', 'toddler', 'child is choking',
+      'swallowed and cannot cry', 'swallowed a coin and cannot breathe',
+      // NOTE: bare "silent" was tried and reverted. It let the *infant* protocol
+      // match "adult friend is choking on steak and silent" — back slaps and
+      // chest thrusts are wrong for an adult, who needs abdominal thrusts. Every
+      // added term here must be child-specific.
     ],
     citations: 'American Academy of Pediatrics (AAP) Pediatric Airway Emergency Standards 2026'
   },
@@ -111,7 +141,12 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
     keywords: [
       'stroke', 'facial droop', 'slurred speech', 'arm weakness', 'sudden numbness',
       'cant talk', 'paralyzed on one side', 'fast protocol', 'brain bleed', 'confusion', 'last known well',
-      'gibberish', 'garbled speech', 'sagging', 'words not making sense', 'one side of her face', 'one side of his face'
+      'gibberish', 'garbled speech', 'sagging', 'words not making sense', 'one side of her face', 'one side of his face',
+      // "facial droop" never matched "face is drooping": the keyword needs the
+      // word callers actually use. Found by the golden corpus.
+      'face drooping', 'face droop', 'facial drooping', 'one side of the face',
+      'cannot speak', 'cannot talk', 'slurred', 'cannot move his arm', 'cannot move her arm',
+      'arm drooping', 'one arm is drooping', 'stroke symptoms', 'face is drooping'
     ],
     citations: 'AHA / American Stroke Association Guidelines for Early Management of Acute Stroke'
   },
@@ -144,7 +179,14 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
     },
     keywords: [
       'allergic reaction', 'epipen', 'peanut allergy', 'throat closing', 'swollen tongue',
-      'hives', 'cant breathe allergic', 'anaphylaxis', 'bee sting', 'wheezing', 'severe allergy'
+      'hives', 'cant breathe allergic', 'anaphylaxis', 'bee sting', 'wheezing', 'severe allergy',
+      // Found by the golden corpus: anaphylaxis was abstaining on its own most
+      // canonical presentations, because the vocabulary only had "anaphylaxis"
+      // and callers say "anaphylactic shock" or name the auto-injector.
+      'anaphylactic shock', 'anaphylactic', 'tongue is swelling', 'tongue swelling',
+      'swelling tongue', 'swollen tongue and', 'epinephrine', 'epinephrine pen',
+      'struggling to breathe', 'lips are swelling', 'throat is closing',
+      'used her epipen', 'needed his epipen', 'severe allergic reaction and'
     ],
     citations: 'World Allergy Organization (WAO) Anaphylaxis Guidelines 2026'
   },
@@ -177,7 +219,16 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
     },
     keywords: [
       'overdose', 'narcan', 'fentanyl', 'not waking up', 'blue face', 'opioid',
-      'heroin', 'shallow breathing', 'pinpoint pupils', 'unresponsive drug'
+      'heroin', 'shallow breathing', 'pinpoint pupils', 'unresponsive drug',
+      // Overdose is the single most common toxicology call and the vocabulary
+      // was almost entirely opioid-specific. Found by the golden corpus.
+      'overdosed', 'took too many pills', 'took a whole packet', 'packet of tablets',
+      'swallowed a bottle', 'bottle of pills', 'swallowed pills', 'swallowed tablets',
+      'swallowed cleaning fluid', 'cleaning fluid', 'drank bleach', 'ingested a chemical',
+      'chemical container', 'carbon monoxide', 'carbon monoxide poisoning', 'poisoning',
+      'deliberate overdose', 'took an overdose', 'swallowed tablets', 'pills', 'tablets',
+      'antidepressants', 'poisoned', 'paracetamol', 'ingested a chemical and',
+      'chemical and is vomiting'
     ],
     citations: 'CDC Emergency Guidelines on Illicit Synthetic Opioid Resuscitation 2026'
   },
@@ -212,8 +263,18 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
     keywords: [
       'digital arrest', 'cbi', 'police', 'customs', 'otp', 'transfer money',
       'parcel drugs', 'narcotics', 'aadhaar', 'skype call', 'arrest warrant',
-      'cyber crime', 'bank details', 'scam', 'extortion', 'upi'
+      'cyber crime', 'bank details', 'scam', 'extortion', 'upi',
+      // Found by the golden corpus: the most common scams described in plain
+      // language were all abstaining.
+      'account is locked', 'bank account is locked', 'scamming', 'being scammed',
+      'scam call', 'pretending to be the police', 'pretending to be police', 'wants money',
+      'asked for money', 'sent me all his money', 'romance scam', 'text saying my bank',
+      'threatening', 'scammers'
     ],
+    // Scam guidance is safe to surface on a single mention, and this protocol
+    // exists precisely to catch what a caller does not recognise as a scam.
+    // Two clinical anchors would make it miss its own reason to exist.
+    minAnchorCount: 1,
     citations: 'Ministry of Home Affairs & CERT-In 2026 National Cyber Extortion Advisory'
   }
 ];
