@@ -481,6 +481,11 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
           <motion.button
             whileTap={{ scale: 0.96 }}
             onClick={toggleMic}
+            /* Had no accessible name at all: a screen reader announced an
+               unlabelled button for the product's primary control. */
+            aria-label={micActive ? 'Stop listening' : 'Start listening'}
+            aria-pressed={micActive}
+            data-testid="mic-toggle"
             className={`btn-tactile px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-xs ${
               micActive
                 ? 'bg-rose-600 text-white shadow-rose-600/30'

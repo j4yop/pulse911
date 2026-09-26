@@ -423,13 +423,30 @@ Driven by screenshotting the console rather than reasoning about it.
 1. **Merge PR #37.** It carries the Moss index version fix — eleven protocols are
    missing from Moss retrieval in production until it lands — plus voice
    answering for the clarifying loop and the honest Moss status. CI-green.
-2. **Real-browser voice test.** Headless Chromium has no working Web Speech
-   service, so every transcript in the test suite came from a simulated
-   recogniser. The UI, state machine, error handling, badges and the new
-   `clarifyVoice` matching are genuinely tested. **Google's transcription of a
-   real caller is not.** This is the deepest remaining risk in the product,
-   because the caller's voice is the primary input. It needs a headed browser
-   and a real microphone.
+2. **Real-browser voice test — harness built, needs a human to run it.**
+   Headless Chromium has no working Web Speech service, so every transcript in
+   the test suite came from a simulated recogniser. The UI, state machine, error
+   handling, badges and the new `clarifyVoice` matching are genuinely tested.
+   **Google's transcription of a real caller is not.** This is the deepest
+   remaining risk in the product, because the caller's voice is the primary input.
+
+   ```
+   npm i -D playwright && npx playwright install chromium
+   npm run build && npm run preview -- --port 4180
+   npm run verify:voice-e2e
+   ```
+
+   It WRAPS the native `SpeechRecognition` rather than stubbing it, so the
+   transcripts scored are Google's, through the real app. It cannot pass on its
+   own — there is no way to synthesise a voice the engine will treat as a
+   caller — and it never records silence as a pass. Verified: run without a
+   speaker it reports `NO SPEECH`, exits `FAIL`, and refuses to certify.
+
+   The phrase set is weighted towards **clinically critical vocabulary** rather
+   than easy speech: `agonal gasping`, `tracheostomy`, `anaphylaxis`. "He is not
+   breathing" will almost certainly work; the rare terms are where a speech
+   engine actually breaks, and they are the words that select a protocol. A
+   failure there is reported as a patient-safety finding.
 
 **Needs a person, not code**
 

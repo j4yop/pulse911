@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "verify:moss": "node scripts/verify-moss.mjs",
     "typecheck": "tsc -b",
-    "verify:clarify-voice": "node scripts/verify-clarify-voice.mjs"
+    "verify:clarify-voice": "node scripts/verify-clarify-voice.mjs",
+    "verify:voice-e2e": "node scripts/verify-voice-e2e.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
