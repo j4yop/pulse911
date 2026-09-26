@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Mic,
   MicOff,
+  Info,
   PhoneCall,
   PhoneOff,
   MapPin,
@@ -16,8 +17,19 @@ import {
 import { EmergencyScenario } from '../types';
 import { audioService } from '../engine/speechSimulation';
 
+/**
+ * Microphone lifecycle, surfaced rather than inferred.
+ *
+ * `idle` nothing · `starting` requested, not yet live · `listening` live
+ * recogniser · `unavailable` no API or no device · `denied` permission blocked
+ * · `error` service or network failure.
+ */
+export type MicState = 'idle' | 'starting' | 'listening' | 'unavailable' | 'denied' | 'error';
+
 interface CallerPanelProps {
-  onProcessTranscript: (text: string, scenario?: EmergencyScenario) => void;
+  /** `source` is surfaced in the UI so an operator always knows whether the engine
+   *  received speech or typed text. */
+  onProcessTranscript: (text: string, scenario?: EmergencyScenario, source?: 'mic' | 'typed') => void;
   isProcessing: boolean;
   activeScenario: EmergencyScenario | null;
   currentTranscript: string;
@@ -31,6 +43,8 @@ interface CallerPanelProps {
    * says "measuring" until there is something to show.
    */
   retrievalLatencyMs?: number | null;
+  /** Fires whenever the microphone lifecycle changes, so the dock can mirror it. */
+  onMicStateChange?: (state: MicState) => void;
 }
 
 export const CallerPanel: React.FC<CallerPanelProps> = ({
@@ -41,12 +55,55 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
   spokenInstruction,
   onClearCall,
   retrievalLatencyMs,
+  onMicStateChange,
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [customInput, setCustomInput] = useState('');
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
+  // ── Microphone state, made visible ────────────────────────────────────────
+  // The mic used to fail silently: `onerror` only console.warn'd, and `onend`
+  // fired on every natural pause in Chrome, so the operator saw a live-looking
+  // button and got nothing. For a product whose primary interaction is voice,
+  // silence that looks like listening is the worst possible failure mode.
+  const [micState, setMicState] = useState<MicState>('idle');
+  /** Live RMS level 0..1 from a real AnalyserNode, not a decorative animation. */
+  const [micLevel, setMicLevel] = useState(0);
+  /** True once the recogniser reports speech — distinguishes "silent room" from "dead mic". */
+  const [heardSpeech, setHeardSpeech] = useState(false);
+  /** Interim words, so the operator can see what is being heard right now. */
+  const [interimTranscript, setInterimTranscript] = useState('');
+
+  /** Live means the operator asked for the mic and it has not failed. */
+  const micActive = micState === 'starting' || micState === 'listening';
+  const micLabel =
+    micState === 'starting'
+      ? 'Starting...'
+      : micState === 'listening'
+        ? heardSpeech
+          ? 'Listening...'
+          : 'Listening (no speech yet)'
+        : micState === 'denied'
+          ? 'Mic blocked'
+          : micState === 'unavailable'
+            ? 'Mic unavailable'
+            : micState === 'error'
+              ? 'Mic error — retry'
+              : 'Live Mic';
+
+  /**
+   * Whether the operator still WANTS the mic on. Chrome ends a continuous
+   * recognition session after a pause, so `onend` is not a user intent — it is a
+   * routine lifecycle event. Auto-restart is driven by this flag, not by
+   * `isRecording`, so a deliberate stop is respected.
+   */
+  const wantsToListenRef = useRef(false);
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Guards against a hot restart loop if the service is failing every start. */
+  const consecutiveFailuresRef = useRef(0);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const levelFrameRef = useRef<number | null>(null);
   // Web Speech recognition hook for live microphone
   const recognitionRef = useRef<any>(null);
   const [speechNotice, setSpeechNotice] = useState<string | null>(null);
@@ -55,6 +112,67 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
   // retrievals + speech calls (this was a major source of runtime jank).
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestRef = useRef('');
+
+  const setMic = (next: MicState) => {
+    micStateRef.current = next;
+    setMicState(next);
+  };
+
+  /**
+   * A REAL input level, from the actual microphone stream.
+   *
+   * The waveform on this panel is decorative. It cannot tell a working mic from
+   * a dead one, which is precisely the distinction the operator needs. This reads
+   * RMS from an AnalyserNode on the genuine capture stream, so "I am not hearing
+   * anything" becomes a fact the UI can show rather than a guess.
+   */
+  const startLevelMeter = async () => {
+    stopLevelMeter();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new Ctx();
+      const src = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      src.connect(analyser);
+      const buf = new Uint8Array(analyser.fftSize);
+      const tick = () => {
+        analyser.getByteTimeDomainData(buf);
+        let sum = 0;
+        for (let i = 0; i < buf.length; i++) {
+          const v = (buf[i] - 128) / 128;
+          sum += v * v;
+        }
+        setMicLevel(Math.min(1, Math.sqrt(sum / buf.length) * 4));
+        levelFrameRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch {
+      // No level meter is survivable: the recogniser still works without it.
+      setMicLevel(0);
+    }
+  };
+
+  const stopLevelMeter = () => {
+    if (levelFrameRef.current) cancelAnimationFrame(levelFrameRef.current);
+    levelFrameRef.current = null;
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
+    setMicLevel(0);
+  };
+
+  const failNotice = (message: string) => {
+    setSpeechNotice(message);
+    if (speechNoticeTimerRef.current) clearTimeout(speechNoticeTimerRef.current);
+    // Errors stay up long enough to be read and acted on, unlike the transient
+    // "unsupported browser" toast.
+    speechNoticeTimerRef.current = setTimeout(() => setSpeechNotice(null), 9000);
+  };
+
+  const speechNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const micStateRef = useRef<MicState>('idle');
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -66,56 +184,166 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
 
       rec.onresult = (event: any) => {
         let transcript = '';
+        let interim = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+          const chunk = event.results[i][0].transcript;
+          if (event.results[i].isFinal) transcript += chunk;
+          else interim += chunk;
         }
-        const text = transcript.trim();
-        if (!text) return;
+        const text = (transcript + interim).trim();
+        if (text) {
+          setHeardSpeech(true);
+          if (micStateRef.current === 'starting') setMic('listening');
+          // Show the operator what is being heard, live, instead of nothing
+          // until 650ms after they stop talking.
+          setInterimTranscript(text);
+        }
 
-        latestRef.current = text;
+        const final = transcript.trim();
+        if (!final) return;
+
+        latestRef.current = final;
         if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
         settleTimerRef.current = setTimeout(() => {
           const settled = latestRef.current.trim();
-          if (settled) onProcessTranscript(settled);
+          if (settled) onProcessTranscript(settled, undefined, 'mic');
         }, 650);
       };
 
-      rec.onerror = (e: any) => {
-        console.warn('Speech recognition error:', e);
-        setIsRecording(false);
+      rec.onstart = () => {
+        consecutiveFailuresRef.current = 0;
+        setMic('listening');
+        setIsRecording(true);
+        setSpeechNotice(null);
       };
 
+      /**
+       * Errors were previously swallowed into the console. Every one of these is
+       * something the operator can act on, so every one gets said out loud.
+       */
+      rec.onerror = (e: any) => {
+        const code = e?.error ?? 'unknown';
+        consecutiveFailuresRef.current += 1;
+        setIsRecording(false);
+        if (code === 'not-allowed' || code === 'service-not-allowed') {
+          wantsToListenRef.current = false;
+          setMic('denied');
+          failNotice('Microphone blocked. Allow microphone access in your browser, or type the symptoms below.');
+        } else if (code === 'audio-capture') {
+          wantsToListenRef.current = false;
+          setMic('unavailable');
+          failNotice('No microphone found. Connect one, or type the symptoms below.');
+        } else if (code === 'network') {
+          // The Web Speech API transcribes in Google’s cloud. This is the single
+          // most likely real-world failure, and it must not look like silence.
+          setMic('error');
+          failNotice('Speech service unreachable (network). Transcription needs an internet connection — type the symptoms below, or retry.');
+        } else if (code === 'no-speech') {
+          setMic('listening');
+          setHeardSpeech(false);
+          failNotice('No speech detected. Still listening — tap Stop if you are done.');
+        } else if (code !== 'aborted') {
+          setMic('error');
+          failNotice(`Speech recognition error (${code}). Tap Live Mic to retry, or type the symptoms below.`);
+        }
+      };
+
+      /**
+       * Chrome ends a `continuous` session after a pause. That is NOT the
+       * operator stopping, so the mic used to go dead mid-call with no signal at
+       * all. Now it restarts itself while the operator still wants it listening.
+       */
       rec.onend = () => {
         setIsRecording(false);
+        setMicLevel(0);
+        if (!wantsToListenRef.current) {
+          if (micStateRef.current !== 'idle') setMic('idle');
+          return;
+        }
+        if (consecutiveFailuresRef.current >= 4) {
+          // The service is failing every start. Stop hammering it and say so.
+          wantsToListenRef.current = false;
+          setMic('error');
+          failNotice('Speech recognition keeps stopping. Tap Live Mic to retry, or type the symptoms below.');
+          return;
+        }
+        setMic('starting');
+        if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = setTimeout(() => {
+          try {
+            rec.start();
+          } catch {
+            /* already starting — the next onend will retry */
+          }
+        }, 250);
       };
 
       recognitionRef.current = rec;
     }
 
     return () => {
+      wantsToListenRef.current = false;
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+      if (speechNoticeTimerRef.current) clearTimeout(speechNoticeTimerRef.current);
+      stopLevelMeter();
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        /* not running */
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onProcessTranscript]);
 
   const toggleMic = () => {
     if (!recognitionRef.current) {
-      setSpeechNotice('Live microphone requires Chrome/Edge Web Speech API. You can also type in the box below.');
-      setTimeout(() => setSpeechNotice(null), 4500);
+      setMic('unavailable');
+      failNotice(
+        'Live microphone needs the Chrome or Edge Web Speech API. You can type the symptoms below instead.'
+      );
       return;
     }
 
-    if (isRecording) {
-      recognitionRef.current.stop();
+    if (wantsToListenRef.current) {
+      // A deliberate stop: this is the only path that ends listening for good.
+      wantsToListenRef.current = false;
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+      stopLevelMeter();
+      setHeardSpeech(false);
+      setInterimTranscript('');
       setIsRecording(false);
-    } else {
+      setMic('idle');
       try {
-        recognitionRef.current.start();
-        setIsRecording(true);
-      } catch (err) {
-        console.error('Failed to start microphone:', err);
+        recognitionRef.current.stop();
+      } catch {
+        /* not running */
       }
+      return;
+    }
+
+    wantsToListenRef.current = true;
+    consecutiveFailuresRef.current = 0;
+    setHeardSpeech(false);
+    setInterimTranscript('');
+    setMic('starting');
+    void startLevelMeter();
+    try {
+      recognitionRef.current.start();
+    } catch (err) {
+      // A start() that throws means the recogniser is already running or the
+      // service refused it. Say so rather than leaving a dead-looking button.
+      setMic('error');
+      failNotice('Could not start the microphone. Tap Live Mic to retry, or type the symptoms below.');
+      console.warn('Failed to start microphone:', err);
     }
   };
+
+  // Tell the rest of the console when the mic is live, so the dock can show it
+  // even when this panel is scrolled out of view.
+  useEffect(() => {
+    onMicStateChange?.(micState);
+  }, [micState, onMicStateChange]);
 
   const isVoiceActive = isRecording || isProcessing || (activeScenario !== null);
 
@@ -216,37 +444,89 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
             whileTap={{ scale: 0.96 }}
             onClick={toggleMic}
             className={`btn-tactile px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-xs ${
-              isRecording
-                ? 'bg-rose-600 text-white shadow-rose-600/30 animate-pulse'
+              micActive
+                ? 'bg-rose-600 text-white shadow-rose-600/30'
                 : 'bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 hover:border-slate-300'
             }`}
           >
-            <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-white animate-ping' : 'bg-rose-500'}`} />
-            {isRecording ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5 text-rose-600" />}
-            <span>{isRecording ? 'Listening...' : 'Live Mic'}</span>
+            {/* REAL input level from the capture stream. The old dot pulsed on a
+                timer, so a dead microphone looked exactly like a live one. */}
+            {micActive ? (
+              <span className="flex items-end gap-[2px] h-3" aria-hidden="true">
+                {[0.45, 0.8, 1].map((f, i) => (
+                  <span
+                    key={i}
+                    className="w-[3px] rounded-sm bg-white/90"
+                    style={{
+                      height: `${Math.max(
+                        3,
+                        Math.min(12, micLevel * 13 * f * (0.75 + 0.25 * Math.sin(Date.now() / 150 + i)))
+                      )}px`,
+                    }}
+                  />
+                ))}
+              </span>
+            ) : (
+              <div className="w-2 h-2 rounded-full bg-rose-500" />
+            )}
+            {micActive ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5 text-rose-600" />}
+            <span>{micLabel}</span>
           </motion.button>
         </div>
       </div>
 
+      {/*
+        Privacy disclosure, placed directly under the control that captures audio.
+
+        This is not decoration. The Web Speech API transcribes in Google's cloud,
+        and the AI coach sends the transcript to a separate gateway. On a system
+        that handles calls about self-harm, pregnancy and abuse, that is two
+        third parties receiving the caller's words — and until now nothing on
+        screen said so, while the product was marketed as local-first and
+        zero-network-hop. The triage decision is made on-device; the transcription
+        is not. Both halves of that sentence are now visible.
+      */}
+      <div className="px-4 sm:px-6 py-2 bg-slate-100/80 dark:bg-slate-900/60 border-b border-slate-200/70 dark:border-slate-800/70 text-[10px] font-mono text-slate-500 dark:text-slate-400 flex items-start gap-1.5">
+        <Info className="w-3 h-3 mt-px shrink-0" />
+        <span>
+          Triage decisions are made on this device. Microphone audio is transcribed by
+          your browser using Google&rsquo;s speech service, and the transcript is sent to the
+          AI coach gateway. Type below to keep the text on this device.
+        </span>
+      </div>
+
       {/* Active Recording Banner */}
       <AnimatePresence>
-        {isRecording && (
+        {micActive && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="px-6 py-2.5 bg-rose-600 text-white text-xs font-medium flex items-center justify-between"
+            className="px-6 py-2.5 bg-rose-600 text-white text-xs font-medium flex flex-col gap-1.5"
           >
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-              <span>Listening to your voice... Speak any emergency in English (e.g. "My roommate collapsed, not breathing")</span>
+              <span>
+                {micState === 'starting'
+                  ? 'Starting microphone...'
+                  : heardSpeech
+                    ? 'Listening — go ahead'
+                    : 'Listening — speak any emergency in English'}
+              </span>
             </div>
-            <button
-              onClick={toggleMic}
-              className="text-white/80 hover:text-white text-xs font-bold underline cursor-pointer"
-            >
-              Stop
-            </button>
+            <div className="flex items-center justify-between gap-3">
+              {/* Live partial transcript: the operator sees what is being heard
+                  now, instead of nothing until 650ms after they stop. */}
+              <p className="pl-4 font-mono text-[11px] text-rose-50 italic truncate min-w-0">
+                {interimTranscript ? `\u201C${interimTranscript}\u201D` : ''}
+              </p>
+              <button
+                onClick={toggleMic}
+                className="text-white/80 hover:text-white text-xs font-bold underline cursor-pointer shrink-0"
+              >
+                Stop
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

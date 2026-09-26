@@ -29,6 +29,7 @@ import { CopilotCoachPanel } from './CopilotCoachPanel';
 import { EkgMonitor } from './EkgMonitor';
 import { EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
 import { cn } from '@/lib/utils';
+import type { MicState } from './CallerPanel';
 import {
   matchedProtocol,
   abstainMessage,
@@ -41,6 +42,10 @@ interface DispatcherHUDProps {
   queryResult: MossQueryResult | null;
   dispatchIntent: DispatchIntent | null;
   guidance: CategoryMatch[];
+  /** What the engine received: voice or keyboard. */
+  transcriptSource: 'mic' | 'typed' | null;
+  /** Mirrors the microphone lifecycle so the mic is visible when this panel is scrolled. */
+  micState: MicState;
   route: RouteVerdict | null;
   clarify: ClarifyState | null;
   onClarifyAnswer: (questionId: string, optionLabel: string) => void;
@@ -57,6 +62,8 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   queryResult,
   dispatchIntent,
   guidance,
+  transcriptSource,
+  micState,
   route,
   clarify,
   onClarifyAnswer,
@@ -146,6 +153,36 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
       {/* Main Content Area */}
       <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-5">
         <>
+          {/*
+            Operator-facing provenance and mic state.
+
+            Hoisted above the matched/abstain/standby branch for the same
+            reason the override trail is: an indicator that vanishes in the state
+            you most need it is worse than no indicator. The mic can be live
+            while this panel is scrolled, and the operator must always know
+            whether the engine got speech or keystrokes.
+          */}
+          <div className="flex flex-wrap items-center gap-2">
+            {transcriptSource && (
+              <span
+                className={cn(
+                  'text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border',
+                  transcriptSource === 'mic'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                )}
+              >
+                {transcriptSource === 'mic' ? 'From microphone' : 'Typed'}
+              </span>
+            )}
+            {(micState === 'listening' || micState === 'starting') && (
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-rose-300 bg-rose-50 text-rose-700 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                {micState === 'starting' ? 'Mic starting' : 'Mic live'}
+              </span>
+            )}
+          </div>
+
           {/* Dispatcher-confirmed provenance. Hoisted ABOVE the matched/abstain
               branch on purpose: while this lived inside the abstain card it
               disappeared the instant the answers resolved a protocol — exactly

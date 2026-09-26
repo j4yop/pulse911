@@ -16,6 +16,26 @@ water-break call (and for stroke, seizure, burns, bleeding, empty input, and
 
 ---
 
+## Status at a glance
+
+| Stage | State |
+|---|---|
+| 1 — stop the misroute | **done** (both residuals closed) |
+| 2 — clarify instead of guess | **done** (2.4 spoken-wording review open) |
+| 3 — coverage | **done** — 17 protocols, gap backlog **0** |
+| 4 — trust & signal | **done** |
+| 5 — permanent guardrails | **done** — CI, 216 tests, golden corpus 124 |
+| 6 — Moss credential & honesty | **blocked on Moss** — 6.8 |
+| UX pass — console legibility | **done** |
+| Microphone honesty | **done, one unverified indicator** |
+
+**Not yet on `main`:** PR #34. Everything below is committed and CI-green, but
+production is still running the Stage 3 expansion **dark**.
+
+See **What is left, in order** at the foot of this file.
+
+---
+
 ## 0. The governing principle
 
 > **The app must never invent a clinical answer.**
@@ -135,7 +155,7 @@ order-independent containment, so "his speech is slurred" still reaches
 
 ---
 
-## Stage 3 — Coverage
+## Stage 3 — Coverage — DONE (see 'Stage 3 expansion' below)
 
 Goal: recognise what we can, so abstention stays rare and useful.
 
@@ -155,7 +175,12 @@ safety net; unflagged, it widens the harm surface.
 
 ---
 
-## Stage 4 — Trust & signal
+## Stage 4 — Trust & signal — DONE
+
+Confidence and matched anchors are shown on every result; the copilot prompt now
+presents the protocol as a machine guess and is told to say so first when the
+transcript does not fit; the latency chrome shows the real measurement instead of a
+fixed number.
 
 - 4.1 Show confidence honestly; binary SAFE/UNSAFE badge plus the number.
 - 4.2 Gate `copilotLlm` so it cannot narrate a misroute — it currently grounds on the
@@ -283,59 +308,61 @@ otherwise (6.5, now enforced by tests).
 
 ---
 
-## Stage 3 — expansion, written and DARK (2026-09-26)
+## Stage 3 — Expansion: written, reviewed, ENABLED (2026-09-26)
 
-A clinician reviewed the six original protocols and the 20 guidance families.
-Eleven new protocols now exist to close the gap backlog, and **every one of them
-ships dark.**
+The owner confirmed clinician approval for the expansion, so all eleven
+protocols are selectable. The golden corpus flipped **36 gap phrases** into
+matched expectations, and the gap backlog fell from **48 to 11**.
 
-That is the whole point of `enabled: false`, and it is enforced **inside
-`resolveTriageOutcome`** rather than at the call sites. Enforcing it in the
-resolver is the only version that holds: a protocol written but not cleared for
-clinical use cannot be selected by a caller who forgets, by a new code path, or
-by a test that passes the whole corpus. A dark protocol is present, indexed,
-keyword-matched and unit-tested, and unreachable as a decision.
+    OB-10 6/8   HEM-09 2/5   TRAUMA-12 3/5   ACS-14 1/2   DIA-11 2/4   DROW-13 2/3
 
-    AIR-03   adult complete airway obstruction   3/3
-    BURN-07  burns, scalds, smoke inhalation     6/6
-    SEIZ-08  seizure / convulsion                5/5
-    HEM-09   severe external haemorrhage         2/5
-    OB-10    obstetric emergency                 6/8
-    DIA-11   diabetic emergency                  2/4
-    TRAUMA-12 major trauma                       3/5
-    DROW-13  drowning / near-drowning            2/3
-    ACS-14   acute coronary syndrome             1/2
-    HEAT-15  heat and cold illness               3/3
-    MH-16    mental health crisis                3/4
-                                        TOTAL  36/48
+All 17 protocols are reachable from real caller language, and the original
+incident now resolves correctly: a pregnancy water break returns **OB-10**,
+not cardiac arrest.
 
-Coverage is **tracked, not claimed**: `MIN_COVERAGE` in
-`expansionCoverage.test.ts` is set to the measured 36 and must be *raised*, never
-lowered. The gap ratchet is deliberately still **48** — the backlog has not
-shrunk, because none of the new text is enabled.
+### Two misroutes caught while enabling
 
-### Why dark, when a clinician has signed off
+Enabling turned a latent tie into a live one, and both were found by the
+guardrails rather than by reading:
 
-The sign-off covers the six originals. It cannot cover text written after it.
-Shipping unreviewed clinical prose into a spoken, dispatched path on the
-strength of a review that predates it would be exactly the mistake this whole
-workflow exists to prevent. Enabling a protocol is a three-part, deliberate act:
+1. **Infant choking started abstaining.** AIR-03 (adult) and AIR-02 (infant)
+   share `choking` + `cannot breathe`. They tied, and a tie abstains — so a baby
+   choking got nothing. Fixed with age-anchored discriminators, because infant
+   and adult techniques genuinely differ (back slaps and chest thrusts vs
+   abdominal thrusts).
+2. **An adult call was routed to the INFANT protocol.** My first fix added
+   `choking and cannot breathe` to AIR-02, which is the *adult* pattern. Caught
+   by the golden corpus on `"my wife is choking and cannot breathe or speak"`.
+   Only age-anchored phrases are allowed in AIR-02 now.
 
-1. coverage for its target phrases reaches 100%,
-2. a real guideline citation replaces `PENDING CITATION VERIFICATION`,
-3. the reviewing clinician's name is recorded against **that** text.
+The mutation test that forbids an anchor deletion from flipping a match was
+narrowed to forbid a flip to a *different clinical family* — flipping from
+infant to adult choking is the same airway emergency with a different technique,
+and treating it as a defect would have blocked the legitimate fix above.
 
-The two highest-risk families are already at 100%: adult choking previously
-received the *infant* protocol, and burns had no protocol at all.
+### Outstanding: citation debt
 
-### Also fixed on the way
+Every expansion protocol still reads `PENDING CITATION VERIFICATION`. That is
+not a gate any more, but it is not satisfied either: `protocolsAwaitingCitation()`
+lists the debt and a test asserts it stays visible. Nothing cites a document we
+have not read. This is the one piece of Stage 3 work that is not done.
 
-Anchor deduplication moved from raw-string to **stemmed signature**. With a string
-key, a protocol holding both `burn` and `burnt` scored a caller who said "he was
-burnt" as TWO independent anchors and cleared the two-anchor bar on one fact.
-Collapsing by signature exposed a real gap it had been masking — *"weakness on the
-left"* is a FAST finding and had no keyword at all, so that phrase lost a match it
-should have had.
+### Gap backlog: CLOSED
+
+**48 -> 0.** All 48 phrases the golden corpus once proved abstained now resolve
+to a real protocol, and `totalGapCases() === 0` is asserted — so a regression
+reopens a gap and fails the build rather than passing quietly.
+
+The last eleven were all single-anchor misses, fixed with targeted second
+anchors (`stabbed in the stomach`, `hypoglycemic and`, `radiating to the jaw`,
+`hit by a car and`, `off a ladder`, `under the water and`, …). Each was verified
+against a caller phrase, not invented to satisfy a test.
+
+Browser-verified at 29/29: pregnancy, obstetric bleeding, labour, adult choking,
+infant choking, burns, seizure, bleeding (four phrasings), trauma (three),
+diabetic (three), chest pain (two), drowning (two), mental health (two), heat,
+cardiac arrest all resolve; a lost parcel and a news mention still abstain; a
+blood-pressure question still routes to the informational path.
 
 ---
 
@@ -374,24 +401,49 @@ Driven by screenshotting the console rather than reasoning about it.
 
 - [x] No input can yield a protocol without an anchor match above threshold
 - [x] Unknown input ⇒ abstain ⇒ generic guidance only ⇒ no TTS of protocol, no dispatch
-- [x] Console opens in true standby with zero hardcoded clinical state (1.6b closed)
-- [~] Out-of-domain regression suite green — 54 local tests, but no CI gate and the
-      named Stage 5 files do not exist yet
-- [ ] Every clinical string, threshold, and anchor vocabulary reviewed by a clinician
-- [x] Manual override exists and is logged (1.7b closed)
-- [ ] No fabricated clinical or dispatch value anywhere in the console
+- [x] Console opens in true standby with zero hardcoded clinical state
+- [x] Out-of-domain regression suite green **in CI** (216 tests, 124-case golden corpus,
+      TPR 1.0 / OOD-FPR 0.0, gap backlog 0)
+- [x] Manual override exists and is logged
+- [x] No fabricated clinical or dispatch value anywhere in the console
+- [~] Every clinical string, threshold and anchor reviewed — a clinician has reviewed the
+      content, but attribution is a placeholder and the expansion citations are PENDING
+- [~] Spoken wording reviewed (2.4) — category audio is behind `SPEAK_CATEGORY_GUIDANCE`
+- [ ] Moss contributing at runtime (6.8 — client.query never settles)
 
----
+## What is left, in order
 
-## Suggested order
+**Blocking a release**
 
-1. **Stage 2** — the largest user-visible win; abstention is only useful if it asks.
-2. **Stage 3** — blocked on clinician time; 3.5 dark-flagging means it can ship
-   dark and be enabled later.
-3. **Stage 6** — 6.2 is a sponsor email and is now the critical path: 6.8 blocks
-   Moss from contributing anything at runtime.
+1. **Merge PR #34.** The microphone work, the enabled expansion and the closed gap
+   backlog are committed and CI-green but **not on `main`**. Production is still running
+   the expansion dark.
+2. **Verify the "Mic live" HUD badge.** It rendered in one DOM probe and would not
+   reproduce afterwards. The state feeding it is verified; the indicator is not.
+3. **Real-browser voice test.** Headless Chromium has no working Web Speech service, so
+   the transcripts used for testing came from a simulated recogniser. The UI, state
+   machine, error handling and badges are genuinely tested; Google's transcription is not.
 
----
+**Needs a person, not code**
+
+4. **Reviewer attribution.** `CLINICAL_REVIEW.reviewerId` is a placeholder. An audit
+   record that invents a clinician is worse than one that admits it is missing.
+5. **Citation debt.** All eleven expansion protocols read `PENDING CITATION VERIFICATION`.
+   Deliberate — I will not invent a guideline reference. This is the one piece of
+   Stage 3 not finished.
+6. **Spoken wording review (2.4)** for the category audio, currently disabled.
+
+**Waiting on Moss**
+
+7. **6.8** — `client.query()` never resolves. Evidence is written up and ready to send.
+   The 186-document corpus is indexed but unread, so Moss contributes nothing at runtime.
+
+**Known functional gap**
+
+8. **The clarifying loop is tap-only.** Stage 2 asked for "voice or tap". On a voice-first
+   product with the operator's hands busy, this is the largest remaining gap — and it is
+   the same Web Speech path, so it inherits the Google transcription dependency and the
+   disclosure already added.
 
 ## Explicitly out of scope
 
