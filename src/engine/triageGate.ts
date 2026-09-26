@@ -1,4 +1,9 @@
 import type { TriageOutcome, EmergencyProtocol, OverrideRecord } from '../types';
+import {
+  matchGuidanceCategories,
+  speakableCategories,
+  type CategoryMatch,
+} from './guidanceCategories';
 
 /**
  * Operator identity recorded on override audit entries.
@@ -50,13 +55,64 @@ export const CLARIFYING_QUESTIONS: string[] = [
   'Is the patient pregnant?',
 ];
 
+/**
+ * Refuse to name a condition; never refuse to help.
+ *
+ * The previous copy — "I could not identify this emergency, so I will not guess
+ * a protocol" — was honest but read as a dead end, which is a safety problem in
+ * its own right: a caller who hears nothing actionable may conclude nobody is
+ * coming. Not knowing the diagnosis is not a reason to withhold first aid,
+ * because for most presentations the correct immediate action does not depend on
+ * the name. Hence every message ends by pointing at what we *can* do.
+ */
 export const ABSTAIN_COPY: Record<string, string> = {
-  'empty-transcript': 'No speech was detected, so no guidance can be given.',
-  'no-anchor-match': 'I could not identify this emergency, so I will not guess a protocol.',
-  'low-confidence': 'I am not confident enough in a match to give clinical instructions.',
-  'low-margin': 'Two different emergencies matched equally well, so I stopped rather than guess.',
-  'incomplete-transcript': 'I need a little more detail before giving any instructions.',
+  'empty-transcript':
+    'I did not hear anything, so I cannot tell what is happening. If someone is in trouble, tell me what you can see.',
+  'no-anchor-match':
+    'I do not have a specific protocol for this one, so I will not name a condition I cannot be sure of. I can still tell you what to do right now.',
+  'low-confidence':
+    'I am not confident enough to name a condition, so I will not guess. I can still tell you what to do right now.',
+  'low-margin':
+    'This could be more than one thing, so I will not guess between them. I can still tell you what to do right now.',
+  'incomplete-transcript':
+    'I did not catch enough to tell what is happening. Tell me what you can see and hear, and I will tell you what to do.',
 };
+
+/** Broad, low-risk guidance families for a transcript. Never a diagnosis. */
+export function guidanceFor(transcript: string, topK = 2): CategoryMatch[] {
+  return matchGuidanceCategories(transcript, topK);
+}
+
+/**
+ * Whether category guidance may be spoken, not just shown.
+ *
+ * The exact spoken wording still needs owner and clinician review
+ * (TRIAGE_SAFETY_WORKFLOW.md 2.4). Flip this to false to fall back to the
+ * approved safety floor alone — the on-screen guidance is unaffected.
+ */
+export const SPEAK_CATEGORY_GUIDANCE = true;
+
+/**
+ * What may be spoken on the abstain path.
+ *
+ * Always leads with the approved zero-risk safety floor, then adds at most one
+ * clearly-matched category's first action and first red flag. Deliberately
+ * short: this is audio going into a frightened caller's ear with nobody able to
+ * review it, so it errs toward brevity and toward the floor.
+ */
+export function speakableGuidanceScript(transcript: string): string[] {
+  const lines: string[] = [UNIVERSAL_SAFETY_FLOOR];
+  if (!SPEAK_CATEGORY_GUIDANCE) return lines;
+
+  const [top] = speakableCategories(guidanceFor(transcript, 2));
+  if (!top) return lines;
+
+  const [firstAction] = top.category.safeActions;
+  const [firstEscalate] = top.category.redFlags;
+  if (firstAction) lines.push(firstAction);
+  if (firstEscalate) lines.push(firstEscalate);
+  return lines;
+}
 
 export function abstainMessage(outcome: Extract<TriageOutcome, { kind: 'abstain' }>): string {
   return ABSTAIN_COPY[outcome.reason] ?? ABSTAIN_COPY['no-anchor-match'];

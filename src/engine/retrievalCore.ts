@@ -92,15 +92,37 @@ export interface ProtocolMatch {
   corpusIndex: number;
 }
 
-/** Ranks every protocol. Never fabricates a winner — callers decide. */
-export function rankProtocols(
+/**
+ * The minimum shape the ranker needs. Exists so the *same* scoring, stemming
+ * and phrase-matching code serves both clinical protocols and the broad
+ * guidance categories. Duplicating this matcher for a second corpus is how two
+ * corpora quietly start disagreeing about what a sentence means.
+ */
+export interface Rankable {
+  id: string;
+  keywords: string[];
+  clinicalSummary: string;
+  /** Clinical protocols carry `title`; guidance categories carry `label`. */
+  title?: string;
+  label?: string;
+}
+
+export interface RankMatch<T extends Rankable> {
+  item: T;
+  score: number;
+  anchors: string[];
+  corpusIndex: number;
+}
+
+/** Rank any keyword corpus. Never fabricates a winner — callers decide. */
+export function rankByText<T extends Rankable>(
   transcript: string,
-  protocols: EmergencyProtocol[],
+  items: T[],
   topK = 3
-): ProtocolMatch[] {
+): RankMatch<T>[] {
   const tokens = tokenize(transcript);
 
-  const scored = protocols.map((p, corpusIndex) => {
+  const scored = items.map((p, corpusIndex) => {
     let score = 0;
     const anchors: string[] = [];
 
@@ -114,7 +136,7 @@ export function rankProtocols(
 
     // 2. Weak lexical overlap on title/summary — a tiebreaker, kept small so
     //    real symptom anchors always dominate.
-    const corpus = tokenize(`${p.title} ${p.clinicalSummary}`);
+    const corpus = tokenize(`${p.title ?? p.label ?? ''} ${p.clinicalSummary}`);
     if (corpus.length > 0) {
       let overlap = 0;
       for (const tok of tokens) {
@@ -123,7 +145,7 @@ export function rankProtocols(
       score += Math.min(overlap / corpus.length, 0.5);
     }
 
-    return { protocol: p, score: +score.toFixed(3), anchors, corpusIndex };
+    return { item: p, score: +score.toFixed(3), anchors, corpusIndex };
   });
 
   // Sort by score desc. corpusIndex remains ONLY as a stable display order —
@@ -131,6 +153,18 @@ export function rankProtocols(
   scored.sort((a, b) => b.score - a.score || a.corpusIndex - b.corpusIndex);
 
   return scored.slice(0, Math.max(1, topK));
+}
+
+/** Ranks every protocol. Never fabricates a winner — callers decide. */
+export function rankProtocols(
+  transcript: string,
+  protocols: EmergencyProtocol[],
+  topK = 3
+): ProtocolMatch[] {
+  return rankByText(transcript, protocols, topK).map(({ item, ...rest }) => ({
+    protocol: item,
+    ...rest,
+  }));
 }
 
 function abstain(reason: AbstainReason, anchors: string[] = []): TriageOutcome {
@@ -203,3 +237,7 @@ export function resolveTopProtocol(
 }
 
 export { MIN_CONFIDENCE, MIN_ANCHOR_WEIGHT };
+
+// Shared with the guidance-category ranker so both corpora stem and match
+// identically. Two copies of this is how two corpora start disagreeing.
+export { tokenize, phrasePresent, phraseWeight };

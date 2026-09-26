@@ -13,11 +13,13 @@ import {
 } from './types';
 import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from './engine/emergencyProtocols';
 import { mossEngine } from './engine/mossEngine';
+import type { CategoryMatch } from './engine/guidanceCategories';
 import { audioService } from './engine/speechSimulation';
 import {
   createOverrideRecord,
+  guidanceFor,
   matchedProtocol,
-  UNIVERSAL_SAFETY_FLOOR,
+  speakableGuidanceScript,
 } from './engine/triageGate';
 import { cn } from '@/lib/utils';
 
@@ -83,6 +85,12 @@ export const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [queryResult, setQueryResult] = useState<MossQueryResult | null>(null);
   const [dispatchIntent, setDispatchIntent] = useState<DispatchIntent | null>(null);
+  /**
+   * Broad, low-risk guidance for the current transcript, shown on the abstain
+   * path. Computed here (not in the HUD) so it is derived from the same text
+   * the engine decided on, and so speech and screen can never disagree.
+   */
+  const [guidance, setGuidance] = useState<CategoryMatch[]>([]);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const [audioFeedbackEnabled, setAudioFeedbackEnabled] = useState(true);
   /**
@@ -119,6 +127,9 @@ export const App: React.FC = () => {
         const res = await mossEngine.query(text);
         setQueryResult(res);
         setLatencyMs(res.latencyMs);
+        // Computed for matched and abstained alike: on a match the protocol
+        // governs, and this quietly backs it up.
+        setGuidance(guidanceFor(text));
 
         // SAFETY GATE — the single point deciding what may be spoken or sent.
         const protocol = matchedProtocol(res.outcome);
@@ -175,15 +186,22 @@ export const App: React.FC = () => {
           }
         } else {
           // ABSTAIN: no protocol, no unit, no CPR pacer. Do not guess, do not
-          // speak a clinical protocol, do not dispatch. Only the universal
-          // zero-risk safety floor is spoken.
+          // speak a clinical protocol, do not dispatch. What IS spoken is the
+          // zero-risk safety floor plus, when clearly matched, broad low-risk
+          // category guidance — abstaining on the diagnosis is not abstaining
+          // on helping. `guidance` is intentionally left in place here; it was
+          // the whole point of setting it.
           setActiveScenario(scenario ?? null);
           setDispatchIntent(null);
           setIsMetronomeActive(false);
           audioService.stopCprMetronome();
 
           if (speakAudio && audioFeedbackEnabled) {
-            audioService.speakVerbalInstruction(UNIVERSAL_SAFETY_FLOOR);
+            // Never a dead end: the zero-risk safety floor, plus at most one
+            // clearly-matched broad category's first action and red flag.
+            for (const line of speakableGuidanceScript(text)) {
+              audioService.speakVerbalInstruction(line);
+            }
           }
         }
 
@@ -276,6 +294,7 @@ export const App: React.FC = () => {
     setCurrentTranscript('');
     setQueryResult(null);
     setDispatchIntent(null);
+    setGuidance([]);
   }, []);
 
   return (
@@ -331,6 +350,7 @@ export const App: React.FC = () => {
                 isProcessing={isProcessing}
                 queryResult={queryResult}
                 dispatchIntent={dispatchIntent}
+                guidance={guidance}
                 overrideLog={overrideLog}
                 onOverride={handleOverride}
                 isMetronomeActive={isMetronomeActive}

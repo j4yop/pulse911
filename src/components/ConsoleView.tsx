@@ -30,6 +30,7 @@ import {
   DispatchIntent,
   OverrideRecord,
 } from '../types';
+import type { CategoryMatch } from '../engine/guidanceCategories';
 import { EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
 import { matchedProtocol } from '../engine/triageGate';
 import { cn } from '@/lib/utils';
@@ -56,6 +57,7 @@ export interface ConsoleViewProps {
   isProcessing: boolean;
   queryResult: MossQueryResult | null;
   dispatchIntent: DispatchIntent | null;
+  guidance: CategoryMatch[];
   overrideLog: OverrideRecord[];
   onOverride: (protocol: EmergencyProtocol) => void;
   isMetronomeActive: boolean;
@@ -78,6 +80,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
   isProcessing,
   queryResult,
   dispatchIntent,
+  guidance,
   overrideLog,
   onOverride,
   isMetronomeActive,
@@ -369,6 +372,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
           <DispatcherHUD
             queryResult={queryResult}
             dispatchIntent={dispatchIntent}
+            guidance={guidance}
             overrideLog={overrideLog}
             onOverride={onOverride}
             onTriggerMetronome={onToggleMetronome}
