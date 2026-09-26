@@ -519,26 +519,75 @@ in a browser and skips cleanly when Playwright is absent.
 **Not verified:** actual Google transcription quality. That needs a headed
 browser and a real microphone; see the verification gaps above.
 
-## 6 — Moss 6.8: query does not return
+## 6 — Moss: SOLVED (6.8 closed)
 
-`init()` succeeds in ~14s (auth 201, index 200, artifact 200, confirm), and the
-index now carries **197** documents. `client.query()` never resolves: the model
-artifact downloads with 200, and the query then hangs — tested to a 180s budget
-on a fresh browser profile without a single resolution or rejection.
+**`client.query()` was never broken. Two bugs on our side stopped it being used.**
 
-Two honest caveats:
+Both were found by measuring in a real browser instead of reading logs.
 
-- **Headless Chromium may be the cause.** Onnx/WASM inference without a real
-  browser's JIT can be pathologically slow, so this does not yet prove a Moss
-  service defect. A headed-browser test would settle it.
-- The Node SDK separately 401s on
-  `models.moss.link/artifacts/v1/moss-minilm/bind1~…` while the browser gets
-  `sealed1~…` with 200, so SDK/runtime paths differ.
+### Bug 1 — the 8s budget sat on the cold query
 
-`MOSS_REFINEMENT_BUDGET_MS` stays at **8000** as a leak guard. Rather than leave
-this looking healthy, the engine now records why Moss is not serving and the
-console states it plainly: **"Moss unavailable — local triage only"**, with the
-reason in the tooltip. The app no longer implies a corpus it is not reading.
+Measured in a headed browser, same client, same session:
+
+| Query | Wall clock | SDK `timeTakenMs` |
+|---|---|---|
+| first (cold) | **141,226ms** | 3ms |
+| second | 30ms | 3ms |
+| third | 40ms | 1ms |
+
+The SDK's own `timeTakenMs` reports **3ms** while the call takes **141 seconds**.
+Almost all of it is one-time: downloading and instantiating the model runtime.
+The single 8s budget was applied to that first query, so it could never succeed
+— and the timeout was then recorded as `mossUnavailableReason`, which is how a
+cold start got reported as a dead service for an entire release.
+
+Fixed: warmup now runs in the background at init (not awaited, so init stays
+fast), the cold query gets a 180s budget and warm queries keep the 8s leak
+guard, and **a timeout no longer marks Moss unavailable** — slow is not broken.
+
+### Bug 2 — `SearchResult.docs[].metadata` comes back empty
+
+We uploaded `metadata: { kind, sourceId, family, reviewedBy, ... }` correctly.
+Moss stores it and will filter on it, but **returns `metadata: {}`**.
+
+Two consequences, the second fatal:
+
+1. The old gate was `top?.metadata?.kind === 'protocol'`. That could **never**
+   pass, so Moss could never contribute a clinical decision even when fast.
+2. Unfiltered retrieval returns action and red-flag snippets, because protocols
+   are only 17 of 197 documents — so `CARD-01` never even appeared in results.
+
+Fixed with a server-side filter, measured warm at 27-29ms:
+
+```js
+filter: { field: 'kind', condition: { $eq: 'protocol' } }
+```
+
+| Query | Top hits |
+|---|---|
+| severe bleeding from the leg | **HEM-09:1.00**, TRAUMA-12:0.96 |
+| woman having a seizure right now | **SEIZ-08:1.00**, NEURO-03:0.95 |
+| he collapsed and is not breathing | DROW-13:0.99, **CARD-01:0.95**, AIR-03:0.94 |
+
+Protocols are indexed with `id: p.id` and nothing else uses that shape, so the
+protocol is now resolved by matching the id against the live registry rather
+than trusting metadata the service does not return. That is stricter, not
+looser: an id that is not a real protocol cannot become a clinical decision, and
+"a guidance hit is not a protocol" is now structural instead of dependent on the
+service.
+
+### Honest status
+
+`getMossStatus()` now distinguishes three states, because claiming "serving"
+before the runtime is warm would be the old dishonesty in a new place:
+
+- **warming** — runtime up, no query ever answered; console says
+  "Moss warming — local triage meanwhile"
+- **serving** — a query has actually returned
+- **unavailable** — a real failure (auth, network, init), with the reason
+
+Verified end-to-end in a headed browser: runtime ready at 18s, warm at 174s,
+`HEM-09` matched, honesty chip cleared, no page errors.
 
 ### The stale index, fixed
 

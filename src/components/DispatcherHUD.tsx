@@ -47,7 +47,7 @@ interface DispatcherHUDProps {
   /** Mirrors the microphone lifecycle so the mic is visible when this panel is scrolled. */
   micState: MicState;
   /** Real Moss availability, so the console never implies it is working. */
-  mossStatus: { ready: boolean; serving: boolean; reason: string | null } | null;
+  mossStatus: { ready: boolean; warming: boolean; serving: boolean; reason: string | null } | null;
   /** Speech heard while a question was open but not understood. */
   clarifyHeard: string | null;
   route: RouteVerdict | null;
@@ -181,7 +181,15 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                 {transcriptSource === 'mic' ? 'From microphone' : 'Typed'}
               </span>
             )}
-            {mossStatus && !mossStatus.serving && (
+            {mossStatus && mossStatus.warming && (
+              <span
+                className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                title="Moss is loading its model runtime. Triage is running on the local engine until it is ready."
+              >
+                Moss warming &mdash; local triage meanwhile
+              </span>
+            )}
+            {mossStatus && !mossStatus.serving && !mossStatus.warming && (
               <span
                 className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-800"
                 title={mossStatus.reason ?? 'Moss runtime is not serving queries'}

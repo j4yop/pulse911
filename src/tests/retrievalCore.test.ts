@@ -231,11 +231,31 @@ describe('matching quality (word-boundary + stemming)', () => {
   });
 
   it('is fast enough for the voice budget', () => {
-    const t0 = performance.now();
-    for (let i = 0; i < 100; i++) {
-      resolveTriageOutcome('digital arrest cbi otp transfer money now', EMERGENCY_PROTOCOLS);
+    /**
+     * Measured with a median after a warmup pass, not a mean over 100 cold
+     * iterations. The old version flaked at 6-8ms against a 5ms threshold on a
+     * loaded machine: the first iterations are dominated by JIT compilation, so
+     * a cold mean measures the compiler, not the ranker.
+     *
+     * The property being guarded is that local triage is fast enough to sit in
+     * a voice interaction loop — i.e. it must not have become accidentally
+     * quadratic. A warmed median tracks that; a cold mean did not.
+     */
+    const input = 'digital arrest cbi otp transfer money now';
+    for (let i = 0; i < 200; i++) resolveTriageOutcome(input, EMERGENCY_PROTOCOLS);
+
+    const samples: number[] = [];
+    for (let i = 0; i < 200; i++) {
+      const t0 = performance.now();
+      resolveTriageOutcome(input, EMERGENCY_PROTOCOLS);
+      samples.push(performance.now() - t0);
     }
-    expect((performance.now() - t0) / 100).toBeLessThan(5);
+    samples.sort((a, b) => a - b);
+    const median = samples[Math.floor(samples.length / 2)];
+
+    // Generous enough to survive a busy CI box, tight enough to catch quadratic
+    // behaviour, which would be orders of magnitude over this, not 2x.
+    expect(median).toBeLessThan(5);
   });
 });
 

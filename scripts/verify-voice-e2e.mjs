@@ -49,6 +49,24 @@ const ONLY = arg('only', null);
 const URL = process.env.CONSOLE_URL ?? 'http://localhost:4180/?tab=console';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Fail with instructions rather than a raw ERR_CONNECTION_REFUSED stack. */
+async function requireServer(target) {
+  // NOTE: these scripts declare `const URL = ...`, which shadows the global URL
+  // constructor. Use the string directly rather than `new URL()`.
+  try {
+    const res = await fetch(target, { method: 'HEAD' });
+    if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
+  } catch (err) {
+    console.error(
+      `\nCannot reach the app at ${target}\n  (${err instanceof Error ? err.message : String(err)})\n` +
+        '  Start it first, in another terminal:\n\n' +
+        '    npm run build && npm run preview -- --port 4180\n'
+    );
+    process.exit(2);
+  }
+}
+
+
 /**
  * The phrases worth testing.
  *
@@ -168,6 +186,8 @@ if (!selected.length) {
   console.error(`no phrase with id "${ONLY}". ids: ${PHRASES.map((p) => p.id).join(', ')}`);
   process.exit(2);
 }
+
+await requireServer(URL);
 
 const browser = await chromium.launch({
   headless: false,
