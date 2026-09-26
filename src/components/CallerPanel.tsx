@@ -112,6 +112,18 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
   // retrievals + speech calls (this was a major source of runtime jank).
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestRef = useRef('');
+  /**
+   * The latest submit callback, read through a ref.
+   *
+   * The recogniser used to depend on `onProcessTranscript` directly. That prop is
+   * an inline arrow in the parent, so it had a new identity on every render,
+   * which tore down and rebuilt the recogniser every render — and the cleanup
+   * forced `wantsToListen = false` and stopped the microphone. The mic could
+   * therefore never stay live: `start()` was called, `onstart` fired, and the
+   * state was immediately torn down again.
+   */
+  const submitRef = useRef(onProcessTranscript);
+  submitRef.current = onProcessTranscript;
 
   const setMic = (next: MicState) => {
     micStateRef.current = next;
@@ -206,7 +218,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
         if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
         settleTimerRef.current = setTimeout(() => {
           const settled = latestRef.current.trim();
-          if (settled) onProcessTranscript(settled, undefined, 'mic');
+          if (settled) submitRef.current(settled, undefined, 'mic');
         }, 650);
       };
 
@@ -293,8 +305,11 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
         /* not running */
       }
     };
+    // Intentionally empty: the recogniser is built once for the session. The
+    // submit callback is read through `submitRef` so a new function identity on
+    // every render cannot restart or tear down the microphone.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onProcessTranscript]);
+  }, []);
 
   const toggleMic = () => {
     if (!recognitionRef.current) {
