@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { mossEngine } from '../engine/mossEngine';
 import { matchedProtocol, canDispatch } from '../engine/triageGate';
 import { buildKnowledgeDocs } from '../engine/knowledgeBase';
+import { EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
 
 describe('mossEngine integration', () => {
   it('returns a well-formed result for an emergency scenario', async () => {
@@ -35,7 +36,7 @@ describe('mossEngine integration', () => {
 
   it('reports operational statistics', () => {
     const stats = mossEngine.getStats();
-    expect(stats.protocolsCount).toBe(6);
+    expect(stats.protocolsCount).toBe(EMERGENCY_PROTOCOLS.length);
     expect(stats.indexName).toBe('pulse911-kb-v2');
     expect(stats.totalQueries).toBeGreaterThan(0);
   });

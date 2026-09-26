@@ -20,18 +20,24 @@ import { GOLDEN_PROTOCOLS } from '../eval/goldenCorpus';
  * (and adds it). Nothing slips through by being appended to a corpus.
  */
 
+/**
+ * The clinician sign-off covers the six original protocols. The Stage 3
+ * expansion was written after it, so all eleven ship unreviewed and dark.
+ *
+ * Lowering this list requires either reviewing that protocol's text or
+ * deliberately accepting it. Nothing slips through by being appended.
+ */
 const EXPECTED_UNREVIEWED = [
-  'AIR-02',
-  'CARD-01',
-  'CYBER-06',
-  'IMMUNO-04',
-  'NEURO-03',
-  'TOX-05',
+  'ACS-14', 'AIR-03', 'BURN-07', 'DIA-11', 'DROW-13',
+  'HEM-09', 'HEAT-15', 'MH-16', 'OB-10', 'SEIZ-08', 'TRAUMA-12',
 ];
 
 describe('every clinical protocol is accounted for', () => {
-  it('has no verified protocols yet, and that is explicit', () => {
-    expect(verifiedProtocolDocs()).toEqual([]);
+  it('reports exactly the reviewed protocols as verified', () => {
+    // Changed from "none": a clinician has now reviewed the six originals.
+    expect(verifiedProtocolDocs().map((d) => d.id).sort()).toEqual([
+      'AIR-02', 'CARD-01', 'CYBER-06', 'IMMUNO-04', 'NEURO-03', 'TOX-05',
+    ]);
   });
 
   it('lists exactly the protocols we know are unreviewed', () => {
@@ -40,6 +46,13 @@ describe('every clinical protocol is accounted for', () => {
       .map((f) => f.id)
       .sort();
     expect(actual).toEqual([...EXPECTED_UNREVIEWED].sort());
+  });
+
+  it('keeps every dark protocol out of the verified set', () => {
+    const verified = new Set(verifiedProtocolDocs().map((d) => d.id));
+    for (const p of EMERGENCY_PROTOCOLS) {
+      if (p.enabled === false) expect(verified.has(p.id), `${p.id} is dark but verified`).toBe(false);
+    }
   });
 
   it('refuses to let an unreviewed protocol look authoritative', () => {
@@ -63,11 +76,12 @@ describe('corpus hygiene', () => {
     }
   });
 
-  it('carries no fabricated citations anywhere', () => {
-    // The owner's constraint: no invented sources. Unreviewed means unreviewed.
+  it('carries no fabricated citation URL anywhere', () => {
+    // The owner's constraint: no invented sources. A protocol may now record
+    // that a clinician reviewed it, but nothing may cite a source we have not
+    // actually read - so every sourceUrl stays null.
     for (const d of buildKnowledgeDocs()) {
       expect(d.metadata.sourceUrl, d.id).toBeNull();
-      expect(d.metadata.reviewedAt, d.id).toBeNull();
     }
   });
 

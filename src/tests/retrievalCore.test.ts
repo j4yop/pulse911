@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { rankProtocols, resolveTriageOutcome, MIN_CONFIDENCE } from '../engine/retrievalCore';
-import { EMERGENCY_PROTOCOLS, EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
+import {
+  EMERGENCY_PROTOCOLS,
+  EMERGENCY_SCENARIOS,
+  getEnabledProtocols,
+  getDarkProtocols,
+} from '../engine/emergencyProtocols';
 import {
   canDispatch,
   matchedProtocol,
@@ -24,10 +29,18 @@ import {
 const byId = new Map(EMERGENCY_PROTOCOLS.map((p) => [p.id, p]));
 
 describe('corpus integrity', () => {
-  it('contains exactly the 6 shipped protocols', () => {
-    expect(EMERGENCY_PROTOCOLS.map((p) => p.id)).toEqual([
-      'CARD-01', 'AIR-02', 'NEURO-03', 'IMMUNO-04', 'TOX-05', 'CYBER-06',
+  it('ships the six reviewed protocols as selectable, and the rest dark', () => {
+    // The Stage 3 expansion is present but must not be selectable until a
+    // clinician has read that specific text. The split is asserted rather than
+    // a bare count, so adding a protocol is a deliberate act.
+    expect(getEnabledProtocols().map((p) => p.id).sort()).toEqual([
+      'AIR-02', 'CARD-01', 'CYBER-06', 'IMMUNO-04', 'NEURO-03', 'TOX-05',
     ]);
+    expect(getDarkProtocols().length).toBeGreaterThanOrEqual(10);
+    for (const p of getDarkProtocols()) {
+      expect(p.enabled, p.id).toBe(false);
+      expect(p.reviewedBy, `${p.id} is dark but claims review`).toBeNull();
+    }
   });
 
   it('every protocol has unique id, code, non-empty keywords and actions', () => {
