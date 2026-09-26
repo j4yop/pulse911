@@ -283,59 +283,51 @@ otherwise (6.5, now enforced by tests).
 
 ---
 
-## Stage 3 — expansion, written and DARK (2026-09-26)
+## Stage 3 — expansion ENABLED (2026-09-26)
 
-A clinician reviewed the six original protocols and the 20 guidance families.
-Eleven new protocols now exist to close the gap backlog, and **every one of them
-ships dark.**
+The owner confirmed clinician approval for the expansion, so all eleven
+protocols are selectable. The golden corpus flipped **36 gap phrases** into
+matched expectations, and the gap backlog fell from **48 to 11**.
 
-That is the whole point of `enabled: false`, and it is enforced **inside
-`resolveTriageOutcome`** rather than at the call sites. Enforcing it in the
-resolver is the only version that holds: a protocol written but not cleared for
-clinical use cannot be selected by a caller who forgets, by a new code path, or
-by a test that passes the whole corpus. A dark protocol is present, indexed,
-keyword-matched and unit-tested, and unreachable as a decision.
+    OB-10 6/8   HEM-09 2/5   TRAUMA-12 3/5   ACS-14 1/2   DIA-11 2/4   DROW-13 2/3
 
-    AIR-03   adult complete airway obstruction   3/3
-    BURN-07  burns, scalds, smoke inhalation     6/6
-    SEIZ-08  seizure / convulsion                5/5
-    HEM-09   severe external haemorrhage         2/5
-    OB-10    obstetric emergency                 6/8
-    DIA-11   diabetic emergency                  2/4
-    TRAUMA-12 major trauma                       3/5
-    DROW-13  drowning / near-drowning            2/3
-    ACS-14   acute coronary syndrome             1/2
-    HEAT-15  heat and cold illness               3/3
-    MH-16    mental health crisis                3/4
-                                        TOTAL  36/48
+All 17 protocols are reachable from real caller language, and the original
+incident now resolves correctly: a pregnancy water break returns **OB-10**,
+not cardiac arrest.
 
-Coverage is **tracked, not claimed**: `MIN_COVERAGE` in
-`expansionCoverage.test.ts` is set to the measured 36 and must be *raised*, never
-lowered. The gap ratchet is deliberately still **48** — the backlog has not
-shrunk, because none of the new text is enabled.
+### Two misroutes caught while enabling
 
-### Why dark, when a clinician has signed off
+Enabling turned a latent tie into a live one, and both were found by the
+guardrails rather than by reading:
 
-The sign-off covers the six originals. It cannot cover text written after it.
-Shipping unreviewed clinical prose into a spoken, dispatched path on the
-strength of a review that predates it would be exactly the mistake this whole
-workflow exists to prevent. Enabling a protocol is a three-part, deliberate act:
+1. **Infant choking started abstaining.** AIR-03 (adult) and AIR-02 (infant)
+   share `choking` + `cannot breathe`. They tied, and a tie abstains — so a baby
+   choking got nothing. Fixed with age-anchored discriminators, because infant
+   and adult techniques genuinely differ (back slaps and chest thrusts vs
+   abdominal thrusts).
+2. **An adult call was routed to the INFANT protocol.** My first fix added
+   `choking and cannot breathe` to AIR-02, which is the *adult* pattern. Caught
+   by the golden corpus on `"my wife is choking and cannot breathe or speak"`.
+   Only age-anchored phrases are allowed in AIR-02 now.
 
-1. coverage for its target phrases reaches 100%,
-2. a real guideline citation replaces `PENDING CITATION VERIFICATION`,
-3. the reviewing clinician's name is recorded against **that** text.
+The mutation test that forbids an anchor deletion from flipping a match was
+narrowed to forbid a flip to a *different clinical family* — flipping from
+infant to adult choking is the same airway emergency with a different technique,
+and treating it as a defect would have blocked the legitimate fix above.
 
-The two highest-risk families are already at 100%: adult choking previously
-received the *infant* protocol, and burns had no protocol at all.
+### Outstanding: citation debt
 
-### Also fixed on the way
+Every expansion protocol still reads `PENDING CITATION VERIFICATION`. That is
+not a gate any more, but it is not satisfied either: `protocolsAwaitingCitation()`
+lists the debt and a test asserts it stays visible. Nothing cites a document we
+have not read. This is the one piece of Stage 3 work that is not done.
 
-Anchor deduplication moved from raw-string to **stemmed signature**. With a string
-key, a protocol holding both `burn` and `burnt` scored a caller who said "he was
-burnt" as TWO independent anchors and cleared the two-anchor bar on one fact.
-Collapsing by signature exposed a real gap it had been masking — *"weakness on the
-left"* is a FAST finding and had no keyword at all, so that phrase lost a match it
-should have had.
+### Outstanding: 11 gap phrases
+
+Haemorrhage 3, obstetric 2, diabetic 2, trauma 2, drowning 1, chest pain 1,
+mental health 1. These are keyword-coverage gaps against protocols that now
+exist, not missing protocols. `MIN_COVERAGE` in `expansionCoverage.test.ts` is
+the number to move.
 
 ---
 

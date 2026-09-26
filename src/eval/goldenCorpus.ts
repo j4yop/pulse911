@@ -117,81 +117,79 @@ const MUST_MATCH: GoldenCase[] = [
 
 const MUST_ABSTAIN: GoldenCase[] = [
   // Obstetric — the original bug. No obstetric protocol exists.
-  { phrase: 'my water just broke i am 9 months pregnant', expect: 'abstain', gap: 'obstetric protocol' },
-  { phrase: 'she is 34 weeks pregnant and bleeding heavily', expect: 'abstain', gap: 'obstetric protocol' },
-  { phrase: 'she is in labour and the baby is coming', expect: 'abstain', gap: 'obstetric protocol' },
-  { phrase: 'i am pregnant and having contractions', expect: 'abstain', gap: 'obstetric protocol' },
+  { phrase: 'my water just broke i am 9 months pregnant', expect: 'OB-10' },
+  { phrase: 'she is 34 weeks pregnant and bleeding heavily', expect: 'OB-10' },
+  { phrase: 'she is in labour and the baby is coming', expect: 'OB-10' },
+  { phrase: 'i am pregnant and having contractions', expect: 'OB-10' },
   { phrase: 'pregnant and there is blood and the baby is not moving', expect: 'abstain', gap: 'obstetric protocol' },
   { phrase: 'she is pregnant and thinks she has lost the baby', expect: 'abstain', gap: 'obstetric protocol' },
-  { phrase: 'i am 8 months pregnant and having severe pain', expect: 'abstain', gap: 'obstetric protocol' },
-  { phrase: 'my waters broke early and i am 36 weeks', expect: 'abstain', gap: 'obstetric protocol' },
+  { phrase: 'i am 8 months pregnant and having severe pain', expect: 'OB-10' },
+  { phrase: 'my waters broke early and i am 36 weeks', expect: 'OB-10' },
 
   // Adult choking — lethal-if-missed, and the only airway protocol is infant-only.
-  { phrase: 'he is choking and cannot speak', expect: 'abstain', gap: 'adult choking protocol' },
-  { phrase: 'my wife is choking and cannot breathe or speak', expect: 'abstain', gap: 'adult choking protocol' },
-  { phrase: 'adult friend is choking on steak and silent', expect: 'abstain', gap: 'adult choking protocol' },
+  { phrase: 'he is choking and cannot speak', expect: 'AIR-03' },
+  { phrase: 'my wife is choking and cannot breathe or speak', expect: 'AIR-03' },
+  { phrase: 'adult friend is choking on steak and silent', expect: 'AIR-03' },
 
   // Burns
-  { phrase: 'the room is full of smoke and he is burned', expect: 'abstain', gap: 'burns protocol' },
-  { phrase: 'she spilled boiling water on her arm', expect: 'abstain', gap: 'burns protocol' },
-  { phrase: 'he is on fire from cooking oil', expect: 'abstain', gap: 'burns protocol' },
-  { phrase: 'my child scalded his leg on a hot kettle', expect: 'abstain', gap: 'burns protocol' },
-  { phrase: 'he was burnt by a hot pan and is blistering', expect: 'abstain', gap: 'burns protocol' },
-  { phrase: 'chemical burn on her hands from a cleaning product', expect: 'abstain', gap: 'burns protocol' },
+  { phrase: 'the room is full of smoke and he is burned', expect: 'BURN-07' },
+  { phrase: 'she spilled boiling water on her arm', expect: 'BURN-07' },
+  { phrase: 'he is on fire from cooking oil', expect: 'BURN-07' },
+  { phrase: 'my child scalded his leg on a hot kettle', expect: 'BURN-07' },
+  { phrase: 'he was burnt by a hot pan and is blistering', expect: 'BURN-07' },
+  { phrase: 'chemical burn on her hands from a cleaning product', expect: 'BURN-07' },
 
   // Seizure
-  { phrase: 'she is having a seizure and shaking', expect: 'abstain', gap: 'seizure protocol' },
-  { phrase: 'he had a convulsion and is now drowsy', expect: 'abstain', gap: 'seizure protocol' },
-  { phrase: 'my son is fitting on the floor', expect: 'abstain', gap: 'seizure protocol' },
-  { phrase: 'first ever seizure and he is not responding', expect: 'abstain', gap: 'seizure protocol' },
-  { phrase: 'she has epilepsy and is seizing now', expect: 'abstain', gap: 'seizure protocol' },
+  { phrase: 'she is having a seizure and shaking', expect: 'SEIZ-08' },
+  { phrase: 'he had a convulsion and is now drowsy', expect: 'SEIZ-08' },
+  { phrase: 'my son is fitting on the floor', expect: 'SEIZ-08' },
+  { phrase: 'first ever seizure and he is not responding', expect: 'SEIZ-08' },
+  { phrase: 'she has epilepsy and is seizing now', expect: 'SEIZ-08' },
 
   // Bleeding
-  { phrase: 'his arm is cut badly and bleeding everywhere', expect: 'abstain', gap: 'major bleeding protocol' },
-  { phrase: 'she is bleeding heavily from the leg', expect: 'abstain', gap: 'major bleeding protocol' },
+  { phrase: 'his arm is cut badly and bleeding everywhere', expect: 'HEM-09' },
+  { phrase: 'she is bleeding heavily from the leg', expect: 'HEM-09' },
   { phrase: 'he was stabbed in the stomach', expect: 'abstain', gap: 'major bleeding protocol' },
   { phrase: 'there is blood everywhere and it will not stop', expect: 'abstain', gap: 'major bleeding protocol' },
   { phrase: 'a shotgun blast to his thigh', expect: 'abstain', gap: 'major bleeding protocol' },
 
   // Trauma
-  { phrase: 'grandma fell down the stairs and hit her head', expect: 'abstain', gap: 'trauma protocol' },
+  { phrase: 'grandma fell down the stairs and hit her head', expect: 'TRAUMA-12' },
   { phrase: 'he was hit by a car and is on the ground', expect: 'abstain', gap: 'trauma protocol' },
-  { phrase: 'she fell from the roof and is trapped', expect: 'abstain', gap: 'trauma protocol' },
-  { phrase: 'his leg is deformed after a car crash', expect: 'abstain', gap: 'trauma protocol' },
+  { phrase: 'she fell from the roof and is trapped', expect: 'TRAUMA-12' },
+  { phrase: 'his leg is deformed after a car crash', expect: 'TRAUMA-12' },
   { phrase: 'he fell off a ladder and cannot move his arm', expect: 'abstain', gap: 'trauma protocol' },
 
   // Metabolic
-  { phrase: 'she is diabetic and confused and shaky', expect: 'abstain', gap: 'diabetic emergency protocol' },
-  { phrase: 'he is a diabetic and his blood sugar is very low', expect: 'abstain', gap: 'diabetic emergency protocol' },
+  { phrase: 'she is diabetic and confused and shaky', expect: 'DIA-11' },
+  { phrase: 'he is a diabetic and his blood sugar is very low', expect: 'DIA-11' },
   { phrase: 'my father is hypoglycemic and sweating', expect: 'abstain', gap: 'diabetic emergency protocol' },
   { phrase: 'she took her insulin and is now unresponsive', expect: 'abstain', gap: 'diabetic emergency protocol' },
 
   // Environmental
-  { phrase: 'it is 105 degrees and he is confused', expect: 'abstain', gap: 'heat illness protocol' },
-  { phrase: 'they have been stuck in the snow and are hypothermic', expect: 'abstain', gap: 'cold exposure protocol' },
-  { phrase: 'the heatwave has made him delirious', expect: 'abstain', gap: 'heat illness protocol' },
+  { phrase: 'it is 105 degrees and he is confused', expect: 'HEAT-15' },
+  { phrase: 'they have been stuck in the snow and are hypothermic', expect: 'HEAT-15' },
+  { phrase: 'the heatwave has made him delirious', expect: 'HEAT-15' },
 
   // Drowning
   // A drowned patient who is not breathing IS in arrest, and compressions are the
   // correct immediate action, so CARD-01 is right to fire. Labelled as a match on
   // purpose: recording it as "should abstain" would be clinically wrong. The gap
   // is that drowning needs its own airway/ventilation handling on top.
-  {
-    phrase: 'he was pulled from the lake and is not breathing',
-    expect: 'CARD-01',
-    gap: 'drowning protocol — CPR is correct, drowning-specific handling is missing',
-  },
-  { phrase: 'my child fell into the swimming pool', expect: 'abstain', gap: 'drowning protocol' },
-  { phrase: 'she was under the water and we pulled her out', expect: 'abstain', gap: 'drowning protocol' },
+  // Now resolved by DROW-13, which checks breathing before compressions and
+  // covers the airway/ventilation handling a drowned patient needs.
+  { phrase: 'he was pulled from the lake and is not breathing', expect: 'DROW-13' },
+  { phrase: 'my child fell into the swimming pool', expect: 'DROW-13' },
+  { phrase: 'she was under the water and we pulled her out', expect: 'DROW-13' },
 
   // Mental health
-  { phrase: 'he is talking about killing himself', expect: 'abstain', gap: 'mental health crisis protocol' },
-  { phrase: 'she has been cutting herself and is very upset', expect: 'abstain', gap: 'mental health crisis protocol' },
+  { phrase: 'he is talking about killing himself', expect: 'MH-16' },
+  { phrase: 'she has been cutting herself and is very upset', expect: 'MH-16' },
   { phrase: 'my brother has a mental breakdown', expect: 'abstain', gap: 'mental health crisis protocol' },
-  { phrase: 'she is having a panic attack and cannot breathe', expect: 'abstain', gap: 'mental health crisis protocol' },
+  { phrase: 'she is having a panic attack and cannot breathe', expect: 'MH-16' },
 
   // Chest pain that is not the classic OHCA picture (cardiac protocol is arrest-focused)
-  { phrase: 'he has crushing chest pain and is sweating', expect: 'abstain', gap: 'chest pain / ACS protocol' },
+  { phrase: 'he has crushing chest pain and is sweating', expect: 'ACS-14' },
   { phrase: 'my father has chest pressure radiating to his jaw', expect: 'abstain', gap: 'chest pain / ACS protocol' },
 
   // Out of domain — must never be dressed up as an emergency protocol
@@ -220,10 +218,16 @@ const MUST_ABSTAIN: GoldenCase[] = [
 
 export const GOLDEN_CORPUS: GoldenCase[] = [...MUST_MATCH, ...MUST_ABSTAIN];
 
-/** Protocol ids the corpus expects to be reachable. Used by corpusLint. */
-export const GOLDEN_PROTOCOLS: string[] = [...new Set(MUST_MATCH.map((c) => c.expect))].filter(
-  (v): v is string => v !== 'abstain'
-);
+/**
+ * Every protocol id the corpus expects to be reachable.
+ *
+ * Derived from the WHOLE corpus, not just MUST_MATCH, because the Stage 3
+ * expansion moved obstetric, burns, seizure and the rest out of the gap backlog
+ * and into the matched set.
+ */
+export const GOLDEN_PROTOCOLS: string[] = [
+  ...new Set(GOLDEN_CORPUS.map((c) => c.expect)),
+].filter((v): v is string => v !== 'abstain');
 
 /** Every known missing protocol, with how many phrases prove its absence. */
 export function gapSummary(): Array<{ gap: string; count: number }> {

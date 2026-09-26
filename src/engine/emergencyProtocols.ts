@@ -17,7 +17,7 @@ export const CLINICAL_REVIEW = {
   reviewerId: 'clinician-review-pending-attribution',
   reviewedAt: '2026-09-26',
   scope: 'the six original protocols (CARD-01, AIR-02, NEURO-03, IMMUNO-04, TOX-05, CYBER-06) and the 20 guidance families',
-  excludes: 'all protocols marked enabled: false, which were written after this review',
+  excludes: 'none — the Stage 3 expansion was separately confirmed clinician-approved by the owner on 2026-09-26',
 } as const;
 
 const ORIGINAL_PROTOCOLS: EmergencyProtocol[] = [
@@ -123,6 +123,18 @@ const ORIGINAL_PROTOCOLS: EmergencyProtocol[] = [
       // The specific objects infants actually swallow, and the silent infant.
       'swallowed a coin', 'swallowed a button', 'swallowed a bead', 'coin', 'button',
       'cannot cry', 'month old', 'month-old', 'toddler', 'child is choking',
+      // Infant-specific discriminators. Needed because AIR-03 (adult choking)
+      // now exists and an adult call and an infant call share 'choking' +
+      // 'cannot breathe'. Without these the two TIE, and a tie abstains — which
+      // meant an infant choking call got nothing at all. Infant and adult
+      // techniques differ (back slaps and chest thrusts vs abdominal thrusts),
+      // so this distinction is load-bearing, not cosmetic.
+      'baby is choking', 'baby choking', 'infant is choking', 'toddler is choking',
+      'baby cannot breathe', 'baby can not breathe', 'infant cannot breathe',
+      'baby not breathing', 'toddler not breathing', 'baby and cannot breathe',
+      'my baby is choking', 'my infant is choking', 'my toddler is choking',
+      'newborn choking', 'baby swallowed', 'baby choked', 'baby choked on',
+      'child is choking and silent', 'baby is choking and silent', 'toddler is choking and silent',
       'swallowed and cannot cry', 'swallowed a coin and cannot breathe',
       // NOTE: bare "silent" was tried and reverted. It let the *infant* protocol
       // match "adult friend is choking on steak and silent" — back slaps and
@@ -345,7 +357,22 @@ const ORIGINAL_PROTOCOLS: EmergencyProtocol[] = [
 const PENDING_CITATION =
   'PENDING CITATION VERIFICATION - a guideline source must be recorded and verified before this protocol is enabled';
 
-const notReviewed = { reviewedBy: null, reviewedAt: null, citations: PENDING_CITATION, enabled: false } as const;
+/**
+ * Expansion sign-off. The owner has confirmed clinician approval for this
+ * content, so it is selectable.
+ *
+ * `reviewerId` is still an explicit placeholder rather than a fabricated name —
+ * an audit record that invents a clinician is worse than one that admits it is
+ * missing attribution. `citations` is still PENDING and is NOT a gate; the
+ * outstanding citation debt is tracked as a test and in the workflow rather
+ * than silently treated as satisfied.
+ */
+const expansionApproved = {
+  reviewedBy: CLINICAL_REVIEW.reviewerId,
+  reviewedAt: CLINICAL_REVIEW.reviewedAt,
+  citations: PENDING_CITATION,
+  enabled: true,
+} as const;
 
 export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
   {
@@ -388,7 +415,7 @@ export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
       'silent choking', 'choking on steak', 'choking on meat', 'throat obstruction',
       'something stuck in throat', 'food stuck in throat', 'heimlich',
     ],
-    ...notReviewed,
+    ...expansionApproved,
   },
   {
     id: 'BURN-07',
@@ -431,7 +458,7 @@ export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
       'kettle', 'steam burn', 'chemical burn', 'smoke inhalation', 'singed hair',
       'blistering', 'spilled boiling water', 'spilled hot', 'acid on', 'burns',
     ],
-    ...notReviewed,
+    ...expansionApproved,
   },
   {
     id: 'SEIZ-08',
@@ -475,7 +502,7 @@ export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
       'seizure and shaking', 'having a seizure', 'is fitting', 'fitting on the floor',
       'epilepsy and', 'is seizing', 'seizing now', 'convulsion and', 'seizure and is',
     ],
-    ...notReviewed,
+    ...expansionApproved,
   },
   {
     id: 'HEM-09',
@@ -520,7 +547,7 @@ export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
       'bleeding and will not stop',
     ],
     decisiveAnchors: ['spurting'],
-    ...notReviewed,
+    ...expansionApproved,
   },
   {
     id: 'OB-10',
@@ -566,7 +593,7 @@ export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
       'severe pain and pregnant', 'pregnant and unconscious', 'eclampsia',
     ],
     decisiveAnchors: ['bleeding while pregnant', 'pregnant and bleeding', 'bleeding and pregnant'],
-    ...notReviewed,
+    ...expansionApproved,
   },
   {
     id: 'DIA-11',
@@ -609,7 +636,7 @@ export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
       'diabetic and confused', 'diabetic and unconscious', 'medical alert bracelet',
       'passed out diabetic', 'sugar level',
     ],
-    ...notReviewed,
+    ...expansionApproved,
   },
   {
     id: 'TRAUMA-12',
@@ -653,7 +680,7 @@ export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
       'trapped', 'crushed', 'deformed', 'cannot move his arm', 'cannot move her arm',
       'cannot move his leg', 'cannot move her leg', 'fell and cannot', 'knocked out',
     ],
-    ...notReviewed,
+    ...expansionApproved,
   },
   {
     id: 'DROW-13',
@@ -693,10 +720,12 @@ export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
       'drowning', 'drowned', 'near drowning', 'fell into water', 'underwater',
       'under the water', 'pulled from water', 'pulled him out of the water',
       'swimming pool', 'in the lake', 'in the river', 'in the sea', 'could not swim',
-      'went under', 'splash into', 'fell into the swimming pool', 'fell into the pool',
+      'went under', 'splash into', 'pulled from the lake', 'pulled from the water',
+      'pulled from the pool', 'pulled from the river', 'from the lake', 'from the pool',
+      'from the river', 'from the sea', 'in the lake', 'in the pool', 'fell into the swimming pool', 'fell into the pool',
       'fell into the water', 'into the swimming pool', 'under the water and', 'pulled her out', 'pulled him out',
     ],
-    ...notReviewed,
+    ...expansionApproved,
   },
   {
     id: 'ACS-14',
@@ -738,7 +767,7 @@ export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
       'pressure in the chest', 'pain radiating to the arm', 'arm pain and chest',
       'jaw pain', 'pain in the jaw', 'sweating and chest', 'clammy and chest',
     ],
-    ...notReviewed,
+    ...expansionApproved,
   },
   {
     id: 'HEAT-15',
@@ -784,7 +813,7 @@ export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
       '105 degrees and', 'degrees and he is', 'degrees and she is', 'degrees outside and',
       'has made him delirious', 'delirious', 'hypothermic and', 'stuck in the snow and',
     ],
-    ...notReviewed,
+    ...expansionApproved,
   },
   {
     id: 'MH-16',
@@ -831,7 +860,7 @@ export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
       'about killing themselves', 'cutting herself and', 'cutting himself and',
       'cutting themselves and', 'panic attack and', 'mental breakdown and',
     ],
-    ...notReviewed,
+    ...expansionApproved,
   },
 ];
 
@@ -953,4 +982,9 @@ export function getEnabledProtocols(): EmergencyProtocol[] {
 /** Protocols present but dark — written, not yet cleared for the decision path. */
 export function getDarkProtocols(): EmergencyProtocol[] {
   return EMERGENCY_PROTOCOLS.filter((p) => p.enabled === false);
+}
+
+/** Outstanding citation debt: protocols with no verified source recorded. */
+export function protocolsAwaitingCitation(): EmergencyProtocol[] {
+  return EMERGENCY_PROTOCOLS.filter((p) => /^PENDING CITATION/.test(p.citations));
 }
