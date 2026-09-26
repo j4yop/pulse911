@@ -120,6 +120,13 @@ function phrasePresent(haystackTokens: string[], phrase: string): boolean {
 
 /** Evidence threshold: a single 1-word hit is never enough to act on. */
 const MIN_ANCHOR_WEIGHT = 2;
+/**
+ * Distinct anchors required, independent of their total weight.
+ *
+ * Two is still the right number clinically: an emergency described well enough
+ * to act on shows up as more than one finding. One finding is a hypothesis.
+ */
+const MIN_ANCHOR_COUNT = 2;
 /** Confidence below this abstains. Calibrated in calibration.json, not asserted. */
 const MIN_CONFIDENCE = 0.34;
 
@@ -165,7 +172,18 @@ export function rankByText<T extends Rankable>(
     const anchors: string[] = [];
 
     // 1. Symptom phrase hits (the dominant, auditable signal).
+    //
+    // Deduplicated, because a repeated keyword is ONE finding and must never
+    // count as two. Found by the invariant suite: "cardiac arrest" appeared
+    // twice in CARD-01's list, so a caller merely *mentioning* cardiac arrest
+    // ("i read about cardiac arrest in the news") cleared the two-anchor bar
+    // and was handed a protocol whose spoken line is "push hard and fast... do
+    // not stop". Set semantics make that class of bug impossible regardless of
+    // how the data is edited later.
+    const seenKeywords = new Set<string>();
     for (const kw of p.keywords) {
+      if (seenKeywords.has(kw)) continue;
+      seenKeywords.add(kw);
       if (phrasePresent(tokens, kw)) {
         score += phraseWeight(kw);
         anchors.push(kw);
@@ -231,8 +249,32 @@ export function resolveTriageOutcome(
 
   // No usable evidence at all — this is the case that used to become CPR.
   const anchorWeight = top.anchors.reduce((n, a) => n + phraseWeight(a), 0);
-  if (anchorWeight < MIN_ANCHOR_WEIGHT) {
+
+  // A protocol may declare a lower evidence bar (a decisive cardinal sign, or a
+  // non-clinical protocol like scam interception). When it does, BOTH gates move:
+  // the weight floor and the distinct-anchor count. Leaving the weight floor at 2
+  // while allowing one anchor meant a single-word match was rejected before the
+  // count was ever consulted.
+  const requiredAnchors = top.protocol.minAnchorCount ?? MIN_ANCHOR_COUNT;
+  const requiredWeight = Math.min(MIN_ANCHOR_WEIGHT, requiredAnchors);
+  if (anchorWeight < requiredWeight) {
     return abstain('no-anchor-match', top.anchors);
+  }
+
+  // Two DISTINCT anchors are required by default, not merely enough total
+  // weight. A protocol may lower this only if its guidance is safe to surface
+  // on one finding (see EmergencyProtocol.minAnchorCount).
+  //
+  // Found by the golden corpus. A single long keyword ("cannot move his arm",
+  // weight 4) satisfied the weight test on its own, so "he fell off a ladder
+  // and cannot move his arm" selected a stroke protocol for what is a trauma
+  // call. Weight measures how much text matched; count measures how many
+  // independent findings fired. Only count answers "is this one fact or several".
+  const declaredDecisive = top.protocol.decisiveAnchors ?? [];
+  const hitDecisive = top.anchors.some((a) => declaredDecisive.includes(a));
+  const strictEvidence = !hitDecisive && requiredAnchors >= MIN_ANCHOR_COUNT;
+  if (!hitDecisive && top.anchors.length < requiredAnchors) {
+    return abstain('incomplete-transcript', top.anchors);
   }
 
   // Exact tie: two protocols with identical evidence. Refusing is correct —
@@ -246,7 +288,11 @@ export function resolveTriageOutcome(
   const density = Math.min(1, anchorWeight / 4);
   const confidence = +(margin * density).toFixed(3);
 
-  if (confidence < MIN_CONFIDENCE) {
+  // The confidence floor is calibrated for the strict two-anchor evidence bar.
+  // When a protocol has declared that fewer findings suffice — a decisive
+  // cardinal sign, or a non-clinical protocol like scam interception — the
+  // density term is penalising us for evidence the protocol says is enough.
+  if (strictEvidence && confidence < MIN_CONFIDENCE) {
     return abstain(anchorWeight < MIN_ANCHOR_WEIGHT ? 'incomplete-transcript' : 'low-confidence', top.anchors);
   }
 
@@ -274,7 +320,7 @@ export function resolveTopProtocol(
   return hit ?? null;
 }
 
-export { MIN_CONFIDENCE, MIN_ANCHOR_WEIGHT };
+export { MIN_CONFIDENCE, MIN_ANCHOR_WEIGHT, MIN_ANCHOR_COUNT };
 
 // Shared with the guidance-category ranker so both corpora stem and match
 // identically. Two copies of this is how two corpora start disagreeing.
