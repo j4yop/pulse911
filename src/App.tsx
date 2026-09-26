@@ -13,6 +13,7 @@ import {
 } from './types';
 import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from './engine/emergencyProtocols';
 import { mossEngine } from './engine/mossEngine';
+import { routeTranscript, type RouteVerdict } from './engine/routing';
 import type { CategoryMatch } from './engine/guidanceCategories';
 import { audioService } from './engine/speechSimulation';
 import {
@@ -91,6 +92,11 @@ export const App: React.FC = () => {
    * the engine decided on, and so speech and screen can never disagree.
    */
   const [guidance, setGuidance] = useState<CategoryMatch[]>([]);
+  /**
+   * Emergency vs general-question routing. Evaluated from the same text the
+   * engine decided on, so the two can never disagree about what was said.
+   */
+  const [route, setRoute] = useState<RouteVerdict | null>(null);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const [audioFeedbackEnabled, setAudioFeedbackEnabled] = useState(true);
   /**
@@ -130,6 +136,8 @@ export const App: React.FC = () => {
         // Computed for matched and abstained alike: on a match the protocol
         // governs, and this quietly backs it up.
         setGuidance(guidanceFor(text));
+        const r = routeTranscript(text);
+        setRoute(r);
 
         // SAFETY GATE — the single point deciding what may be spoken or sent.
         const protocol = matchedProtocol(res.outcome);
@@ -196,7 +204,11 @@ export const App: React.FC = () => {
           setIsMetronomeActive(false);
           audioService.stopCprMetronome();
 
-          if (speakAudio && audioFeedbackEnabled) {
+          // Never speak an emergency script at a general health question.
+          // Telling someone who asked about their blood pressure to "start
+          // chest compressions" is alarming, wrong, and trains people to
+          // distrust the one screen where the warning matters.
+          if (speakAudio && audioFeedbackEnabled && r.kind === 'emergency') {
             // Never a dead end: the zero-risk safety floor, plus at most one
             // clearly-matched broad category's first action and red flag.
             for (const line of speakableGuidanceScript(text)) {
@@ -295,6 +307,7 @@ export const App: React.FC = () => {
     setQueryResult(null);
     setDispatchIntent(null);
     setGuidance([]);
+    setRoute(null);
   }, []);
 
   return (
@@ -351,6 +364,7 @@ export const App: React.FC = () => {
                 queryResult={queryResult}
                 dispatchIntent={dispatchIntent}
                 guidance={guidance}
+                route={route}
                 overrideLog={overrideLog}
                 onOverride={handleOverride}
                 isMetronomeActive={isMetronomeActive}

@@ -14,6 +14,7 @@ import {
   MessageCircleQuestion,
   UserCheck,
   LifeBuoy,
+  Info,
 } from 'lucide-react';
 import {
   EmergencyProtocol,
@@ -22,6 +23,7 @@ import {
   OverrideRecord,
 } from '../types';
 import { speakableCategories, type CategoryMatch } from '../engine/guidanceCategories';
+import type { RouteVerdict } from '../engine/routing';
 import { CopilotCoachPanel } from './CopilotCoachPanel';
 import { EkgMonitor } from './EkgMonitor';
 import { EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
@@ -39,6 +41,7 @@ interface DispatcherHUDProps {
   queryResult: MossQueryResult | null;
   dispatchIntent: DispatchIntent | null;
   guidance: CategoryMatch[];
+  route: RouteVerdict | null;
   overrideLog: OverrideRecord[];
   onOverride: (protocol: EmergencyProtocol) => void;
   onTriggerMetronome: (active: boolean) => void;
@@ -51,6 +54,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   queryResult,
   dispatchIntent,
   guidance,
+  route,
   overrideLog,
   onOverride,
   onTriggerMetronome,
@@ -252,7 +256,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                         >
                           {isChecked ? (
                             <CheckCircle2 className="w-4 h-4 text-emerald-600 fill-emerald-100" />
-                          ) : (
+          ) : (
                             <div className="w-4 h-4 rounded-full border border-slate-300 bg-white" />
                           )}
                         </motion.div>
@@ -332,6 +336,54 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
 
               {/* Async AI Copilot Coach */}
               <CopilotCoachPanel transcript={transcript} protocol={protocol} requestId={requestId} />
+            </motion.div>
+          ) : route?.kind === 'informational' ? (
+            /* ── INFORMATIONAL: a general health question, not an emergency. ──
+               Showing the amber "call 911 now, start compressions" card here was
+               both wrong and alarming, and it trained people to distrust the one
+               screen where that warning actually matters. We decline to give
+               medical advice — and we say so usefully, with a way out. */
+            <motion.div
+              key="informational"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-4"
+            >
+              <div className="bg-sky-50 border-2 border-sky-300 rounded-2xl p-5 space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <Info className="w-5 h-5 text-sky-600 shrink-0" />
+                  <h3 className="text-sm font-bold text-sky-900 uppercase tracking-wide">
+                    General health question &mdash; not treated as an emergency
+                  </h3>
+                </div>
+
+                <p className="text-xs text-sky-950 leading-relaxed font-sans">
+                  This reads like a question about health in general rather than something
+                  happening right now, so it has not been run as a live emergency.
+                </p>
+
+                <div className="bg-white border border-sky-200 rounded-xl p-3.5 space-y-1.5">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-sky-800">
+                    We do not give medical advice here
+                  </span>
+                  <p className="text-xs text-sky-950 leading-relaxed font-sans">
+                    Medication doses, interactions and symptom interpretation need someone who
+                    can see the person and their history. Please speak to {route.signpost}.
+                  </p>
+                </div>
+
+                <div className="bg-white border border-amber-300 rounded-xl p-3.5 space-y-1.5">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-800">
+                    If this is happening now
+                  </span>
+                  <p className="text-xs text-amber-950 leading-relaxed font-sans">
+                    If someone is in trouble right now &mdash; not breathing, unresponsive,
+                    bleeding heavily, or having a seizure &mdash; call 911 or your local
+                    emergency number immediately, and say what you are seeing.
+                  </p>
+                </div>
+              </div>
             </motion.div>
           ) : (
             /* ── ABSTAIN: we refused to guess. Say so, and do something useful. ── */
