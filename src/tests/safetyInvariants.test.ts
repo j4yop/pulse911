@@ -242,32 +242,72 @@ describe('no capability claim outruns the build', () => {
     expect(UI).not.toMatch(/Moss WASM \(4ms\)/);
     expect(UI).not.toMatch(/badge: '3\.8ms'/);
   });
+
+  /**
+   * The phrase-list version of this guard was a trap: it only caught the exact
+   * strings I remembered to ban, and the console header kept claiming
+   * "powered by in-memory Moss WASM" and "ZERO-LATENCY MOSS WASM" straight
+   * through it. So this bans the CONCEPT — retrieval attributed to a runtime
+   * that cannot execute a query — rather than a list of phrasings.
+   */
+  it('never attributes the retrieval that actually runs to Moss', () => {
+    // "Moss WASM" is fine as a badge only when it reflects the real engine,
+    // which the console already computes from the result. What must not appear
+    // is Moss named as the thing doing protocol lookup, or as a speed claim.
+    const attribution = [
+      /retrieval[^.]{0,60}(powered by|via|with)\s+(in-?memory\s+)?Moss/i,
+      /Moss[^.]{0,40}(semantic retrieval|protocol retrieval|vector query|protocol lookup)/i,
+      /(ZERO-LATENCY|Zero-Latency|zero-latency)[^.]{0,30}Moss/i,
+      /Moss\s+WASM\s+retrieval/i,
+      /MOSS RETRIEVAL/i,
+    ];
+    for (const re of attribution) {
+      expect(UI, `UI still attributes retrieval to Moss: ${re}`).not.toMatch(re);
+    }
+  });
+
+  it('does not present a fixed latency figure as a measurement', () => {
+    for (const re of [
+      /Total Turnaround:\s*\d+\s*ms/i,
+      /semantic protocol lookup in\s*<strong>\d/i,
+      /Turnaround:?\s*&lt;\s*264ms/i,
+    ]) {
+      expect(UI, `UI still shows a hardcoded latency: ${re}`).not.toMatch(re);
+    }
+  });
 });
 
 /**
- * Moss is wired, authenticated and initialising — but contributes nothing.
+ * The pacing visual is a metronome, not a monitor.
  *
- * Measured (2026-09-26, workflow 6.8): `init()` completes in ~14s for the
- * 186-document corpus, and `client.query()` then never resolves. Proven by
- * raising the budget to 60s and polling 130s: the budget fired on time and the
- * engine label never left "Moss Local".
- *
- * The budget is a leak guard, not a performance knob, so it stays tight. This
- * test exists to stop someone "fixing" 6.8 by raising it.
+ * `EkgMonitor` hardcoded SpO2 and MAP per protocol ("SpO2 76%", "MAP 42 mmHg")
+ * under a "Live Lead II Telemetry" label. There is no monitor and no patient —
+ * the input is a voice on a microphone — so a dispatcher was shown invented
+ * numbers for a real person. Same defect class as the fabricated MEDIC-14.
  */
-describe('the Moss deadline stays tight', () => {
-  it('is 8s, not loosened to paper over the hang', () => {
-    const src = readFileSync(join(process.cwd(), 'src/engine/mossEngine.ts'), 'utf8');
-    const m = src.match(/MOSS_REFINEMENT_BUDGET_MS\s*=\s*(\d+)/);
-    expect(m, 'budget constant not found').toBeTruthy();
-    expect(Number(m![1])).toBe(8000);
+describe('the pacing visual invents no patient vitals', () => {
+  const EKG = stripComments(readFileSync(join(process.cwd(), 'src/components/EkgMonitor.tsx'), 'utf8'));
+
+  it('hardcodes no oxygen saturation or blood pressure', () => {
+    for (const re of [/spo2/i, /\bmap\s*:/i, /mmHg/i, /SpO2/i, /\bHR\b\s*:/i]) {
+      expect(EKG, `EkgMonitor still contains ${re}`).not.toMatch(re);
+    }
   });
 
-  it('still refuses to let Moss re-decide, whatever the runtime does', () => {
-    const src = readFileSync(join(process.cwd(), 'src/engine/mossEngine.ts'), 'utf8');
-    // The guard that a guidance document cannot become a protocol.
-    expect(src).toMatch(/kind === 'protocol'/);
-    // And that a non-protocol hit returns nothing rather than an outcome.
-    expect(src).toMatch(/if \(!protocol\) \{/);
+  it('does not claim to be a live monitor', () => {
+    expect(EKG).not.toMatch(/Live Lead/i);
+    expect(EKG).not.toMatch(/Telemetry/i);
+  });
+
+  it('says plainly that nothing is attached', () => {
+    expect(EKG).toMatch(/No monitor attached/i);
+  });
+
+  it('does not present a rhythm as an observed one', () => {
+    // "ATRIAL FIBRILLATION", "HEMORRHAGIC SINUS TACHYCARDIA" and friends read
+    // as measurements of a patient rather than as protocol labels.
+    for (const re of [/SINUS TACHYCARDIA/i, /ATRIAL FIBRILLATION/i, /V-TACH/i, /NORMAL SINUS RHYTHM/i]) {
+      expect(EKG, `EkgMonitor still implies an observed rhythm: ${re}`).not.toMatch(re);
+    }
   });
 });

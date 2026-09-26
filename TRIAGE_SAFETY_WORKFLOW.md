@@ -283,6 +283,37 @@ otherwise (6.5, now enforced by tests).
 
 ---
 
+## UX pass — console legibility (2026-09-26)
+
+Driven by screenshotting the console rather than reasoning about it.
+
+- **Fabricated vitals removed from `EkgMonitor`.** It hardcoded `SpO2 76%` and
+  `MAP 42 mmHg` per protocol under a *"Live Lead II Telemetry"* label. There is
+  no monitor and no patient — the input is a voice on a microphone. Same defect
+  class as `MEDIC-14`, missed twice. It is now labelled a *compression pacing
+  visual* with "No monitor attached", and the rhythm names are protocol labels
+  ("CARDIAC ARREST PROTOCOL — CPR PACING") rather than observed rhythms
+  ("PULSELESS V-TACH").
+- **The honesty guard was rewritten to ban a concept, not a phrase list.** The
+  phrase-list version only caught strings I remembered to ban, so the console
+  header kept claiming "powered by in-memory Moss WASM" straight through it.
+- **Three conflicting latency numbers became one**, labelled from the real
+  measurement.
+- **The primary input was below the fold.** It sat at the bottom of a 660px
+  column, at y=1116 on a 1440×1000 laptop. Moved to the top of the caller panel
+  (y=667), the audio panel narrowed from 50% to 24rem, and the pacing strip
+  slimmed — the first CPR action is now above the fold at y=977.
+- **`aria-live="assertive"`** announces the triage outcome. It appeared
+  instantly and silently; a screen-reader dispatcher previously got no
+  notification that a protocol was selected or refused.
+- **Matched anchors are now shown.** We compute which phrases matched and never
+  displayed them, so a dispatcher could not sanity-check a decision from an
+  engine that has misrouted before.
+- Dock clearance added, scenario presets became a compact scrollable strip on
+  small screens, and mobile verified at 390×844 with no horizontal overflow.
+
+---
+
 ## Definition of done
 
 - [x] No input can yield a protocol without an anchor match above threshold

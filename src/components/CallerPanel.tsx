@@ -259,6 +259,35 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
         </div>
       )}
 
+      {/*
+        The primary action, moved to the top of the panel.
+
+        It used to sit at the BOTTOM of a ~660px column, which put the symptom
+        field at y=1116 on a 1440x1000 laptop — the main interaction of an
+        emergency console was below the fold, and the first life-saving action
+        on a matched call was further down still. Nothing above it earns that
+        space: the waveform and transcript are output, not input.
+      */}
+        <form onSubmit={handleCustomSubmit} className="flex gap-2">
+          <input
+            type="text"
+            value={customInput}
+            onChange={(e) => setCustomInput(e.target.value)}
+            placeholder="Type any emergency symptom (e.g. 'My 9-month-old baby swallowed a coin')..."
+            className="flex-1 bg-white border border-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 outline-none transition-all shadow-xs"
+          />
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            type="submit"
+            disabled={!customInput.trim() || isProcessing}
+            className="btn-tactile bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 shadow-xs"
+          >
+            <span>Dispatch</span>
+            <Send className="w-3.5 h-3.5" />
+          </motion.button>
+        </form>
+
       {/* Medical Waveform Visualizer & Equalizer Bars */}
       <div className="px-4 sm:px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex items-center justify-between gap-4">
         <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5 shrink-0">
@@ -411,25 +440,7 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
         </div>
 
         {/* Custom Input Form */}
-        <form onSubmit={handleCustomSubmit} className="flex gap-2">
-          <input
-            type="text"
-            value={customInput}
-            onChange={(e) => setCustomInput(e.target.value)}
-            placeholder="Type any emergency symptom (e.g. 'My 9-month-old baby swallowed a coin')..."
-            className="flex-1 bg-white border border-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 outline-none transition-all shadow-xs"
-          />
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            type="submit"
-            disabled={!customInput.trim() || isProcessing}
-            className="btn-tactile bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 shadow-xs"
-          >
-            <span>Dispatch</span>
-            <Send className="w-3.5 h-3.5" />
-          </motion.button>
-        </form>
+
       </div>
     </div>
   );

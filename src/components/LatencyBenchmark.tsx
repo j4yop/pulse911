@@ -401,7 +401,7 @@ export const LatencyBenchmark: React.FC = () => {
               Execute 50 Real Protocol Queries
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Fires 50 continuous clinical triage queries through the local Moss WASM retrieval core to calculate real-world P50, P95, and P99 percentiles.
+              Fires 50 continuous clinical triage queries through the in-browser deterministic matcher to calculate real-world P50, P95, and P99 percentiles.
             </p>
           </div>
 

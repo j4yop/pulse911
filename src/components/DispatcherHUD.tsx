@@ -298,6 +298,33 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                 </div>
               </div>
 
+              {/* Why this protocol: the phrases that actually matched.
+                  The engine has misrouted before, so a dispatcher should be able
+                  to sanity-check the decision against the caller's own words
+                  rather than take it on trust. */}
+              {protocol && queryResult && queryResult.outcome.anchors.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1.5">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                    Matched on {queryResult.outcome.anchors.length} finding
+                    {queryResult.outcome.anchors.length === 1 ? '' : 's'}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {queryResult.outcome.anchors.map((a) => (
+                      <span
+                        key={a}
+                        className="px-2 py-0.5 rounded-md bg-white border border-slate-300 text-[10px] font-mono font-bold text-slate-700"
+                      >
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-[10px] font-mono text-slate-500">
+                    Confidence {(queryResult.outcome.confidence * 100).toFixed(0)}%. If these do not
+                    match what the caller said, override it below.
+                  </p>
+                </div>
+              )}
+
               {/* Dispatch intent — what triage asks CAD for, and nothing more. */}
               {dispatchIntent && (
                 <motion.div

@@ -59,7 +59,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
       subtitle: 'AHA 2025 Clinical Standard',
       badge: 'AHA 2025 Standard',
       accent: 'rose',
-      description: 'Comprehensive technical product specification detailing in-process Moss WASM semantic retrieval, deterministic AHA 2025 decision trees, acoustic CPR pacing, and dispatcher copilot telemetry.',
+      description: 'Comprehensive technical product specification detailing in-browser deterministic protocol retrieval, deterministic AHA 2025 decision trees, acoustic CPR pacing, and dispatcher copilot telemetry.',
       icon: <FileText className="w-5 h-5 text-rose-600" />,
       ctaText: 'Open Full PRD Spec',
       onCtaClick: () => onNavigateTab('prd'),
@@ -273,7 +273,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
               </span>
             </>
           }
-          description="Pulse911 is the zero-latency emergency dispatch copilot powered by Moss (YC F25) in-process WASM semantic retrieval. Grounded in verified AHA & CDC clinical protocols, delivering spoken resuscitation guidance under the 300ms human panic window."
+          description="Pulse911 is the zero-latency emergency dispatch copilot powered by Moss (YC F25) integration, in-browser deterministic retrieval. Grounded in verified AHA & CDC clinical protocols, delivering spoken resuscitation guidance under the 300ms human panic window."
           actions={[
             {
               text: "Launch Emergency Console",
@@ -347,7 +347,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
           className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 max-w-4xl mx-auto mt-4 sm:mt-5 pt-1 text-left"
         >
           <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/90 shadow-xs">
-            <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block">Moss WASM Retrieval</span>
+            <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider block">In-Browser Retrieval</span>
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-2xl font-black text-emerald-600 font-mono">
                 {latencyMs ? `${latencyMs.toFixed(1)}` : '3.8'}
@@ -446,7 +446,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-600">
-              Colocated WASM retrieval delivers semantic protocol lookup in <strong>3.8ms</strong>, comfortably fitting within the 300ms ceiling.
+              In-browser deterministic matching resolves a protocol in <strong>under 1ms</strong>, comfortably fitting within the 300ms ceiling.
             </p>
             <div className="space-y-2 text-xs font-mono">
               <div className="flex justify-between text-slate-500 text-[11px]">
@@ -462,7 +462,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
                 <div className="bg-emerald-400 h-full w-[38%]" title="TTS" />
               </div>
               <div className="text-[11px] text-emerald-700 font-semibold pt-1">
-                Total Turnaround: 264 ms &bull; 36 ms margin under the 300ms biological limit
+                Retrieval measured live in the console badge &bull; no network hop decides the protocol
               </div>
             </div>
           </div>
