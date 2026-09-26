@@ -283,6 +283,62 @@ otherwise (6.5, now enforced by tests).
 
 ---
 
+## Stage 3 — expansion, written and DARK (2026-09-26)
+
+A clinician reviewed the six original protocols and the 20 guidance families.
+Eleven new protocols now exist to close the gap backlog, and **every one of them
+ships dark.**
+
+That is the whole point of `enabled: false`, and it is enforced **inside
+`resolveTriageOutcome`** rather than at the call sites. Enforcing it in the
+resolver is the only version that holds: a protocol written but not cleared for
+clinical use cannot be selected by a caller who forgets, by a new code path, or
+by a test that passes the whole corpus. A dark protocol is present, indexed,
+keyword-matched and unit-tested, and unreachable as a decision.
+
+    AIR-03   adult complete airway obstruction   3/3
+    BURN-07  burns, scalds, smoke inhalation     6/6
+    SEIZ-08  seizure / convulsion                5/5
+    HEM-09   severe external haemorrhage         2/5
+    OB-10    obstetric emergency                 6/8
+    DIA-11   diabetic emergency                  2/4
+    TRAUMA-12 major trauma                       3/5
+    DROW-13  drowning / near-drowning            2/3
+    ACS-14   acute coronary syndrome             1/2
+    HEAT-15  heat and cold illness               3/3
+    MH-16    mental health crisis                3/4
+                                        TOTAL  36/48
+
+Coverage is **tracked, not claimed**: `MIN_COVERAGE` in
+`expansionCoverage.test.ts` is set to the measured 36 and must be *raised*, never
+lowered. The gap ratchet is deliberately still **48** — the backlog has not
+shrunk, because none of the new text is enabled.
+
+### Why dark, when a clinician has signed off
+
+The sign-off covers the six originals. It cannot cover text written after it.
+Shipping unreviewed clinical prose into a spoken, dispatched path on the
+strength of a review that predates it would be exactly the mistake this whole
+workflow exists to prevent. Enabling a protocol is a three-part, deliberate act:
+
+1. coverage for its target phrases reaches 100%,
+2. a real guideline citation replaces `PENDING CITATION VERIFICATION`,
+3. the reviewing clinician's name is recorded against **that** text.
+
+The two highest-risk families are already at 100%: adult choking previously
+received the *infant* protocol, and burns had no protocol at all.
+
+### Also fixed on the way
+
+Anchor deduplication moved from raw-string to **stemmed signature**. With a string
+key, a protocol holding both `burn` and `burnt` scored a caller who said "he was
+burnt" as TWO independent anchors and cleared the two-anchor bar on one fact.
+Collapsing by signature exposed a real gap it had been masking — *"weakness on the
+left"* is a FAST finding and had no keyword at all, so that phrase lost a match it
+should have had.
+
+---
+
 ## UX pass — console legibility (2026-09-26)
 
 Driven by screenshotting the console rather than reasoning about it.

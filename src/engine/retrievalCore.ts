@@ -180,10 +180,17 @@ export function rankByText<T extends Rankable>(
     // and was handed a protocol whose spoken line is "push hard and fast... do
     // not stop". Set semantics make that class of bug impossible regardless of
     // how the data is edited later.
-    const seenKeywords = new Set<string>();
+    //
+    // Deduplicated by STEMMED SIGNATURE, not by raw string. Two spellings of
+    // one finding are still one finding: with a string key, a protocol holding
+    // both "burn" and "burnt" scored a caller who said "he was burnt" as TWO
+    // independent anchors and cleared the two-anchor bar on a single fact.
+    // Stemming "burn" and "burnt" to the same signature collapses them.
+    const seenSignatures = new Set<string>();
     for (const kw of p.keywords) {
-      if (seenKeywords.has(kw)) continue;
-      seenKeywords.add(kw);
+      const signature = tokenize(kw).join(' ');
+      if (seenSignatures.has(signature)) continue;
+      seenSignatures.add(signature);
       if (phrasePresent(tokens, kw)) {
         score += phraseWeight(kw);
         anchors.push(kw);
@@ -243,7 +250,16 @@ export function resolveTriageOutcome(
     return abstain('empty-transcript');
   }
 
-  const ranked = rankProtocols(transcript, protocols, protocols.length);
+  // DARK PROTOCOLS ARE FILTERED HERE, INSIDE THE SINGLE DECISION POINT.
+  //
+  // Not at the call sites, and not by convention. Enforcing it in the resolver
+  // is the only version that holds: a protocol written but not yet cleared for
+  // clinical use cannot be selected by a caller who forgets, by a new code path
+  // that bypasses the app, or by a test that passes the full corpus. A dark
+  // protocol is present, indexed and testable, and unreachable as a decision.
+  const selectable = protocols.filter((p) => p.enabled !== false);
+
+  const ranked = rankProtocols(transcript, selectable, selectable.length);
   const top = ranked[0];
   const second = ranked[1];
 

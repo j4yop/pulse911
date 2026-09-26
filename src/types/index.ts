@@ -1,4 +1,20 @@
-export type EmergencyCategory = 'cardiac' | 'airway' | 'stroke' | 'anaphylaxis' | 'trauma' | 'cyber_extortion' | 'security' | 'general';
+export type EmergencyCategory =
+  | 'cardiac'
+  | 'airway'
+  | 'stroke'
+  | 'anaphylaxis'
+  | 'trauma'
+  | 'cyber_extortion'
+  | 'security'
+  | 'general'
+  // Added by the Stage 3 expansion, for the gaps the golden corpus proved.
+  | 'thermal'
+  | 'neurological'
+  | 'circulation'
+  | 'obstetric'
+  | 'metabolic'
+  | 'environmental'
+  | 'psychological';
 export type TriageLevel = 'ESI-1 (Immediate Resuscitation)' | 'ESI-2 (Emergent)' | 'ESI-3 (Urgent)';
 
 export interface EmergencyProtocol {
@@ -34,6 +50,22 @@ export interface EmergencyProtocol {
    * Lowering this is a clinical decision, not a tuning knob.
    */
   minAnchorCount?: number;
+  /**
+   * Whether this protocol may be selected. Defaults to enabled.
+   *
+   * New clinical content ships DARK: present, indexed, testable, and matched by
+   * nothing. That is deliberate. `corpusLint` refuses to let a protocol without a
+   * recorded reviewer and source be presented as verified, and the only honest
+   * way to hold both rules at once is to let the text exist in the repository
+   * while keeping it out of the decision path until a clinician has actually
+   * read that specific text.
+   *
+   * Enabling one is a single-token change, made on purpose, after review.
+   */
+  enabled?: boolean;
+  /** Set once a named clinician has reviewed THIS text. Null means unreviewed. */
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
   /**
    * Anchors decisive enough to select this protocol on their own, with no
    * second finding required.

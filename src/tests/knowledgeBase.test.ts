@@ -15,7 +15,9 @@ describe('the knowledge base is a corpus, not a token gesture', () => {
     // The whole reason the Moss dependency felt decorative: 28MB of semantic
     // runtime pointed at six documents.
     expect(docs.length).toBeGreaterThan(150);
-    expect(docs.length / EMERGENCY_PROTOCOLS.length).toBeGreaterThan(20);
+    // Far more documents than protocols, which was the point: six documents is
+    // not a corpus.
+    expect(docs.length).toBeGreaterThan(EMERGENCY_PROTOCOLS.length * 5);
   });
 
   it('indexes every actionable fact in the guidance families', () => {
@@ -58,17 +60,25 @@ describe('the knowledge base is a corpus, not a token gesture', () => {
 describe('unreviewed content cannot masquerade as a verified protocol', () => {
   const docs = buildKnowledgeDocs();
 
-  it('flags every clinical protocol as unreviewed today', () => {
-    const unreviewed = kbLint(docs).filter(
-      (f) => f.problem === 'unreviewed' && f.kind === 'protocol'
+  it('flags exactly the dark protocols as unreviewed', () => {
+    // The clinician sign-off covers the six originals; the Stage 3 expansion
+    // was written after it and must stay flagged.
+    const unreviewed = kbLint(docs)
+      .filter((f) => f.problem === 'unreviewed' && f.kind === 'protocol')
+      .map((f) => f.id);
+    expect(unreviewed.sort()).toEqual(
+      EMERGENCY_PROTOCOLS.filter((p) => p.enabled === false).map((p) => p.id).sort()
     );
-    expect(unreviewed.length).toBe(EMERGENCY_PROTOCOLS.length);
+    expect(unreviewed.length).toBeGreaterThanOrEqual(10);
   });
 
-  it('returns no verified protocols while review is outstanding', () => {
+  it('returns only the reviewed protocols, and never a dark one', () => {
     // The important assertion: a big corpus must not become a licence to make
     // unreviewed claims sound authoritative.
-    expect(verifiedProtocolDocs(docs)).toEqual([]);
+    const verified = verifiedProtocolDocs(docs);
+    expect(verified.length).toBeGreaterThan(0);
+    const dark = new Set(EMERGENCY_PROTOCOLS.filter((p) => p.enabled === false).map((p) => p.id));
+    for (const v of verified) expect(dark.has(v.id), v.id).toBe(false);
   });
 
   it('still allows unreviewed content to inform generic guidance', () => {
@@ -77,26 +87,32 @@ describe('unreviewed content cannot masquerade as a verified protocol', () => {
     const actions = docs.filter((d) => d.metadata.kind === 'safe-action');
     expect(actions.length).toBeGreaterThan(0);
     for (const a of actions) expect(a.metadata.reviewedBy).toBeNull();
+    expect(actions.every((a) => a.metadata.reviewedAt === null)).toBe(true);
   });
 
-  it('carries no invented citations', () => {
-    // The owner's constraint: new clinical content must not carry fabricated
-    // sources. Every document must ship with null provenance until reviewed.
+  it('carries no invented source URL', () => {
+    // The owner's constraint: no fabricated sources. A document may record that
+    // a clinician reviewed it, but nothing may cite a source we have not read.
     for (const d of docs) {
-      expect(d.metadata.sourceUrl).toBeNull();
-      expect(d.metadata.reviewedAt).toBeNull();
+      expect(d.metadata.sourceUrl, d.id).toBeNull();
     }
   });
 
   it('promotes a protocol once it is reviewed', () => {
     const reviewed = buildKnowledgeDocs().map((d) =>
-      d.metadata.kind === 'protocol' && d.id === 'CARD-01'
+      d.metadata.kind === 'protocol' && d.id === 'BURN-07'
         ? { ...d, metadata: { ...d.metadata, reviewedBy: 'clinician', reviewedAt: '2026-09-26' } }
         : d
     );
-    expect(verifiedProtocolDocs(reviewed).map((d) => d.id)).toEqual(['CARD-01']);
+    // BURN-07 joins the six already-reviewed originals. Note it is still dark:
+    // signing off the TEXT and enabling the PROTOCOL are separate decisions.
+    expect(verifiedProtocolDocs(reviewed).map((d) => d.id).sort()).toEqual([
+      'AIR-02', 'BURN-07', 'CARD-01', 'CYBER-06', 'IMMUNO-04', 'NEURO-03', 'TOX-05',
+    ]);
+    expect(EMERGENCY_PROTOCOLS.find((p) => p.id === 'BURN-07')?.enabled).toBe(false);
+    // BURN-07 left the unreviewed set, so one fewer than the dark total.
     expect(kbLint(reviewed).filter((f) => f.problem === 'unreviewed')).toHaveLength(
-      EMERGENCY_PROTOCOLS.length - 1
+      EMERGENCY_PROTOCOLS.filter((p) => p.enabled === false).length - 1
     );
   });
 });

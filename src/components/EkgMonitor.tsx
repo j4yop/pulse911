@@ -75,6 +75,15 @@ export const EkgMonitor: React.FC<EkgMonitorProps> = ({
       color: 'rose',
       status: 'SHOCK',
     },
+    // Stage 3 categories. Same rule: a protocol label, never an observed
+    // rhythm, and no invented numbers.
+    thermal: { rhythm: 'BURN PROTOCOL \u2014 PACING VISUAL', color: 'amber', status: 'ACTIVE' },
+    neurological: { rhythm: 'NEUROLOGICAL PROTOCOL \u2014 PACING VISUAL', color: 'indigo', status: 'ACTIVE' },
+    circulation: { rhythm: 'HAEMORRHAGE PROTOCOL \u2014 PACING VISUAL', color: 'rose', status: 'CRITICAL' },
+    obstetric: { rhythm: 'OBSTETRIC PROTOCOL \u2014 PACING VISUAL', color: 'rose', status: 'CRITICAL' },
+    metabolic: { rhythm: 'DIABETIC PROTOCOL \u2014 PACING VISUAL', color: 'amber', status: 'ACTIVE' },
+    environmental: { rhythm: 'ENVIRONMENTAL PROTOCOL \u2014 PACING VISUAL', color: 'sky', status: 'ACTIVE' },
+    psychological: { rhythm: 'MENTAL HEALTH PROTOCOL \u2014 NO PACING', color: 'violet', status: 'SUPPORT' },
     security: {
       rhythm: 'TOXICOLOGY PROTOCOL \u2014 PACING VISUAL',
       color: 'amber',

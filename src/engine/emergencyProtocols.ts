@@ -1,6 +1,26 @@
 import { EmergencyProtocol } from '../types';
 
-export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
+/**
+ * Clinical sign-off recorded against the protocols that existed at the time.
+ *
+ * IMPORTANT, and deliberately not overclaimed: a clinician reviewed the six
+ * original protocols and the guidance families. The expansions below were
+ * written *after* that review, so they carry `reviewedBy: null` and ship dark.
+ * Re-enabling one is a deliberate act that requires that specific text to have
+ * been read.
+ *
+ * `reviewerId` is a placeholder. An audit trail with no name on it is weak, and
+ * the owner should replace this with the reviewing clinician's name and
+ * credentials before relying on it.
+ */
+export const CLINICAL_REVIEW = {
+  reviewerId: 'clinician-review-pending-attribution',
+  reviewedAt: '2026-09-26',
+  scope: 'the six original protocols (CARD-01, AIR-02, NEURO-03, IMMUNO-04, TOX-05, CYBER-06) and the 20 guidance families',
+  excludes: 'all protocols marked enabled: false, which were written after this review',
+} as const;
+
+const ORIGINAL_PROTOCOLS: EmergencyProtocol[] = [
   {
     id: 'CARD-01',
     code: 'AHA-ECC-2026-CARD',
@@ -61,6 +81,8 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
       'not breathing', 'not breathing normally', 'stopped breathing',
       'no pulse', 'no heartbeat', 'chest compressions', 'not breathing and has no pulse',
     ],
+    reviewedBy: CLINICAL_REVIEW.reviewerId,
+    reviewedAt: CLINICAL_REVIEW.reviewedAt,
     citations: 'American Heart Association (AHA) 2026 Guidelines for CPR & ECC'
   },
   {
@@ -107,6 +129,8 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
       // chest thrusts are wrong for an adult, who needs abdominal thrusts. Every
       // added term here must be child-specific.
     ],
+    reviewedBy: CLINICAL_REVIEW.reviewerId,
+    reviewedAt: CLINICAL_REVIEW.reviewedAt,
     citations: 'American Academy of Pediatrics (AAP) Pediatric Airway Emergency Standards 2026'
   },
   {
@@ -146,8 +170,19 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
       // word callers actually use. Found by the golden corpus.
       'face drooping', 'face droop', 'facial drooping', 'one side of the face',
       'cannot speak', 'cannot talk', 'slurred', 'cannot move his arm', 'cannot move her arm',
-      'arm drooping', 'one arm is drooping', 'stroke symptoms', 'face is drooping'
+      'arm drooping', 'one arm is drooping', 'stroke symptoms', 'face is drooping',
+      // One-sided weakness is a FAST finding in its own right, and callers say
+      // "weakness on the left" without ever using the word "arm". Found by the
+      // stem-signature dedupe, which revealed "facial droop" and "facial
+      // drooping" were being double-counted as two independent findings.
+      'weakness on one side', 'weakness on the left', 'weakness on the right',
+      'weakness on his left', 'weakness on her left', 'weakness on his right',
+      'weakness on her right', 'one sided weakness', 'one-sided weakness',
+      'left side weakness', 'right side weakness', 'cannot move his left arm',
+      'cannot move her left arm', 'cannot move his right arm', 'cannot move her right arm'
     ],
+    reviewedBy: CLINICAL_REVIEW.reviewerId,
+    reviewedAt: CLINICAL_REVIEW.reviewedAt,
     citations: 'AHA / American Stroke Association Guidelines for Early Management of Acute Stroke'
   },
   {
@@ -188,6 +223,8 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
       'struggling to breathe', 'lips are swelling', 'throat is closing',
       'used her epipen', 'needed his epipen', 'severe allergic reaction and'
     ],
+    reviewedBy: CLINICAL_REVIEW.reviewerId,
+    reviewedAt: CLINICAL_REVIEW.reviewedAt,
     citations: 'World Allergy Organization (WAO) Anaphylaxis Guidelines 2026'
   },
   {
@@ -230,6 +267,8 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
       'antidepressants', 'poisoned', 'paracetamol', 'ingested a chemical and',
       'chemical and is vomiting'
     ],
+    reviewedBy: CLINICAL_REVIEW.reviewerId,
+    reviewedAt: CLINICAL_REVIEW.reviewedAt,
     citations: 'CDC Emergency Guidelines on Illicit Synthetic Opioid Resuscitation 2026'
   },
   {
@@ -275,8 +314,530 @@ export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
     // exists precisely to catch what a caller does not recognise as a scam.
     // Two clinical anchors would make it miss its own reason to exist.
     minAnchorCount: 1,
+    reviewedBy: CLINICAL_REVIEW.reviewerId,
+    reviewedAt: CLINICAL_REVIEW.reviewedAt,
     citations: 'Ministry of Home Affairs & CERT-In 2026 National Cyber Extortion Advisory'
   }
+];
+
+
+// ── Stage 3 expansion ───────────────────────────────────────────────────────
+//
+// Written to close the gaps the golden corpus proved: 48 phrases describing
+// obstetric emergencies, burns, seizure, major bleeding, trauma, diabetic
+// emergencies, adult choking, drowning, chest pain and heat/cold illness all
+// abstained, because no protocol existed for them.
+//
+// EVERY ONE OF THESE SHIPS DARK (`enabled: false`, `reviewedBy: null`).
+//
+// That is not caution for its own sake. The clinician sign-off on record covers
+// the six ORIGINAL protocols; it cannot cover text written after it. So these
+// are present, indexed, keyword-matched and unit-testable, and the resolver
+// cannot select them. Enabling one is a deliberate act once that specific text
+// has been read.
+//
+// `citations` is deliberately NOT filled in. The owner's constraint was explicit:
+// new clinical content carries only citations that can be verified, and
+// unverifiable ones are flagged rather than invented. I cannot verify a
+// specific current guideline edition from here, so these read PENDING rather
+// than naming a plausible-looking source. Completing them is part of enabling.
+
+const PENDING_CITATION =
+  'PENDING CITATION VERIFICATION - a guideline source must be recorded and verified before this protocol is enabled';
+
+const notReviewed = { reviewedBy: null, reviewedAt: null, citations: PENDING_CITATION, enabled: false } as const;
+
+export const EMERGENCY_PROTOCOLS_STAGE3: EmergencyProtocol[] = [
+  {
+    id: 'AIR-03',
+    code: 'ERC-2026-ADULT-AIRWAY',
+    title: 'Adult Complete Airway Obstruction (Choking)',
+    category: 'airway',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    clinicalSummary:
+      'Sudden inability to speak, cough or breathe from a foreign body. The commonest choking emergency in adults. The infant protocol (AIR-02) uses different techniques and must NOT be applied here.',
+    immediateActions: [
+      'Ask them to cough. If the cough is effective, keep encouraging it and do not interfere.',
+      'If they cannot cough, speak or breathe at all, treat as complete obstruction.',
+      'Give up to 5 firm back blows between the shoulder blades with the heel of your hand.',
+      'Give up to 5 abdominal thrusts: fist above the navel, grasp with both hands, pull sharply inwards and upwards.',
+      'Alternate 5 back blows and 5 abdominal thrusts until the object clears or they become unresponsive.',
+      'If they become unresponsive, start CPR and look for the object in the mouth before giving breaths.',
+      'Call 911 immediately and put the phone on speaker.',
+    ],
+    verbalResponseText:
+      'Help is on the way. Put me on speaker. Ask them to cough. If they cannot cough or speak at all, give five firm blows between the shoulder blades, then five abdominal thrusts - fist above the navel, pull sharply inwards and upwards. Keep alternating. Tell me if they go floppy.',
+    criticalQuestions: [
+      'Can they cough or speak at all right now?',
+      'Are they pregnant, or very overweight?',
+      'Have they lost consciousness?',
+    ],
+    contraindications: [
+      'Do NOT give abdominal thrusts to a pregnant or very obese person - use chest thrusts instead.',
+      'Do NOT perform a blind finger sweep - it can push the object deeper.',
+      'Do NOT give water or a drink to "wash it down".',
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Paramedic Rescue Engine',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['Pocket mask', 'Supplemental oxygen', 'Magill forceps', 'Suction'],
+    },
+    keywords: [
+      'choking', 'choke', 'cannot speak', 'can not speak', 'cannot cough', 'can not cough',
+      'cannot breathe', 'can not breathe', 'choking and cannot speak', 'choking on food',
+      'silent choking', 'choking on steak', 'choking on meat', 'throat obstruction',
+      'something stuck in throat', 'food stuck in throat', 'heimlich',
+    ],
+    ...notReviewed,
+  },
+  {
+    id: 'BURN-07',
+    code: 'PENDING-BURN-2026',
+    title: 'Burns, Scalds & Smoke Inhalation',
+    category: 'thermal',
+    triageLevel: 'ESI-2 (Emergent)',
+    clinicalSummary:
+      'Thermal, chemical or electrical injury. The depth and area determine urgency far more than the pain does - burns are painless when deep.',
+    immediateActions: [
+      'Cool the burn under cool running water for 20 minutes as soon as you safely can.',
+      'Remove rings, watches and bracelets, and loose clothing near the burn.',
+      'Cover loosely with cling film or a clean, non-fluffy cloth.',
+      'Keep the whole body warm - a large burn causes significant heat loss.',
+      'If they inhaled smoke, get them into fresh air and sit them upright.',
+      'Call 911 for anything beyond a small, superficial burn.',
+    ],
+    verbalResponseText:
+      'Help is on the way. Cool the burn under cool running water for twenty minutes - not ice. Remove any rings or watches. Cover it loosely with cling film or a clean cloth. Do not burst blisters. Do not put butter or toothpaste on it.',
+    criticalQuestions: [
+      'How large is the burned area compared to their palm?',
+      'Is the skin white, black, or numb?',
+      'Were they in a fire, or did they breathe in smoke?',
+      'Is the burn from a chemical, or from electricity?',
+    ],
+    contraindications: [
+      'Do NOT use ice, ice water, butter, toothpaste, oil or grease.',
+      'Do NOT burst blisters or peel away skin.',
+      'Do NOT pull off clothing stuck to the skin - cut around it instead.',
+      'Do NOT cool a large burn with ice or ice water - it can worsen tissue damage.',
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Paramedic Rescue Engine',
+      priority: 'Code 2 (Expedited)',
+      requiredEquipment: ['Burn dressings', 'Sterile water', 'Supplemental oxygen', 'Thermal blankets'],
+    },
+    keywords: [
+      'burn', 'burned', 'burnt', 'is burned', 'was burnt', 'scald', 'scalded', 'on fire',
+      'caught fire', 'boiling water', 'hot water on', 'hot oil', 'cooking oil', 'hot pan',
+      'kettle', 'steam burn', 'chemical burn', 'smoke inhalation', 'singed hair',
+      'blistering', 'spilled boiling water', 'spilled hot', 'acid on', 'burns',
+    ],
+    ...notReviewed,
+  },
+  {
+    id: 'SEIZ-08',
+    code: 'PENDING-SEIZURE-2026',
+    title: 'Seizure / Unconscious Convulsion',
+    category: 'neurological',
+    triageLevel: 'ESI-2 (Emergent)',
+    clinicalSummary:
+      'Seizure activity. The large majority are self-limiting and resolve without intervention. The dangerous parts are injury during the seizure, an obstructed airway, and a seizure that does not stop.',
+    immediateActions: [
+      'Clear hard or sharp objects away and cushion their head.',
+      'Let the seizure run its course. Do not restrain them.',
+      'Time it. Note the exact start time.',
+      'Once it stops, roll them onto their side and keep the airway clear.',
+      'Stay until they are fully alert again.',
+      'Call 911 if it lasts more than about 5 minutes, repeats, or they do not recover.',
+    ],
+    verbalResponseText:
+      'Help is on the way. Move anything hard or sharp away from them. Cushion their head. Do not hold them down and do not put anything in their mouth. When the shaking stops, roll them onto their side. Tell me what time it started.',
+    criticalQuestions: [
+      'What time exactly did the seizure start?',
+      'Is this their first ever seizure?',
+      'Did they injure themselves, or were they in water?',
+      'Have they taken any medication or alcohol?',
+    ],
+    contraindications: [
+      'Do NOT put anything in their mouth - nobody can swallow their tongue, and you will break teeth or choke them.',
+      'Do NOT hold them down or restrain their limbs - it causes injury and can worsen the seizure.',
+      'Do NOT give water, food or tablets until they are fully alert.',
+      'Do NOT give oral medication to someone who is not fully awake.',
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Paramedic Rescue Engine',
+      priority: 'Code 2 (Expedited)',
+      requiredEquipment: ['Oxygen', 'Suction', 'Glucose', 'Seizure medication (per protocol)'],
+    },
+    keywords: [
+      'seizure', 'seizuring', 'seizures', 'fitting', 'fit', 'convulsion', 'convulsing',
+      'convulsions', 'shaking uncontrollably', 'body stiff', 'jerking', 'epilepsy',
+      'epileptic', 'having a fit', 'unconscious and shaking',
+      'seizure and shaking', 'having a seizure', 'is fitting', 'fitting on the floor',
+      'epilepsy and', 'is seizing', 'seizing now', 'convulsion and', 'seizure and is',
+    ],
+    ...notReviewed,
+  },
+  {
+    id: 'HEM-09',
+    code: 'PENDING-HAEMORRHAGE-2026',
+    title: 'Severe External Haemorrhage',
+    category: 'circulation',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    clinicalSummary:
+      'Life-threatening external bleeding. Firm direct pressure is the correct first action in essentially every case, and remains safe even if the underlying cause is something else entirely.',
+    immediateActions: [
+      'Expose the wound and press firmly with a clean cloth or gauze.',
+      'Keep pressing without lifting to check. Continuous pressure is what stops bleeding.',
+      'Call 911 for heavy, spurting, or uncontrolled bleeding.',
+      'If blood soaks through, add another layer on top - never remove the first.',
+      'Lie them down and keep them warm. Treat for shock.',
+      'If direct pressure fails on a limb, apply a commercial tourniquet above the wound and note the time.',
+    ],
+    verbalResponseText:
+      'Help is on the way. Press firmly on the wound with a clean cloth and keep pressing - do not lift it to check. If it soaks through, put another layer on top. Lie them down and keep them warm.',
+    criticalQuestions: [
+      'Is the bleeding spurting, or pooling?',
+      'How long has it been bleeding?',
+      'Are they pale, cold, or confused?',
+      'Is anything still stuck in the wound?',
+    ],
+    contraindications: [
+      'Do NOT remove an object embedded in the wound - pad around it instead.',
+      'Do NOT apply an improvised tourniquet above a joint, or loosen one once applied.',
+      'Do NOT rinse or probe the wound.',
+      'Do NOT let them walk or drive themselves.',
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Paramedic Rescue Engine',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['Haemostatic gauze', 'Commercial tourniquet', 'Pressure dressings', 'IV fluids'],
+    },
+    keywords: [
+      'bleeding heavily', 'heavy bleeding', 'bleeding everywhere', 'blood everywhere',
+      'spurting', 'will not stop bleeding', 'wont stop bleeding', 'cut badly', 'deep cut',
+      'stab', 'stabbed', 'shot', 'gunshot', 'shotgun', 'mangled', 'amputation',
+      'bleeding from the arm', 'bleeding from the leg', 'bleeding from the head',
+      'bleeding and will not stop',
+    ],
+    decisiveAnchors: ['spurting'],
+    ...notReviewed,
+  },
+  {
+    id: 'OB-10',
+    code: 'PENDING-OBSTETRIC-2026',
+    title: 'Obstetric Emergency (Pregnancy, Labour & Postpartum)',
+    category: 'obstetric',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    clinicalSummary:
+      'Anything unexpected in pregnancy is time-critical. Haemorrhage and eclampsia are the two killers, and neither is reliably predictable in advance.',
+    immediateActions: [
+      'Help her lie on her LEFT side if she is comfortable - it improves blood flow to the baby.',
+      'Call 911 now for any bleeding, severe or constant pain, fluid loss, or reduced fetal movement.',
+      'Note the exact time any bleeding or fluid loss started.',
+      'Keep the phone on speaker and reassure her. Do not rush or shock her.',
+      'Save any pads or sheets so the paramedics can estimate blood loss.',
+      'If she has passed out, roll her onto her left side and keep the airway clear.',
+    ],
+    verbalResponseText:
+      'Help is on the way. Put me on speaker. Help her lie on her left side if she can manage it. Do not give her anything to eat or drink. Note the time any bleeding or fluid started. Stay with her and keep her calm.',
+    criticalQuestions: [
+      'How many weeks pregnant is she?',
+      'What time did any bleeding or fluid loss start?',
+      'Is the baby still moving, and how much?',
+      'Is she having contractions, and how far apart?',
+      'Has she had a seizure or a severe headache?',
+    ],
+    contraindications: [
+      'Do NOT give her food, drink or medication unless a clinician tells you to.',
+      'Do NOT let her drive herself.',
+      'Do NOT let her push if the baby is not delivered and there is a complication - keep her still.',
+      'Do NOT dismiss heavy bleeding as "normal".',
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Paramedic Response',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['Obstetric kit', 'IV fluids', 'Oxygen', 'Trauma dressings'],
+    },
+    keywords: [
+      'pregnant', 'pregnancy', 'in labour', 'in labor', 'waters broke', 'water broke',
+      'my water broke', 'contractions', 'pushing', 'bleeding while pregnant',
+      'pregnant and bleeding', 'bleeding and pregnant', 'miscarriage', 'postnatal',
+      'after giving birth', 'baby is coming', 'baby not moving', 'pregnant and pain',
+      'severe pain and pregnant', 'pregnant and unconscious', 'eclampsia',
+    ],
+    decisiveAnchors: ['bleeding while pregnant', 'pregnant and bleeding', 'bleeding and pregnant'],
+    ...notReviewed,
+  },
+  {
+    id: 'DIA-11',
+    code: 'PENDING-DIABETIC-2026',
+    title: 'Diabetic Emergency (Hypo & Hyperglycaemia)',
+    category: 'metabolic',
+    triageLevel: 'ESI-2 (Emergent)',
+    clinicalSummary:
+      'Blood-glucose related illness. Fast sugar helps a conscious person with a low; it does nothing for an unconscious one and is dangerous by mouth.',
+    immediateActions: [
+      'If they are fully awake and can swallow, give fast sugar - glucose tablets, fruit juice, a sugary drink, or glucose gel.',
+      'Re-check their alertness every few minutes and tell responders what you gave and when.',
+      'If they are unconscious, having a seizure, or cannot swallow safely, call 911 and give NOTHING by mouth.',
+      'Look for a medical ID bracelet or necklace and tell responders what it says.',
+      'If it is their own glucose gel or medication, help them take it as prescribed.',
+      'If symptoms persist after 15 minutes of fast sugar, call 911.',
+    ],
+    verbalResponseText:
+      'Help is on the way. If they are awake and able to swallow, give them fast sugar now - juice, a sugary drink, or glucose tablets. Check for a medical ID bracelet. If they are drowsy, confused or fitting, give nothing by mouth and tell me immediately.',
+    criticalQuestions: [
+      'Are they fully awake and able to swallow safely?',
+      'Do they have a glucose meter or medical ID?',
+      'Have they taken insulin or their diabetes medication today?',
+      'When did they last eat?',
+    ],
+    contraindications: [
+      'Do NOT put food, drink or tablets in the mouth of anyone who is drowsy, confused, seizing or unconscious - it will choke them.',
+      'Do NOT give insulin unless they are fully alert and it is part of their own stated plan.',
+      'Do NOT assume confusion is a stroke without checking for a glucose problem.',
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Paramedic Response',
+      priority: 'Code 2 (Expedited)',
+      requiredEquipment: ['Glucose', 'Glucagon', 'IV fluids', 'Oral glucose gel'],
+    },
+    keywords: [
+      'diabetic', 'diabetes', 'low blood sugar', 'high blood sugar', 'hypoglycemic',
+      'hypoglycaemic', 'hyperglycemic', 'blood sugar', 'glucose', 'insulin',
+      'shaky and sweaty', 'sweating and confused', 'confused and diabetic',
+      'diabetic and confused', 'diabetic and unconscious', 'medical alert bracelet',
+      'passed out diabetic', 'sugar level',
+    ],
+    ...notReviewed,
+  },
+  {
+    id: 'TRAUMA-12',
+    code: 'PENDING-TRAUMA-2026',
+    title: 'Major Trauma (Fall, Road Collision & Entrapment)',
+    category: 'trauma',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    clinicalSummary:
+      'Significant impact. Head, neck, spine and internal injury can all be present with no visible wound, and the mechanism alone justifies treatment as serious.',
+    immediateActions: [
+      'Call 911 for anything beyond a minor bruise. Assume the mechanism is significant.',
+      'Keep the head and neck still and in line with the body.',
+      'Control bleeding with firm direct pressure where you can reach it.',
+      'Keep them warm. Do not give food or drink - they may need surgery.',
+      'If trapped, do not attempt a rescue that risks becoming a second casualty.',
+      'Reassure them and keep them talking if they are conscious.',
+    ],
+    verbalResponseText:
+      'Help is on the way. Do not move them. Keep their head and neck completely still. Keep them warm and talk to them. Do not give them anything to eat or drink.',
+    criticalQuestions: [
+      'Are they conscious and responding?',
+      'Were they ever unconscious, even briefly?',
+      'Is there neck or back pain, or any tingling or weakness?',
+      'Are they bleeding, and is the bleeding controlled?',
+    ],
+    contraindications: [
+      'Do NOT move them, or move their head or neck, unless they are in immediate danger.',
+      'Do NOT let them eat or drink.',
+      'Do NOT remove anything embedded in a wound.',
+      'Do NOT straighten a deformed limb.',
+    ],
+    unitRecommendation: {
+      unitType: 'Heavy Rescue & ALS',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['Spinal board & cervical collars', 'Trauma dressings', 'IV fluids', 'Oxygen'],
+    },
+    keywords: [
+      'fell down the stairs', 'fell from', 'fall from', 'fell off', 'hit his head',
+      'hit her head', 'hit their head', 'head injury', 'car crash', 'car accident',
+      'crashed', 'collision', 'hit by a car', 'hit by a bike', 'run over', 'run over by',
+      'trapped', 'crushed', 'deformed', 'cannot move his arm', 'cannot move her arm',
+      'cannot move his leg', 'cannot move her leg', 'fell and cannot', 'knocked out',
+    ],
+    ...notReviewed,
+  },
+  {
+    id: 'DROW-13',
+    code: 'PENDING-DROWNING-2026',
+    title: 'Drowning & Near-Drowning',
+    category: 'environmental',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    clinicalSummary:
+      'Water immersion. Secondary deterioration is common and can occur hours after an incident that looked completely uneventful, so observation matters even when they seem fine.',
+    immediateActions: [
+      'Get them out of the water safely - do not enter if it is dangerous for you.',
+      'Check whether they are breathing normally.',
+      'If they are not breathing normally, start chest compressions straight away.',
+      'Call 911 - they need assessment even if they seem completely fine.',
+      'Remove wet clothing and keep them warm.',
+      'Monitor their breathing for several hours after the incident.',
+    ],
+    verbalResponseText:
+      'Help is on the way. Get them out of the water safely. Check if they are breathing normally. If they are not breathing, start chest compressions now. Keep them warm and do not let them sleep it off.',
+    criticalQuestions: [
+      'How long were they under the water?',
+      'Did they need rescue breaths or CPR?',
+      'Are they breathing normally now?',
+      'Are they drowsy, confused, or unusually tired?',
+    ],
+    contraindications: [
+      'Do NOT let them "sleep it off" - delayed breathing problems are common after immersion.',
+      'Do NOT give food or drink.',
+      'Do NOT enter unsafe water to attempt a rescue.',
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Paramedic Rescue Engine',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['Portable oxygen', 'Suction', 'Thermal blankets', 'Oxygen'],
+    },
+    keywords: [
+      'drowning', 'drowned', 'near drowning', 'fell into water', 'underwater',
+      'under the water', 'pulled from water', 'pulled him out of the water',
+      'swimming pool', 'in the lake', 'in the river', 'in the sea', 'could not swim',
+      'went under', 'splash into', 'fell into the swimming pool', 'fell into the pool',
+      'fell into the water', 'into the swimming pool', 'under the water and', 'pulled her out', 'pulled him out',
+    ],
+    ...notReviewed,
+  },
+  {
+    id: 'ACS-14',
+    code: 'PENDING-ACS-2026',
+    title: 'Acute Coronary Syndrome (Chest Pain)',
+    category: 'cardiac',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    clinicalSummary:
+      'Possible heart attack in a conscious patient. Distinct from CARD-01, which assumes no pulse and no breathing. Giving CPR to someone who is awake and breathing can cause harm.',
+    immediateActions: [
+      'Have them sit down and stay completely still. Do not let them walk around.',
+      'Call 911 now and say "possible chest pain" so the response is prioritised.',
+      'Loosen tight clothing and keep them calm.',
+      'If they have prescribed angina medication, help them take it as directed.',
+      'Stay on the line with them and monitor their breathing.',
+      'If they become unresponsive and are not breathing normally, start CPR.',
+    ],
+    verbalResponseText:
+      'Help is on the way. Sit them down and keep them completely still. Do not let them walk anywhere. Loosen anything tight around the chest. Stay with them, and tell me if they go floppy or stop breathing normally.',
+    criticalQuestions: [
+      'When exactly did the pain start, and is it getting worse?',
+      'Does the pain spread to the arm, jaw or back?',
+      'Are they pale, clammy or sweating?',
+      'Do they have any prescribed heart medication?',
+    ],
+    contraindications: [
+      'Do NOT let them drive themselves, or walk to hospital.',
+      'Do NOT give aspirin or any other medication unless a clinician instructs you.',
+      'Do NOT start chest compressions on someone who is awake and breathing normally.',
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Cardiac Response',
+      priority: 'Code 3 (Emergency Lights & Sirens)',
+      requiredEquipment: ['12-lead ECG', 'Defibrillator', 'Aspirin (per protocol)', 'IV fluids'],
+    },
+    keywords: [
+      'chest pain', 'chest pains', 'chest pressure', 'crushing chest', 'heavy chest',
+      'tightness in the chest', 'chest is tight', 'pain in the chest', 'heart attack',
+      'pressure in the chest', 'pain radiating to the arm', 'arm pain and chest',
+      'jaw pain', 'pain in the jaw', 'sweating and chest', 'clammy and chest',
+    ],
+    ...notReviewed,
+  },
+  {
+    id: 'HEAT-15',
+    code: 'PENDING-ENVIRONMENTAL-2026',
+    title: 'Heat & Cold Illness',
+    category: 'environmental',
+    triageLevel: 'ESI-2 (Emergent)',
+    clinicalSummary:
+      'Environmental temperature injury. Both extremes deteriorate slowly and need active management. Confusion in either direction is a medical emergency, not a comfort issue.',
+    immediateActions: [
+      'Move them somewhere cool (or warm) and out of the sun or wind.',
+      'Loosen heavy clothing.',
+      'If they are too hot, cool them gradually with fans, shade and cool water.',
+      'If they are alert and able to swallow, give small sips of cool water.',
+      'If they are too cold, cover with dry layers and warm them gradually.',
+      'Confusion, fitting or collapse in either direction is an emergency - call 911.',
+    ],
+    verbalResponseText:
+      'Help is on the way. Move them out of the sun into somewhere cool and loosen their clothing. Cool them gradually with a fan and cool water. If they are fully alert, give small sips of water. If they are confused or fitting, tell me straight away.',
+    criticalQuestions: [
+      'Are they confused, aggressive, or not making sense?',
+      'How long have they been exposed?',
+      'Are they vomiting or fitting?',
+      'Can they swallow safely?',
+    ],
+    contraindications: [
+      'Do NOT use direct ice or ice water on someone with heat stroke - it can cause shock.',
+      'Do NOT rub a frostbitten area, or apply direct heat to it.',
+      'Do NOT give alcohol to "warm them up".',
+      'Do NOT give fluids to someone who is drowsy or not fully alert.',
+    ],
+    unitRecommendation: {
+      unitType: 'ALS Paramedic Response',
+      priority: 'Code 2 (Expedited)',
+      requiredEquipment: ['Cooling packs', 'IV fluids', 'Oxygen', 'Thermal blankets'],
+    },
+    keywords: [
+      'heat stroke', 'heat exhaustion', 'overheating', 'overheated', 'too hot',
+      'sun stroke', 'heatwave', 'heat wave', '105 degrees', '100 degrees',
+      'degrees outside', 'degrees fahrenheit', 'hot day', 'confused and hot',
+      'hot and confused', 'hypothermia', 'very cold', 'freezing', 'cold exposure',
+      'stuck in the snow', 'wet and cold',
+      '105 degrees and', 'degrees and he is', 'degrees and she is', 'degrees outside and',
+      'has made him delirious', 'delirious', 'hypothermic and', 'stuck in the snow and',
+    ],
+    ...notReviewed,
+  },
+  {
+    id: 'MH-16',
+    code: 'PENDING-MENTALHEALTH-2026',
+    title: 'Mental Health Crisis & Risk of Self-Harm',
+    category: 'psychological',
+    triageLevel: 'ESI-2 (Emergent)',
+    clinicalSummary:
+      'Psychological crisis or risk of suicide or self-harm. The single most effective intervention is not a clinical one: it is a human being who stays on the line.',
+    immediateActions: [
+      'Stay with them. Do not leave them alone, however awkward you feel.',
+      'Call 911 if there is any immediate risk of harm, and say plainly what you are worried about.',
+      'If they have taken an overdose or harmed themselves, call 911 now.',
+      'In the US you can call or text 988 for a crisis line; elsewhere call your local emergency number.',
+      'If medicines, weapons or sharp objects are within reach, move them away if it is safe.',
+      'Ask directly if they are thinking about suicide. Asking does not plant the idea.',
+    ],
+    verbalResponseText:
+      'I am staying on the line with you. If you are in immediate danger I am sending help right now. Are you thinking about harming yourself, or ending your life? Tell me plainly - I will not leave you.',
+    criticalQuestions: [
+      'Are they thinking about suicide, or have they harmed themselves?',
+      'Have they taken anything, or taken an overdose?',
+      'Are they alone right now?',
+      'Is there immediate risk to themselves or anyone else?',
+    ],
+    contraindications: [
+      'Do NOT leave them on their own, even for a few minutes.',
+      'Do NOT argue about whether they deserve to feel this way.',
+      'Do NOT promise to keep a secret from a clinician.',
+      'Do NOT leave them to "sleep it off" if there is any stated intent.',
+    ],
+    unitRecommendation: {
+      unitType: 'Non-Emergent Response with Police Liaison',
+      priority: 'Code 2 (Expedited)',
+      requiredEquipment: ['Crisis contact card', 'De-escalation training', 'First aid kit'],
+    },
+    keywords: [
+      'suicidal', 'suicide', 'kill himself', 'kill herself', 'kill themselves',
+      'killing himself', 'killing herself', 'killing themselves', 'self harm',
+      'self-harm', 'wants to die', 'end my life', 'end their life', 'overdose on purpose',
+      'cutting herself', 'cutting himself', 'cutting themselves', 'harming themselves',
+      'mental breakdown', 'panic attack', 'cannot cope', 'no reason to live',
+      'talking about killing', 'about killing himself', 'about killing herself',
+      'about killing themselves', 'cutting herself and', 'cutting himself and',
+      'cutting themselves and', 'panic attack and', 'mental breakdown and',
+    ],
+    ...notReviewed,
+  },
+];
+
+export const EMERGENCY_PROTOCOLS: EmergencyProtocol[] = [
+  ...ORIGINAL_PROTOCOLS,
+  ...EMERGENCY_PROTOCOLS_STAGE3,
 ];
 
 export const EMERGENCY_SCENARIOS = [
@@ -381,3 +942,15 @@ export const EMERGENCY_SCENARIOS = [
     expectedProtocolId: 'CYBER-06'
   }
 ];
+
+// ── Review provenance ───────────────────────────────────────────────────────
+
+/** Protocols safe to select right now. */
+export function getEnabledProtocols(): EmergencyProtocol[] {
+  return EMERGENCY_PROTOCOLS.filter((p) => p.enabled !== false);
+}
+
+/** Protocols present but dark — written, not yet cleared for the decision path. */
+export function getDarkProtocols(): EmergencyProtocol[] {
+  return EMERGENCY_PROTOCOLS.filter((p) => p.enabled === false);
+}

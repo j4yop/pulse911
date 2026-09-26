@@ -70,14 +70,6 @@ const GUIDANCE_PROVENANCE = {
   verified: false,
 } as const;
 
-/** The six existing protocols, flattened. Pre-existing review state is not ours to claim. */
-const PROTOCOL_PROVENANCE = {
-  reviewedBy: null,
-  reviewedAt: null,
-  sourceUrl: null,
-  verified: false,
-} as const;
-
 function push(
   out: KnowledgeDoc[],
   kind: KnowledgeKind,
@@ -126,9 +118,11 @@ export function buildKnowledgeDocs(): KnowledgeDoc[] {
         kind: 'protocol',
         sourceId: p.id,
         family: p.category,
-        reviewedBy: PROTOCOL_PROVENANCE.reviewedBy,
-        reviewedAt: PROTOCOL_PROVENANCE.reviewedAt,
-        sourceUrl: PROTOCOL_PROVENANCE.sourceUrl,
+        // Read from the protocol, not hardcoded here. A second place to
+        // remember to update is a second place to forget.
+        reviewedBy: p.reviewedBy ?? null,
+        reviewedAt: p.reviewedAt ?? null,
+        sourceUrl: null,
       },
     });
   }
@@ -222,4 +216,4 @@ export function toIndexPayload(docs: KnowledgeDoc[] = buildKnowledgeDocs()) {
   }));
 }
 
-export { GUIDANCE_PROVENANCE, PROTOCOL_PROVENANCE };
+export { GUIDANCE_PROVENANCE };

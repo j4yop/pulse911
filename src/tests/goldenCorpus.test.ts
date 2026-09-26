@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { GOLDEN_CORPUS, GOLDEN_PROTOCOLS, gapSummary, totalGapCases } from '../eval/goldenCorpus';
 import { resolveTriageOutcome, MIN_CONFIDENCE } from '../engine/retrievalCore';
-import { EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
+import { EMERGENCY_PROTOCOLS, getEnabledProtocols } from '../engine/emergencyProtocols';
 import { matchedProtocol, canDispatch } from '../engine/triageGate';
 
 /**
@@ -82,8 +82,10 @@ describe('golden corpus is well-formed', () => {
     }
   });
 
-  it('reaches every protocol we have, so none is untested', () => {
-    for (const p of EMERGENCY_PROTOCOLS) {
+  it('reaches every SELECTABLE protocol, so none is untested', () => {
+    // Dark protocols are deliberately unreachable, so requiring golden phrases
+    // for them would be requiring a match the engine must never produce.
+    for (const p of getEnabledProtocols()) {
       expect(GOLDEN_PROTOCOLS, `no golden phrases for ${p.id}`).toContain(p.id);
     }
   });
