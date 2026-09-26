@@ -1,4 +1,20 @@
-export type EmergencyCategory = 'cardiac' | 'airway' | 'stroke' | 'anaphylaxis' | 'trauma' | 'cyber_extortion' | 'security' | 'general';
+export type EmergencyCategory =
+  | 'cardiac'
+  | 'airway'
+  | 'stroke'
+  | 'anaphylaxis'
+  | 'trauma'
+  | 'cyber_extortion'
+  | 'security'
+  | 'general'
+  // Added by the Stage 3 expansion, for the gaps the golden corpus proved.
+  | 'thermal'
+  | 'neurological'
+  | 'circulation'
+  | 'obstetric'
+  | 'metabolic'
+  | 'environmental'
+  | 'psychological';
 export type TriageLevel = 'ESI-1 (Immediate Resuscitation)' | 'ESI-2 (Emergent)' | 'ESI-3 (Urgent)';
 
 export interface EmergencyProtocol {
@@ -20,6 +36,51 @@ export interface EmergencyProtocol {
   };
   keywords: string[];
   citations: string;
+  /**
+   * How many DISTINCT keyword anchors must fire before this protocol may be
+   * selected. Defaults to `MIN_ANCHOR_COUNT` (2).
+   *
+   * The default of two is a clinical safety rule: an emergency described well
+   * enough to act on presents as more than one finding, and one finding is a
+   * hypothesis. It is the wrong rule for a non-clinical protocol whose guidance
+   * is safe to show on a single mention — CYBER-06 sets 1, because "someone is
+   * scamming my grandmother" is already enough to justify scam advice, and
+   * demanding two clinical anchors defeats the point of the protocol.
+   *
+   * Lowering this is a clinical decision, not a tuning knob.
+   */
+  minAnchorCount?: number;
+  /**
+   * Whether this protocol may be selected. Defaults to enabled.
+   *
+   * New clinical content ships DARK: present, indexed, testable, and matched by
+   * nothing. That is deliberate. `corpusLint` refuses to let a protocol without a
+   * recorded reviewer and source be presented as verified, and the only honest
+   * way to hold both rules at once is to let the text exist in the repository
+   * while keeping it out of the decision path until a clinician has actually
+   * read that specific text.
+   *
+   * Enabling one is a single-token change, made on purpose, after review.
+   */
+  enabled?: boolean;
+  /** Set once a named clinician has reviewed THIS text. Null means unreviewed. */
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  /**
+   * Anchors decisive enough to select this protocol on their own, with no
+   * second finding required.
+   *
+   * This exists because the two-anchor default is right for almost everything
+   * and wrong for one specific thing: a caller who says "he is not breathing"
+   * has reported a cardinal sign of arrest, and making them find a second
+   * finding before we help is not caution, it is neglect.
+   *
+   * It is deliberately a declared list rather than a rule about phrase
+   * length, because "is not breathing" and "is unresponsive" are both single
+   * findings and only one of them is decisive. An undeclared protocol gets no
+   * decisive anchors and therefore keeps the strict two-anchor default.
+   */
+  decisiveAnchors?: string[];
 }
 
 export interface EmergencyScenario {
@@ -30,12 +91,24 @@ export interface EmergencyScenario {
   callerProfile: string;
   callerSpeechTranscript: string;
   simulatedAudioUrl?: string;
-  callerLocation: {
+  /**
+   * Optional on purpose.
+   *
+   * The live-call path used to hardcode a location — "Triangulating Cell Tower
+   * GPS", "Metro Dispatch Sector 4", 37.7749° N / 122.4194° W — and render it
+   * under a map-pin icon. None of it came from anywhere: there is no
+   * geolocation in this app, and those are San Francisco coordinates hardcoded
+   * in source. A dispatcher seeing a map pin has no way to know it is invented.
+   *
+   * So a live call has no location until something real supplies one.
+   */
+  callerLocation?: {
     address: string;
     city: string;
     coordinates: string;
   };
-  reportedVitals: {
+  /** Optional: only populated where a real monitor or a scenario supplies it. */
+  reportedVitals?: {
     consciousness: string;
     breathing: string;
     pulse: string;

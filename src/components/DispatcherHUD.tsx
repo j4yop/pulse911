@@ -13,6 +13,8 @@ import {
   ShieldAlert,
   MessageCircleQuestion,
   UserCheck,
+  LifeBuoy,
+  Info,
 } from 'lucide-react';
 import {
   EmergencyProtocol,
@@ -20,6 +22,9 @@ import {
   DispatchIntent,
   OverrideRecord,
 } from '../types';
+import { speakableCategories, type CategoryMatch } from '../engine/guidanceCategories';
+import type { RouteVerdict } from '../engine/routing';
+import { CLARIFY_QUESTIONS, nextQuestion, type ClarifyState } from '../engine/clarify';
 import { CopilotCoachPanel } from './CopilotCoachPanel';
 import { EkgMonitor } from './EkgMonitor';
 import { EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
@@ -30,12 +35,16 @@ import {
   confidenceOf,
   UNIVERSAL_PREARRIVAL_STEPS,
   UNIVERSAL_SAFETY_FLOOR,
-  CLARIFYING_QUESTIONS,
 } from '../engine/triageGate';
 
 interface DispatcherHUDProps {
   queryResult: MossQueryResult | null;
   dispatchIntent: DispatchIntent | null;
+  guidance: CategoryMatch[];
+  route: RouteVerdict | null;
+  clarify: ClarifyState | null;
+  onClarifyAnswer: (questionId: string, optionLabel: string) => void;
+  onStopClarify: () => void;
   overrideLog: OverrideRecord[];
   onOverride: (protocol: EmergencyProtocol) => void;
   onTriggerMetronome: (active: boolean) => void;
@@ -47,6 +56,11 @@ interface DispatcherHUDProps {
 export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   queryResult,
   dispatchIntent,
+  guidance,
+  route,
+  clarify,
+  onClarifyAnswer,
+  onStopClarify,
   overrideLog,
   onOverride,
   onTriggerMetronome,
@@ -132,6 +146,31 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
       {/* Main Content Area */}
       <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-5">
         <>
+          {/* Dispatcher-confirmed provenance. Hoisted ABOVE the matched/abstain
+              branch on purpose: while this lived inside the abstain card it
+              disappeared the instant the answers resolved a protocol — exactly
+              when the dispatcher most needs to see why. */}
+          {clarify?.resolvedProtocolId && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 space-y-1.5">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-800">
+                Protocol confirmed by your answers
+              </span>
+              <ul className="space-y-0.5">
+                {clarify.answers.map((a) => (
+                  <li key={a.questionId} className="text-[10px] font-mono text-emerald-900/80">
+                    {a.question} &rarr; <span className="font-bold">{a.optionLabel}</span>
+                    {!a.contributed && (
+                      <span className="text-emerald-700/60"> (not used for matching)</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[10px] font-mono text-emerald-700/80 pt-1">
+                Confirmed by a dispatcher, not inferred. The answers are the record.
+              </p>
+            </div>
+          )}
+
           {!protocol && !abstained ? (
             <motion.div
               key="standby"
@@ -146,7 +185,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
               <div>
                 <p className="font-bold text-slate-800 text-base">CAD Standby</p>
                 <p className="text-xs text-slate-500 max-w-sm mt-1 leading-relaxed">
-                  Select an emergency scenario or speak into the microphone to observe sub-10ms Moss semantic retrieval of clinical protocols.
+                  Select an emergency scenario or speak into the microphone to see sub-10ms in-browser protocol matching against a real call.
                 </p>
               </div>
             </motion.div>
@@ -248,7 +287,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                         >
                           {isChecked ? (
                             <CheckCircle2 className="w-4 h-4 text-emerald-600 fill-emerald-100" />
-                          ) : (
+          ) : (
                             <div className="w-4 h-4 rounded-full border border-slate-300 bg-white" />
                           )}
                         </motion.div>
@@ -258,6 +297,33 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                   })}
                 </div>
               </div>
+
+              {/* Why this protocol: the phrases that actually matched.
+                  The engine has misrouted before, so a dispatcher should be able
+                  to sanity-check the decision against the caller's own words
+                  rather than take it on trust. */}
+              {protocol && queryResult && queryResult.outcome.anchors.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1.5">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                    Matched on {queryResult.outcome.anchors.length} finding
+                    {queryResult.outcome.anchors.length === 1 ? '' : 's'}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {queryResult.outcome.anchors.map((a) => (
+                      <span
+                        key={a}
+                        className="px-2 py-0.5 rounded-md bg-white border border-slate-300 text-[10px] font-mono font-bold text-slate-700"
+                      >
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-[10px] font-mono text-slate-500">
+                    Confidence {(queryResult.outcome.confidence * 100).toFixed(0)}%. If these do not
+                    match what the caller said, override it below.
+                  </p>
+                </div>
+              )}
 
               {/* Dispatch intent — what triage asks CAD for, and nothing more. */}
               {dispatchIntent && (
@@ -329,6 +395,54 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
               {/* Async AI Copilot Coach */}
               <CopilotCoachPanel transcript={transcript} protocol={protocol} requestId={requestId} />
             </motion.div>
+          ) : route?.kind === 'informational' ? (
+            /* ── INFORMATIONAL: a general health question, not an emergency. ──
+               Showing the amber "call 911 now, start compressions" card here was
+               both wrong and alarming, and it trained people to distrust the one
+               screen where that warning actually matters. We decline to give
+               medical advice — and we say so usefully, with a way out. */
+            <motion.div
+              key="informational"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-4"
+            >
+              <div className="bg-sky-50 border-2 border-sky-300 rounded-2xl p-5 space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <Info className="w-5 h-5 text-sky-600 shrink-0" />
+                  <h3 className="text-sm font-bold text-sky-900 uppercase tracking-wide">
+                    General health question &mdash; not treated as an emergency
+                  </h3>
+                </div>
+
+                <p className="text-xs text-sky-950 leading-relaxed font-sans">
+                  This reads like a question about health in general rather than something
+                  happening right now, so it has not been run as a live emergency.
+                </p>
+
+                <div className="bg-white border border-sky-200 rounded-xl p-3.5 space-y-1.5">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-sky-800">
+                    We do not give medical advice here
+                  </span>
+                  <p className="text-xs text-sky-950 leading-relaxed font-sans">
+                    Medication doses, interactions and symptom interpretation need someone who
+                    can see the person and their history. Please speak to {route.signpost}.
+                  </p>
+                </div>
+
+                <div className="bg-white border border-amber-300 rounded-xl p-3.5 space-y-1.5">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-800">
+                    If this is happening now
+                  </span>
+                  <p className="text-xs text-amber-950 leading-relaxed font-sans">
+                    If someone is in trouble right now &mdash; not breathing, unresponsive,
+                    bleeding heavily, or having a seizure &mdash; call 911 or your local
+                    emergency number immediately, and say what you are seeing.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
           ) : (
             /* ── ABSTAIN: we refused to guess. Say so, and do something useful. ── */
             <motion.div
@@ -358,17 +472,141 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                 </p>
               </div>
 
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-2.5">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                  <MessageCircleQuestion className="w-4 h-4 text-amber-600" />
-                  <span>Ask the caller — in this order:</span>
-                </h4>
-                <ol className="space-y-1.5 text-xs text-slate-700 list-decimal list-inside font-sans">
-                  {CLARIFYING_QUESTIONS.map((q, i) => (
-                    <li key={i}>{q}</li>
-                  ))}
-                </ol>
-              </div>
+              {/* The clarifying loop, replacing a static list of five questions:
+                  one at a time, answered by tap, re-triaging after each, and
+                  stopping the moment the answers resolve a protocol. */}
+              {clarify && !clarify.stoppedByDispatcher && !clarify.resolvedProtocolId && (
+                <div className="bg-white border-2 border-amber-300 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                      <MessageCircleQuestion className="w-4 h-4 text-amber-600" />
+                      <span>
+                        {nextQuestion(clarify)
+                          ? `Ask the caller — question ${clarify.answers.length + 1} of ${CLARIFY_QUESTIONS.length}`
+                          : 'No more clarifying questions'}
+                      </span>
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={onStopClarify}
+                      className="text-[10px] font-mono text-slate-500 hover:text-slate-800 underline shrink-0"
+                    >
+                      stop asking
+                    </button>
+                  </div>
+
+                  {(() => {
+                    const q = nextQuestion(clarify);
+                    if (!q) {
+                      return (
+                        <p className="text-xs text-slate-600 font-sans">
+                          All questions answered and still no confident match. The guidance above
+                          and the dispatcher override below are the remaining options.
+                        </p>
+                      );
+                    }
+                    return (
+                      <>
+                        <p className="text-sm text-slate-900 font-sans font-semibold leading-snug">
+                          {q.text}
+                        </p>
+                        <p className="text-[10px] font-mono text-slate-500">{q.rationale}</p>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {q.options.map((o) => (
+                            <button
+                              key={o.label}
+                              type="button"
+                              onClick={() => onClarifyAnswer(q.id, o.label)}
+                              className="px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-[11px] font-mono font-bold text-amber-900 cursor-pointer touch-manipulation"
+                            >
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  {clarify.answers.length > 0 && (
+                    <div className="pt-2 mt-1 border-t border-slate-200 space-y-1">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                        Answered
+                      </span>
+                      <ul className="space-y-0.5">
+                        {clarify.answers.map((a) => (
+                          <li key={a.questionId} className="text-[10px] font-mono text-slate-600">
+                            {a.question} &rarr;{' '}
+                            <span className="font-bold text-slate-800">{a.optionLabel}</span>
+                            {!a.contributed && (
+                              <span className="text-slate-400"> (not used for matching)</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {clarify?.stoppedByDispatcher && (
+                <p className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 rounded-xl p-2.5">
+                  Clarifying stopped by dispatcher. The abstention still stands — use the guidance
+                  above or the override below.
+                </p>
+              )}
+
+              {/* Broad, low-risk guidance. This is what makes an abstention a
+                  real answer rather than a refusal: we cannot name the condition,
+                  but for most presentations the right first action does not depend
+                  on the name. */}
+              {guidance.length > 0 && (
+                <div className="bg-sky-50/80 border border-sky-200 rounded-2xl p-4 space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-sky-900 flex items-center gap-1.5">
+                    <LifeBuoy className="w-4 h-4 text-sky-600" />
+                    <span>Do this now &mdash; {guidance[0].category.label}</span>
+                  </h4>
+
+                  <ul className="space-y-1.5 text-xs text-sky-950 list-disc list-inside font-sans leading-relaxed">
+                    {guidance[0].category.safeActions.map((a, i) => (
+                      <li key={i}>{a}</li>
+                    ))}
+                  </ul>
+
+                  <div className="pt-2 border-t border-sky-200 space-y-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-rose-700">
+                      Call 911 now if:
+                    </span>
+                    <ul className="space-y-1 text-[11px] text-rose-900 list-disc list-inside">
+                      {guidance[0].category.redFlags.map((f, i) => (
+                        <li key={i}>{f}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="pt-2 border-t border-sky-200 space-y-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-700">
+                      Do not:
+                    </span>
+                    <ul className="space-y-1 text-[11px] text-amber-900 list-disc list-inside">
+                      {guidance[0].category.doNot.map((d, i) => (
+                        <li key={i}>{d}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {guidance.length > 1 && (
+                    <p className="text-[10px] font-mono text-sky-800/80 pt-1">
+                      Also possible: {guidance.slice(1).map((g) => g.category.label).join(' · ')}
+                    </p>
+                  )}
+
+                  <p className="text-[10px] font-mono text-sky-900/70 pt-1">
+                    General first aid for this kind of emergency &mdash; not a diagnosis.
+                    Confidence {(guidance[0].confidence * 100).toFixed(0)}%
+                    {speakableCategories(guidance).length === 0 && ', shown on screen only'}
+                  </p>
+                </div>
+              )}
 
               <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">

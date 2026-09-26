@@ -29,74 +29,74 @@ export const EkgMonitor: React.FC<EkgMonitorProps> = ({
     return () => clearInterval(timer);
   }, [beatIntervalMs]);
 
-  // Rhythm telemetry metadata
+  // Pacing metadata.
+  //
+  // This component used to render hardcoded SpO2 and MAP values per protocol
+  // ("SpO2 76%", "MAP 42 mmHg") under a "Live Lead II Telemetry" label. There is
+  // no monitor and no patient: the input is a voice on a microphone. A
+  // dispatcher glancing at this panel was shown invented numbers for a real
+  // person, which is the same defect as the fabricated MEDIC-14 dispatch.
+  //
+  // What remains is honest and still useful: a moving trace that paces
+  // compressions, labelled as a pacing visual.
   const rhythmConfig = {
     cardiac: {
-      rhythm: 'PULSELESS V-TACH / CPR ACTIVE',
+      rhythm: 'CARDIAC ARREST PROTOCOL \u2014 CPR PACING',
       color: 'rose',
-      spo2: '76%',
-      map: '42 mmHg',
       status: 'CRITICAL',
     },
     airway: {
-      rhythm: 'PEDIATRIC RESPIRATORY ARREST',
+      rhythm: 'AIRWAY PROTOCOL \u2014 PACING VISUAL',
       color: 'amber',
-      spo2: '81%',
-      map: '65 mmHg',
       status: 'HYPOXIC',
     },
     stroke: {
-      rhythm: 'ATRIAL FIBRILLATION (FAST VENTRICULAR)',
+      rhythm: 'STROKE PROTOCOL \u2014 PACING VISUAL',
       color: 'indigo',
-      spo2: '95%',
-      map: '118 mmHg',
       status: 'HYPERTENSIVE',
     },
     anaphylaxis: {
-      rhythm: 'SINUS TACHYCARDIA / BRONCHOSPASM',
+      rhythm: 'ANAPHYLAXIS PROTOCOL \u2014 PACING VISUAL',
       color: 'rose',
-      spo2: '86%',
-      map: '72 mmHg',
       status: 'ANAPHYLACTIC',
     },
     cyber_extortion: {
-      rhythm: 'TELEMETRY TAMPER WARNING / DIGITAL ARREST',
+      rhythm: 'SCAM PROTOCOL \u2014 NO PACING',
       color: 'rose',
-      spo2: '97%',
-      map: '85 mmHg',
       status: 'ANOMALY',
     },
     general: {
-      rhythm: 'NORMAL SINUS RHYTHM',
+      rhythm: 'PACING VISUAL \u2014 NO PROTOCOL SELECTED',
       color: 'emerald',
-      spo2: '99%',
-      map: '88 mmHg',
       status: 'STABLE',
     },
     trauma: {
-      rhythm: 'HEMORRHAGIC SINUS TACHYCARDIA',
+      rhythm: 'TOXICOLOGY PROTOCOL \u2014 PACING VISUAL',
       color: 'rose',
-      spo2: '88%',
-      map: '58 mmHg',
       status: 'SHOCK',
     },
+    // Stage 3 categories. Same rule: a protocol label, never an observed
+    // rhythm, and no invented numbers.
+    thermal: { rhythm: 'BURN PROTOCOL \u2014 PACING VISUAL', color: 'amber', status: 'ACTIVE' },
+    neurological: { rhythm: 'NEUROLOGICAL PROTOCOL \u2014 PACING VISUAL', color: 'indigo', status: 'ACTIVE' },
+    circulation: { rhythm: 'HAEMORRHAGE PROTOCOL \u2014 PACING VISUAL', color: 'rose', status: 'CRITICAL' },
+    obstetric: { rhythm: 'OBSTETRIC PROTOCOL \u2014 PACING VISUAL', color: 'rose', status: 'CRITICAL' },
+    metabolic: { rhythm: 'DIABETIC PROTOCOL \u2014 PACING VISUAL', color: 'amber', status: 'ACTIVE' },
+    environmental: { rhythm: 'ENVIRONMENTAL PROTOCOL \u2014 PACING VISUAL', color: 'sky', status: 'ACTIVE' },
+    psychological: { rhythm: 'MENTAL HEALTH PROTOCOL \u2014 NO PACING', color: 'violet', status: 'SUPPORT' },
     security: {
-      rhythm: 'STRESS-INDUCED TACHYCARDIA',
+      rhythm: 'TOXICOLOGY PROTOCOL \u2014 PACING VISUAL',
       color: 'amber',
-      spo2: '98%',
-      map: '92 mmHg',
       status: 'ELEVATED',
     },
   }[category] || {
-    rhythm: 'NORMAL SINUS RHYTHM',
+    rhythm: 'PACING VISUAL',
     color: 'emerald',
-    spo2: '98%',
-    map: '85 mmHg',
-    status: 'STABLE',
+    status: 'READY',
   };
 
   return (
-    <div className="bg-slate-950 text-slate-100 rounded-2xl p-3.5 border border-slate-800 shadow-md relative overflow-hidden font-mono">
+    <div className="bg-slate-950 text-slate-100 rounded-2xl px-3 py-2 border border-slate-800 shadow-md relative overflow-hidden font-mono">
       {/* Background Oscilloscope Grid */}
       <div
         className="absolute inset-0 opacity-15 pointer-events-none"
@@ -144,20 +144,15 @@ export const EkgMonitor: React.FC<EkgMonitorProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-3 text-slate-400 text-[10px]">
-          <div>
-            <span className="text-slate-500">SpO2: </span>
-            <span className="font-bold text-slate-200">{rhythmConfig.spo2}</span>
-          </div>
-          <div>
-            <span className="text-slate-500">MAP: </span>
-            <span className="font-bold text-slate-200">{rhythmConfig.map}</span>
-          </div>
+        <div className="flex items-center gap-2 text-slate-400 text-[10px]">
+          <span className="text-slate-500">
+            No monitor attached &mdash; pacing at {bpm} BPM
+          </span>
         </div>
       </div>
 
       {/* SVG EKG Oscilloscope Waveform */}
-      <div className="relative z-10 my-2 h-14 w-full flex items-center justify-center overflow-hidden">
+      <div className="relative z-10 my-1 h-8 w-full flex items-center justify-center overflow-hidden">
         <svg
           viewBox="0 0 600 60"
           className="w-full h-full preserve-3d"
@@ -222,7 +217,7 @@ export const EkgMonitor: React.FC<EkgMonitorProps> = ({
               110 BPM Metronome Sync
             </span>
           ) : (
-            <span className="text-slate-500">Live Lead II Telemetry</span>
+            <span className="text-slate-500">Compression pacing visual &mdash; not a patient monitor</span>
           )}
         </div>
       </div>

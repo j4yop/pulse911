@@ -30,6 +30,9 @@ import {
   DispatchIntent,
   OverrideRecord,
 } from '../types';
+import type { CategoryMatch } from '../engine/guidanceCategories';
+import type { RouteVerdict } from '../engine/routing';
+import type { ClarifyState } from '../engine/clarify';
 import { EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
 import { matchedProtocol } from '../engine/triageGate';
 import { cn } from '@/lib/utils';
@@ -56,6 +59,11 @@ export interface ConsoleViewProps {
   isProcessing: boolean;
   queryResult: MossQueryResult | null;
   dispatchIntent: DispatchIntent | null;
+  guidance: CategoryMatch[];
+  route: RouteVerdict | null;
+  clarify: ClarifyState | null;
+  onClarifyAnswer: (questionId: string, optionLabel: string) => void;
+  onStopClarify: () => void;
   overrideLog: OverrideRecord[];
   onOverride: (protocol: EmergencyProtocol) => void;
   isMetronomeActive: boolean;
@@ -78,6 +86,11 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
   isProcessing,
   queryResult,
   dispatchIntent,
+  guidance,
+  route,
+  clarify,
+  onClarifyAnswer,
+  onStopClarify,
   overrideLog,
   onOverride,
   isMetronomeActive,
@@ -195,17 +208,17 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                 <Activity className="w-3 h-3 text-emerald-500" />
-                ZERO-LATENCY MOSS WASM
+                IN-BROWSER TRIAGE
               </span>
             </div>
 
             <div className="flex items-center gap-3">
-              <h1 className="text-xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white font-sans">
-                Zero-Latency Emergency Dispatch Console
+              <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white font-sans">
+                Emergency Dispatch Console
               </h1>
             </div>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-sans">
-              Sub-10ms deterministic clinical protocol retrieval powered by in-memory Moss WASM. Click any emergency scenario below or speak into the live microphone to test triage under the 300ms conversational turn-taking ceiling.
+            <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans max-w-2xl">
+              Sub-10ms deterministic protocol retrieval, measured in-browser. No network hop decides a clinical answer. Speak a symptom or pick a scenario. The first decision is made on this device in under 10ms.
             </p>
           </div>
 
@@ -218,7 +231,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
               </span>
               <span className="font-bold text-slate-900 dark:text-white">ENGINE:</span>
               <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                {queryResult?.engine?.includes('Moss') ? 'Moss WASM' : 'Moss Local'}
+                {queryResult?.engine?.includes('Moss') ? 'Moss + local' : 'Local matcher'}
               </span>
             </div>
 
@@ -251,11 +264,11 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             </span>
           </span>
           <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
-            Sub-10ms Moss semantic indexing
+            Measured in-browser
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
+        <div className="flex gap-2.5 overflow-x-auto pb-1 snap-x snap-mandatory lg:grid lg:grid-cols-5 lg:overflow-visible">
           {EMERGENCY_SCENARIOS.map((scen, idx) => {
             const isSelected = activeScenario?.id === scen.id;
             const Icon = SCENARIO_ICONS[scen.id] || Heart;
@@ -267,7 +280,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
                 spotlightColor={preset.glow}
                 spotlightSize={220}
                 className={cn(
-                  'p-3.5 sm:p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between relative shadow-xs backdrop-blur-md group',
+                  'p-3 sm:p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between relative shadow-xs backdrop-blur-md group shrink-0 min-w-[14rem] snap-start lg:min-w-0',
                   isSelected
                     ? 'bg-white/95 dark:bg-slate-900/95 border-rose-500/80 ring-2 ring-rose-500/20 shadow-md shadow-rose-500/10'
                     : 'bg-white/75 hover:bg-white/90 dark:bg-slate-900/75 dark:hover:bg-slate-900/90 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
@@ -334,8 +347,26 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
         </div>
       </div>
 
+      {/*
+        Outcome announcement for assistive technology.
+
+        The triage result appears instantly and silently. A screen-reader
+        dispatcher previously got no notification at all that a protocol had
+        been selected or refused — which, for this product, is the one event
+        that must never be missed. `aria-live="assertive"` because a triage
+        decision interrupts; `role="status"` would be too polite for an
+        emergency.
+      */}
+      <div aria-live="assertive" aria-atomic="true" className="sr-only">
+        {queryResult?.outcome.kind === 'matched'
+          ? `Protocol selected: ${matchedProtocol(queryResult.outcome)?.title}. Speak the protocol and dispatch intent below.`
+          : queryResult?.outcome.kind === 'abstain'
+            ? `Triage abstained. No protocol selected. Ask the clarifying questions and use the guidance shown.`
+            : ''}
+      </div>
+
       {/* The 2-Column Clinical Dispatch Arena */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] gap-4 sm:gap-6 relative">
         {/* Left Channel: The 911 Caller Audio & Conversation */}
         <div className="space-y-2 min-w-0">
           <div className="flex items-center justify-between px-1 text-xs font-mono text-slate-500 gap-2">
@@ -352,6 +383,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             currentTranscript={currentTranscript}
             spokenInstruction={matchedProtocol(queryResult?.outcome)?.verbalResponseText}
             onClearCall={onClearCall}
+            retrievalLatencyMs={queryResult?.latencyMs ?? null}
           />
         </div>
 
@@ -369,6 +401,11 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
           <DispatcherHUD
             queryResult={queryResult}
             dispatchIntent={dispatchIntent}
+            guidance={guidance}
+            route={route}
+            clarify={clarify}
+            onClarifyAnswer={onClarifyAnswer}
+            onStopClarify={onStopClarify}
             overrideLog={overrideLog}
             onOverride={onOverride}
             onTriggerMetronome={onToggleMetronome}
@@ -386,7 +423,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 font-bold block uppercase">Moss Retrieval</span>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase">Measured Retrieval</span>
             <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm">
               <StatsCounter
                 value={queryResult ? queryResult.latencyMs : latencyMs !== null ? latencyMs : 0.1}
@@ -415,7 +452,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
           </div>
           <div>
             <span className="text-[10px] text-slate-400 font-bold block uppercase">Triage Protocol</span>
-            <span className="font-extrabold text-slate-900 dark:text-white text-sm">AHA / CDC Grounded</span>
+            <span className="font-extrabold text-slate-900 dark:text-white text-sm">AHA-aligned, awaiting clinician review</span>
           </div>
         </div>
 
@@ -431,7 +468,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
       </div>
 
       {/* Floating Tactical Glass Dock for Rapid Dispatch Controls */}
-      <div className="sticky bottom-4 sm:bottom-6 z-40 pt-4 flex justify-center pointer-events-none">
+      <div className="sticky bottom-4 sm:bottom-6 z-40 pt-6 pb-2 flex justify-center pointer-events-none">
         <div className="pointer-events-auto shadow-2xl max-w-full">
           <GlassDock items={dockItems} />
         </div>

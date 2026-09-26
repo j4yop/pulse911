@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { rankProtocols, resolveTriageOutcome, MIN_CONFIDENCE } from '../engine/retrievalCore';
-import { EMERGENCY_PROTOCOLS, EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
+import {
+  EMERGENCY_PROTOCOLS,
+  EMERGENCY_SCENARIOS,
+  getEnabledProtocols,
+  getDarkProtocols,
+} from '../engine/emergencyProtocols';
 import {
   canDispatch,
   matchedProtocol,
@@ -24,10 +29,18 @@ import {
 const byId = new Map(EMERGENCY_PROTOCOLS.map((p) => [p.id, p]));
 
 describe('corpus integrity', () => {
-  it('contains exactly the 6 shipped protocols', () => {
-    expect(EMERGENCY_PROTOCOLS.map((p) => p.id)).toEqual([
-      'CARD-01', 'AIR-02', 'NEURO-03', 'IMMUNO-04', 'TOX-05', 'CYBER-06',
+  it('ships the six reviewed protocols as selectable, and the rest dark', () => {
+    // The Stage 3 expansion is present but must not be selectable until a
+    // clinician has read that specific text. The split is asserted rather than
+    // a bare count, so adding a protocol is a deliberate act.
+    expect(getEnabledProtocols().map((p) => p.id).sort()).toEqual([
+      'AIR-02', 'CARD-01', 'CYBER-06', 'IMMUNO-04', 'NEURO-03', 'TOX-05',
     ]);
+    expect(getDarkProtocols().length).toBeGreaterThanOrEqual(10);
+    for (const p of getDarkProtocols()) {
+      expect(p.enabled, p.id).toBe(false);
+      expect(p.reviewedBy, `${p.id} is dark but claims review`).toBeNull();
+    }
   });
 
   it('every protocol has unique id, code, non-empty keywords and actions', () => {
@@ -207,5 +220,59 @@ describe('matching quality (word-boundary + stemming)', () => {
       resolveTriageOutcome('digital arrest cbi otp transfer money now', EMERGENCY_PROTOCOLS);
     }
     expect((performance.now() - t0) / 100).toBeLessThan(5);
+  });
+});
+
+/**
+ * Negation scoping. Found by the clarifying loop, which feeds multi-clause text
+ * containing answers like "breathing normally".
+ *
+ * Bag-of-words matching cannot see scope, so the keyword "not breathing" used to
+ * match "something is not right with my dad. breathing normally" — the `not`
+ * was satisfied by an unrelated clause and `breathing` by the answer. The result
+ * was a confident CARD-01, spoken aloud, for a caller whose patient was
+ * breathing perfectly. Negated phrases now require a consecutive run.
+ */
+describe('negation is scoped, not bag-of-words', () => {
+  it('does not read a negated keyword out of an unrelated clause', () => {
+    const res = resolveTriageOutcome(
+      'something is not right with my dad. breathing normally',
+      EMERGENCY_PROTOCOLS
+    );
+    expect(res.kind).toBe('abstain');
+  });
+
+  it('still matches a real cardiac arrest', () => {
+    for (const t of [
+      'he is not breathing and has no pulse',
+      'he is not breathing normally',
+      'he collapsed and is not breathing',
+    ]) {
+      const res = resolveTriageOutcome(t, EMERGENCY_PROTOCOLS);
+      expect(res.kind, t).toBe('matched');
+      if (res.kind === 'matched') expect(res.protocol.id, t).toBe('CARD-01');
+    }
+  });
+
+  it('keeps order-independent matching for phrases without negation', () => {
+    // "his speech is slurred" does not contain the run [slurred, speech].
+    // Losing this would silently stop the stroke protocol firing.
+    const res = resolveTriageOutcome(
+      'one arm is drooping and her speech is slurred',
+      EMERGENCY_PROTOCOLS
+    );
+    expect(res.kind).toBe('matched');
+    if (res.kind === 'matched') expect(res.protocol.id).toBe('NEURO-03');
+  });
+
+  it('does not let an answer about normal breathing pull a cardiac protocol', () => {
+    const affirmations = [
+      'he is fine. breathing normally',
+      'she is talking to me. breathing normally',
+      'no problem, he is breathing normally',
+    ];
+    for (const t of affirmations) {
+      expect(resolveTriageOutcome(t, EMERGENCY_PROTOCOLS).kind, t).toBe('abstain');
+    }
   });
 });

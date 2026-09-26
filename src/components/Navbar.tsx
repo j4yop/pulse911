@@ -103,9 +103,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const features = [
     {
-      title: 'Moss WASM Engine',
-      description: 'Sub-10ms in-process semantic protocol retrieval without external network database overhead.',
-      badge: '3.8ms',
+      title: 'In-Browser Retrieval',
+      description:
+        'Sub-10ms deterministic protocol matching, measured per query. No network hop decides a clinical answer.',
+      badge: 'sub-10ms',
       icon: Zap,
       iconColor: 'text-amber-500',
       action: () => handleNavTab('benchmark'),

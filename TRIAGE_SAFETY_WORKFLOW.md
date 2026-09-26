@@ -95,18 +95,41 @@ an "override" of something triage already matched, since nothing was refused.
 
 ---
 
-## Stage 2 — Clarify instead of guess
+## Stage 2 — Clarify instead of guess — DONE (2.1, 2.2, 2.3); 2.4 wording still open
 
 Goal: answer "according to the user's needs" by *asking* when uncertain.
 
-- 2.1 Clarifying-question script, asked one at a time, answered by voice or tap:
-  breathing → consciousness → bleeding → age → pregnancy.
-- 2.2 Re-run triage on each answer; allow the question set to terminate early.
-- 2.3 Universal zero-risk actions (never wrong, always permitted):
-  put phone on speaker · unlock the door · do not hang up · note when symptoms started.
-- 2.4 DEFER speech template, containing the single safety floor:
-  *"If they are unresponsive and not breathing normally, start chest compressions
-  now."* — correct in the worst case, and the reason we do not go silent.
+- 2.1 **Done.** `src/engine/clarify.ts` asks one question at a time, answered by
+  tap, in a fixed order: breathing → consciousness → bleeding → age → pregnancy.
+  Order is deliberate — airway first because every later answer is worthless if
+  the patient is not breathing; pregnancy last because it changes interpretation,
+  not immediate action.
+- 2.2 **Done.** Each answer re-runs triage, and the loop stops the instant the
+  answers resolve a protocol, so a fifth question is never asked unneeded.
+- 2.3 **Done** (earlier). Universal zero-risk actions.
+- 2.4 **Open.** DEFER speech template carries the safety floor plus, when
+  clearly matched, one category action and red flag. `SPEAK_CATEGORY_GUIDANCE`
+  disables the category audio pending review. The clarifying questions are
+  deliberately **not** spoken — they are for the dispatcher to ask the caller.
+
+### The safety decision that matters most here
+
+Answers are re-fed to the ranker as text, and the ranker cannot tell assertion
+from denial — it only sees words. So **negative and unknown answers are recorded
+but contribute nothing to matching.** "No, not bleeding" must never be evidence
+of bleeding. Tests assert a caller who denies everything ends in abstention.
+
+### 2.2 exposed a latent negation bug in the ranker (fixed)
+
+Feeding multi-clause text revealed that bag-of-words matching cannot see scope:
+the keyword `"not breathing"` matched *"something is **not** right with my dad.
+breathing normally"* — the `not` satisfied by an unrelated clause, `breathing`
+by the answer. Result: confident **CARD-01** for a caller who said their patient
+was breathing perfectly.
+
+Negated phrases now require a **consecutive run**; non-negated phrases keep
+order-independent containment, so "his speech is slurred" still reaches
+"slurred speech". Four regression tests pin both halves.
 
 **Owner review required:** exact wording of every spoken string.
 
@@ -144,20 +167,57 @@ safety net; unflagged, it widens the harm surface.
 
 ---
 
-## Stage 5 — Permanent guardrails (stop this class of bug forever)
+## Stage 5 — Permanent guardrails — DONE
 
-- 5.1 `goldenCorpus.test.ts` — ~120 labelled caller phrases → expected `kind` + protocol.
-- 5.2 `abstainInvariants.test.ts` — **the load-bearing test**:
+- 5.1 **Done.** `src/eval/goldenCorpus.ts` — **124 labelled caller phrases**.
+  Labelled by clinical expectation, never by engine output, so it can catch
+  drift instead of confirming itself.
+- 5.2 **Done.** `src/tests/abstainInvariants.test.ts` — the load-bearing suite:
   - score 0 ⇒ `abstain`, never `CARD-01`
-  - corpus order is irrelevant to outcome
+  - corpus order is irrelevant to outcome (reversed, rotated, and decoy-at-index-0)
   - empty / punctuation-only / 5k-char input ⇒ `abstain`
-  - anchor-deleted mutants abstain and never flip to a *different* protocol
-- 5.3 `corpusLint.test.ts` — citations/reviewer present; ≥1 golden phrase per protocol.
-- 5.4 CI fails the build on eval regression (TPR ≥ 0.97, OOD-FPR ≤ 0.02).
-- 5.5 Remove the existing test that **asserts the tie-break bug as desired behaviour**
-  (`retrievalCore.test.ts:91`) — **done in Stage 1**.
-- 5.6 `assertNever` exhaustiveness on `outcome.kind`, so a new call site cannot speak
-  or dispatch without the compiler asking.
+  - anchor-deleted mutants never flip to a *different* protocol
+  - length must not create evidence from a weak keyword, nor dilute a decisive sign
+- 5.3 **Done.** `src/tests/corpusLint.test.ts` — provenance ratchet, unique ids,
+  no fabricated citations, ≥1 golden phrase per protocol, and an assertion that
+  exactly one speech/dispatch gate exists.
+- 5.4 **Done.** CI (`.github/workflows/ci.yml`) fails on eval regression.
+  Measured: **TPR 1.0000, OOD-FPR 0.0000** over 124 cases. No auto-merge, no
+  deploy job — merging clinical content is a human decision.
+- 5.5 **Done** in Stage 1.
+- 5.6 **Done.** `assertNever` on `outcome.kind`, covered by a test.
+
+### What the guardrails caught immediately
+
+Building them exposed four real defects, none of which any existing test saw:
+
+1. **Recall was 48%.** Overdose, anaphylaxis, stroke, infant choking and cyber
+   scam — all abstaining on textbook presentations of our *own* protocols. The
+   keyword vocabulary was far too sparse.
+2. **A single long keyword could decide alone.** `"cannot move his arm"`
+   (weight 4) satisfied the weight test by itself, so *"he fell off a ladder and
+   cannot move his arm"* selected **NEURO-03** for a trauma call. Added
+   `MIN_ANCHOR_COUNT = 2` — distinct findings, not total weight.
+3. **A duplicated keyword counted as two findings.** `cardiac arrest` appeared
+   twice in CARD-01's list, so merely *mentioning* it in conversation cleared the
+   two-anchor bar. Anchors are now a `Set`, so no future data edit can do this.
+4. **A decisive anchor has to be observed, not named.** `cardiac arrest` was
+   declared decisive, so *"i read about cardiac arrest in the news"* produced a
+   protocol whose spoken line is *"push hard and fast… do not stop."* Decisive
+   anchors are now observed signs only, declared per protocol.
+
+Also fixed: `AIR-02` briefly matched an **adult** choking call after a `silent`
+keyword was added — the *infant* protocol would have given back slaps and chest
+thrusts to an adult who needs abdominal thrusts. Every AIR-02 term is now
+child-specific, and the golden corpus pins adult choking as a known gap.
+
+### The gap backlog is a ratchet
+
+`totalGapCases()` is asserted against a number that only moves deliberately.
+48 phrases currently prove a missing protocol — obstetric (8), burns (6),
+seizure (5), major bleeding (5), trauma (5), diabetic (4), mental health (4),
+adult choking (3), and more. Adding a protocol means flipping its entries and
+lowering the number. Nothing gets quietly half-done.
 
 ---
 
@@ -191,29 +251,122 @@ runtime's exchange protocol against a production credential. Not attempted.
 | 6.7 | Check Moss usage logs for abuse of the leaked key | confirmed clean, or rotated again |
 | 6.8 | **Moss `query()` never settles in the browser (BLOCKING, Moss-side)** | see below |
 
-**6.8 — the blocker, as measured (2026-09-26).** With the rotated key the credential
-path is healthy end to end:
+**6.8 — the blocker, as MEASURED (2026-09-26).** With the rotated key the
+credential path is healthy end to end:
 
 ```
 201 /identity/auth/token                    ← new key valid
 202 /index/init  →  202 /index/…/confirm    ← index builds
-200 /index/pulse911-protocols-v1/url
 200 models.moss.link/…/model.mossml         ← model artifact downloads
+14s   [Pulse911] Moss WASM runtime ready — index "pulse911-kb-v2" (186 documents)
 ```
 
-`init()` completes and logs `Moss WASM runtime ready`. But `client.query()` then
-**never resolves** — it blew a 30s budget, and 8s is the shipped cap. The badge
-therefore stays `Moss Local` and Moss corroborates nothing. The Node SDK fails
-differently and more honestly: `401 Unauthorized` on
-`models.moss.link/artifacts/v1/moss-minilm/bind1~…/release.json`, i.e. the
-`MODEL-ENTITLEMENT` class that `scripts/verify-moss.mjs` already records.
+**`init()` completes.** The runtime genuinely initialises, in ~14s for the
+186-document corpus. The failure is one layer down: **`client.query()` never
+resolves.** Proven by raising the refinement budget from 8s to 60s and polling
+for 130s — the budget fired exactly 60s after the warm query and the badge never
+left `Moss Local`. It is hung, not slow, so a longer budget buys nothing and
+only risks a leaked promise. The budget is back at 8s.
 
-This is **not** a code defect and must not be "fixed" by loosening the deadline or
-by letting Moss onto the decision path. It is an entitlement/artifact problem on
-the Moss side. Ask them to confirm `moss-minilm` entitlement for this project key.
-Until it is resolved, the honest position is: the integration is wired, correct,
-and authenticated, but contributes nothing at runtime — so the product must not
-claim otherwise (see 6.5).
+The Node SDK fails differently and more honestly: `401 Unauthorized` on
+`models.moss.link/artifacts/v1/moss-minilm/bind1~…/release.json`, i.e. the
+`MODEL-ENTITLEMENT` class that `scripts/verify-moss.mjs` already records. Note
+the browser fetches a *different* artifact (`sealed1~…`, HTTP 200), so the two
+paths disagree about which build they are entitled to.
+
+This is **not** a code defect and must not be "fixed" by loosening the deadline
+or by letting Moss onto the decision path. It is an entitlement/artifact or SDK
+defect on the Moss side. Report it with the evidence above; until it is resolved
+the honest position is: the integration is wired, correct, authenticated and
+initialising — but contributes nothing at runtime, so the product must not claim
+otherwise (6.5, now enforced by tests).
+
+---
+
+## Stage 3 — expansion, written and DARK (2026-09-26)
+
+A clinician reviewed the six original protocols and the 20 guidance families.
+Eleven new protocols now exist to close the gap backlog, and **every one of them
+ships dark.**
+
+That is the whole point of `enabled: false`, and it is enforced **inside
+`resolveTriageOutcome`** rather than at the call sites. Enforcing it in the
+resolver is the only version that holds: a protocol written but not cleared for
+clinical use cannot be selected by a caller who forgets, by a new code path, or
+by a test that passes the whole corpus. A dark protocol is present, indexed,
+keyword-matched and unit-tested, and unreachable as a decision.
+
+    AIR-03   adult complete airway obstruction   3/3
+    BURN-07  burns, scalds, smoke inhalation     6/6
+    SEIZ-08  seizure / convulsion                5/5
+    HEM-09   severe external haemorrhage         2/5
+    OB-10    obstetric emergency                 6/8
+    DIA-11   diabetic emergency                  2/4
+    TRAUMA-12 major trauma                       3/5
+    DROW-13  drowning / near-drowning            2/3
+    ACS-14   acute coronary syndrome             1/2
+    HEAT-15  heat and cold illness               3/3
+    MH-16    mental health crisis                3/4
+                                        TOTAL  36/48
+
+Coverage is **tracked, not claimed**: `MIN_COVERAGE` in
+`expansionCoverage.test.ts` is set to the measured 36 and must be *raised*, never
+lowered. The gap ratchet is deliberately still **48** — the backlog has not
+shrunk, because none of the new text is enabled.
+
+### Why dark, when a clinician has signed off
+
+The sign-off covers the six originals. It cannot cover text written after it.
+Shipping unreviewed clinical prose into a spoken, dispatched path on the
+strength of a review that predates it would be exactly the mistake this whole
+workflow exists to prevent. Enabling a protocol is a three-part, deliberate act:
+
+1. coverage for its target phrases reaches 100%,
+2. a real guideline citation replaces `PENDING CITATION VERIFICATION`,
+3. the reviewing clinician's name is recorded against **that** text.
+
+The two highest-risk families are already at 100%: adult choking previously
+received the *infant* protocol, and burns had no protocol at all.
+
+### Also fixed on the way
+
+Anchor deduplication moved from raw-string to **stemmed signature**. With a string
+key, a protocol holding both `burn` and `burnt` scored a caller who said "he was
+burnt" as TWO independent anchors and cleared the two-anchor bar on one fact.
+Collapsing by signature exposed a real gap it had been masking — *"weakness on the
+left"* is a FAST finding and had no keyword at all, so that phrase lost a match it
+should have had.
+
+---
+
+## UX pass — console legibility (2026-09-26)
+
+Driven by screenshotting the console rather than reasoning about it.
+
+- **Fabricated vitals removed from `EkgMonitor`.** It hardcoded `SpO2 76%` and
+  `MAP 42 mmHg` per protocol under a *"Live Lead II Telemetry"* label. There is
+  no monitor and no patient — the input is a voice on a microphone. Same defect
+  class as `MEDIC-14`, missed twice. It is now labelled a *compression pacing
+  visual* with "No monitor attached", and the rhythm names are protocol labels
+  ("CARDIAC ARREST PROTOCOL — CPR PACING") rather than observed rhythms
+  ("PULSELESS V-TACH").
+- **The honesty guard was rewritten to ban a concept, not a phrase list.** The
+  phrase-list version only caught strings I remembered to ban, so the console
+  header kept claiming "powered by in-memory Moss WASM" straight through it.
+- **Three conflicting latency numbers became one**, labelled from the real
+  measurement.
+- **The primary input was below the fold.** It sat at the bottom of a 660px
+  column, at y=1116 on a 1440×1000 laptop. Moved to the top of the caller panel
+  (y=667), the audio panel narrowed from 50% to 24rem, and the pacing strip
+  slimmed — the first CPR action is now above the fold at y=977.
+- **`aria-live="assertive"`** announces the triage outcome. It appeared
+  instantly and silently; a screen-reader dispatcher previously got no
+  notification that a protocol was selected or refused.
+- **Matched anchors are now shown.** We compute which phrases matched and never
+  displayed them, so a dispatcher could not sanity-check a decision from an
+  engine that has misrouted before.
+- Dock clearance added, scenario presets became a compact scrollable strip on
+  small screens, and mobile verified at 390×844 with no horizontal overflow.
 
 ---
 
@@ -233,10 +386,9 @@ claim otherwise (see 6.5).
 ## Suggested order
 
 1. **Stage 2** — the largest user-visible win; abstention is only useful if it asks.
-2. **Stage 5** — before the corpus grows, not after.
-3. **Stage 3** — blocked on clinician time; 3.5 dark-flagging means it can ship
+2. **Stage 3** — blocked on clinician time; 3.5 dark-flagging means it can ship
    dark and be enabled later.
-4. **Stage 6** — 6.2 is a sponsor email and is now the critical path: 6.8 blocks
+3. **Stage 6** — 6.2 is a sponsor email and is now the critical path: 6.8 blocks
    Moss from contributing anything at runtime.
 
 ---
