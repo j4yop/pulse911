@@ -97,10 +97,10 @@ export const EXPANSION_TARGETS: Record<string, string[]> = {
 
 /** Measured 2026-09-26. Raise this as coverage improves — never lower it. */
 /** Measured 2026-09-26 with the expansion selectable. Raise, never lower. */
-export const MIN_COVERAGE = 36;
+export const MIN_COVERAGE = 48;
 
 /** Golden-corpus phrases still proving a missing protocol. Was 48. */
-export const ALLOWED_GAP_CASES = 12;
+export const ALLOWED_GAP_CASES = 0;
 
 const allEnabled = EMERGENCY_PROTOCOLS.map((p) => ({ ...p, enabled: true }));
 
@@ -133,11 +133,10 @@ describe('the Stage 3 expansion is clinician-approved and selectable', () => {
     }
   });
 
-  it('shrinks the golden-corpus gap backlog', () => {
-    // The whole point of the expansion. Was 48 when this file was written.
-    const gapCases = GOLDEN_CORPUS.filter((c) => c.gap).length;
-    expect(gapCases).toBeLessThanOrEqual(ALLOWED_GAP_CASES);
-    expect(gapCases).toBeLessThan(48);
+  it('has closed the golden-corpus gap backlog completely', () => {
+    // Was 48 when this file was written. Every one of those phrases now
+    // resolves to a real protocol.
+    expect(GOLDEN_CORPUS.filter((c) => c.gap).length).toBe(ALLOWED_GAP_CASES);
   });
 
   it('no longer routes a pregnancy call to cardiac arrest', () => {

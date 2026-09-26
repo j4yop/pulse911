@@ -121,8 +121,8 @@ const MUST_ABSTAIN: GoldenCase[] = [
   { phrase: 'she is 34 weeks pregnant and bleeding heavily', expect: 'OB-10' },
   { phrase: 'she is in labour and the baby is coming', expect: 'OB-10' },
   { phrase: 'i am pregnant and having contractions', expect: 'OB-10' },
-  { phrase: 'pregnant and there is blood and the baby is not moving', expect: 'abstain', gap: 'obstetric protocol' },
-  { phrase: 'she is pregnant and thinks she has lost the baby', expect: 'abstain', gap: 'obstetric protocol' },
+  { phrase: 'pregnant and there is blood and the baby is not moving', expect: 'OB-10' },
+  { phrase: 'she is pregnant and thinks she has lost the baby', expect: 'OB-10' },
   { phrase: 'i am 8 months pregnant and having severe pain', expect: 'OB-10' },
   { phrase: 'my waters broke early and i am 36 weeks', expect: 'OB-10' },
 
@@ -149,22 +149,22 @@ const MUST_ABSTAIN: GoldenCase[] = [
   // Bleeding
   { phrase: 'his arm is cut badly and bleeding everywhere', expect: 'HEM-09' },
   { phrase: 'she is bleeding heavily from the leg', expect: 'HEM-09' },
-  { phrase: 'he was stabbed in the stomach', expect: 'abstain', gap: 'major bleeding protocol' },
-  { phrase: 'there is blood everywhere and it will not stop', expect: 'abstain', gap: 'major bleeding protocol' },
-  { phrase: 'a shotgun blast to his thigh', expect: 'abstain', gap: 'major bleeding protocol' },
+  { phrase: 'he was stabbed in the stomach', expect: 'HEM-09' },
+  { phrase: 'there is blood everywhere and it will not stop', expect: 'HEM-09' },
+  { phrase: 'a shotgun blast to his thigh', expect: 'HEM-09' },
 
   // Trauma
   { phrase: 'grandma fell down the stairs and hit her head', expect: 'TRAUMA-12' },
-  { phrase: 'he was hit by a car and is on the ground', expect: 'abstain', gap: 'trauma protocol' },
+  { phrase: 'he was hit by a car and is on the ground', expect: 'TRAUMA-12' },
   { phrase: 'she fell from the roof and is trapped', expect: 'TRAUMA-12' },
   { phrase: 'his leg is deformed after a car crash', expect: 'TRAUMA-12' },
-  { phrase: 'he fell off a ladder and cannot move his arm', expect: 'abstain', gap: 'trauma protocol' },
+  { phrase: 'he fell off a ladder and cannot move his arm', expect: 'TRAUMA-12' },
 
   // Metabolic
   { phrase: 'she is diabetic and confused and shaky', expect: 'DIA-11' },
   { phrase: 'he is a diabetic and his blood sugar is very low', expect: 'DIA-11' },
-  { phrase: 'my father is hypoglycemic and sweating', expect: 'abstain', gap: 'diabetic emergency protocol' },
-  { phrase: 'she took her insulin and is now unresponsive', expect: 'abstain', gap: 'diabetic emergency protocol' },
+  { phrase: 'my father is hypoglycemic and sweating', expect: 'DIA-11' },
+  { phrase: 'she took her insulin and is now unresponsive', expect: 'DIA-11' },
 
   // Environmental
   { phrase: 'it is 105 degrees and he is confused', expect: 'HEAT-15' },
@@ -185,12 +185,12 @@ const MUST_ABSTAIN: GoldenCase[] = [
   // Mental health
   { phrase: 'he is talking about killing himself', expect: 'MH-16' },
   { phrase: 'she has been cutting herself and is very upset', expect: 'MH-16' },
-  { phrase: 'my brother has a mental breakdown', expect: 'abstain', gap: 'mental health crisis protocol' },
+  { phrase: 'my brother has a mental breakdown', expect: 'MH-16' },
   { phrase: 'she is having a panic attack and cannot breathe', expect: 'MH-16' },
 
   // Chest pain that is not the classic OHCA picture (cardiac protocol is arrest-focused)
   { phrase: 'he has crushing chest pain and is sweating', expect: 'ACS-14' },
-  { phrase: 'my father has chest pressure radiating to his jaw', expect: 'abstain', gap: 'chest pain / ACS protocol' },
+  { phrase: 'my father has chest pressure radiating to his jaw', expect: 'ACS-14' },
 
   // Out of domain — must never be dressed up as an emergency protocol
   { phrase: 'my parcel never arrived', expect: 'abstain' },
