@@ -15,9 +15,11 @@ import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from './engine/emergencyProt
 import { mossEngine } from './engine/mossEngine';
 import type { MicState } from './components/CallerPanel';
 import { routeTranscript, type RouteVerdict } from './engine/routing';
+import { matchSpokenAnswer } from './engine/clarifyVoice';
 import {
   advanceClarify,
   emptyClarifyState,
+  nextQuestion,
   stopClarify,
   type ClarifyState,
   matchingTranscript,
@@ -104,6 +106,10 @@ export const App: React.FC = () => {
   const [transcriptSource, setTranscriptSource] = useState<'mic' | 'typed' | null>(null);
   /** Mirrors the microphone lifecycle so the dock can show it while scrolled away. */
   const [micState, setMicState] = useState<MicState>('idle');
+  /** Polled so the console can state Moss's real availability. */
+  const [mossStatus, setMossStatus] = useState(mossEngine.getMossStatus());
+  /** Set when speech arrived while a question was pending but did not match. */
+  const [clarifyHeard, setClarifyHeard] = useState<string | null>(null);
   /**
    * Emergency vs general-question routing. Evaluated from the same text the
    * engine decided on, so the two can never disagree about what was said.
@@ -239,6 +245,7 @@ export const App: React.FC = () => {
         // Computed for matched and abstained alike: on a match the protocol
         // governs, and this quietly backs it up.
         setGuidance(guidanceFor(text));
+        setMossStatus(mossEngine.getMossStatus());
         const r = routeTranscript(text);
         setRoute(r);
         setClarify(emptyClarifyState(text));
@@ -390,6 +397,34 @@ export const App: React.FC = () => {
     [clarify, presentMatch]
   );
 
+  /**
+   * Interpret speech as an answer to the pending clarifying question.
+   *
+   * Returns true when it consumed the utterance, so the caller knows not to
+   * also treat it as an emergency description. A mismatch returns false and
+   * surfaces what was heard — refusing is the safe default, because a misheard
+   * clinical answer selects the wrong protocol for a real person.
+   */
+  const handleSpokenAnswer = useCallback(
+    (spoken: string): boolean => {
+      const pending = clarify && !clarify.resolvedProtocolId && !clarify.stoppedByDispatcher
+        ? nextQuestion(clarify)
+        : null;
+      if (!pending) return false;
+
+      const option = matchSpokenAnswer(spoken, pending);
+      if (!option) {
+        // Not understood. Say so and leave the buttons up — never guess.
+        setClarifyHeard(spoken);
+        return true;
+      }
+      setClarifyHeard(null);
+      const r = handleClarifyAnswer(pending.id, option.label);
+      return true;
+    },
+    [clarify, handleClarifyAnswer]
+  );
+
   const handleStopClarify = useCallback(() => {
     setClarify((prev) => (prev ? stopClarify(prev) : prev));
   }, []);
@@ -406,6 +441,7 @@ export const App: React.FC = () => {
     setTranscriptSource(null);
     setRoute(null);
     setClarify(null);
+    setClarifyHeard(null);
   }, []);
 
   return (
@@ -464,7 +500,11 @@ export const App: React.FC = () => {
                 guidance={guidance}
                 transcriptSource={transcriptSource}
                 micState={micState}
+                mossStatus={mossStatus}
                 onMicStateChange={setMicState}
+                onSpokenAnswer={handleSpokenAnswer}
+                awaitingAnswerFor={clarify && !clarify.resolvedProtocolId ? (nextQuestion(clarify)?.text ?? null) : null}
+                clarifyHeard={clarifyHeard}
                 route={route}
                 clarify={clarify}
                 onClarifyAnswer={handleClarifyAnswer}
