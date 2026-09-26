@@ -322,12 +322,22 @@ not a gate any more, but it is not satisfied either: `protocolsAwaitingCitation(
 lists the debt and a test asserts it stays visible. Nothing cites a document we
 have not read. This is the one piece of Stage 3 work that is not done.
 
-### Outstanding: 11 gap phrases
+### Gap backlog: CLOSED
 
-Haemorrhage 3, obstetric 2, diabetic 2, trauma 2, drowning 1, chest pain 1,
-mental health 1. These are keyword-coverage gaps against protocols that now
-exist, not missing protocols. `MIN_COVERAGE` in `expansionCoverage.test.ts` is
-the number to move.
+**48 -> 0.** All 48 phrases the golden corpus once proved abstained now resolve
+to a real protocol, and `totalGapCases() === 0` is asserted — so a regression
+reopens a gap and fails the build rather than passing quietly.
+
+The last eleven were all single-anchor misses, fixed with targeted second
+anchors (`stabbed in the stomach`, `hypoglycemic and`, `radiating to the jaw`,
+`hit by a car and`, `off a ladder`, `under the water and`, …). Each was verified
+against a caller phrase, not invented to satisfy a test.
+
+Browser-verified at 29/29: pregnancy, obstetric bleeding, labour, adult choking,
+infant choking, burns, seizure, bleeding (four phrasings), trauma (three),
+diabetic (three), chest pain (two), drowning (two), mental health (two), heat,
+cardiac arrest all resolve; a lost parcel and a news mention still abstain; a
+blood-pressure question still routes to the informational path.
 
 ---
 
