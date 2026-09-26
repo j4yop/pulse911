@@ -199,7 +199,42 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
   };
 
   const speechNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const micStateRef = useRef<MicState>('idle');
+
+  /**
+   * A recogniser that never reports that it started leaves the operator staring
+   * at "Starting..." indefinitely — no error, no badge, no way to tell it failed.
+   * That is exactly the dishonesty the rest of this panel exists to remove, and
+   * it is reachable: `rec.start()` can succeed while `onstart` never arrives if
+   * the speech service stalls.
+   *
+   * Armed declaratively off `micState` so no future call site can forget it.
+   */
+  useEffect(() => {
+    if (micState !== 'starting') {
+      if (startWatchdogRef.current) {
+        clearTimeout(startWatchdogRef.current);
+        startWatchdogRef.current = null;
+      }
+      return;
+    }
+    startWatchdogRef.current = setTimeout(() => {
+      if (micStateRef.current !== 'starting') return;
+      startWatchdogRef.current = null;
+      setMic('error');
+      failNotice(
+        'The microphone never started listening. Speech recognition may be unavailable or the ' +
+          'network unreachable. Tap Live Mic to retry, or type the symptoms below.'
+      );
+    }, 8000);
+    return () => {
+      if (startWatchdogRef.current) {
+        clearTimeout(startWatchdogRef.current);
+        startWatchdogRef.current = null;
+      }
+    };
+  }, [micState]);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;

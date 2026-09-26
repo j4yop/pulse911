@@ -27,7 +27,7 @@ water-break call (and for stroke, seizure, burns, bleeding, empty input, and
 | 5 — permanent guardrails | **done** — CI, 228 tests, golden corpus 124 |
 | 6 — Moss credential & honesty | **partly done** — honest status shipped; 6.8 query hang open |
 | UX pass — console legibility | **done** |
-| Microphone honesty | **done** |
+| Microphone honesty | **done** — including a stall watchdog |
 | Stale Moss index (11 protocols missing) | **fixed in #37, not merged** |
 | Google transcription quality | **never tested — deepest remaining risk** |
 
