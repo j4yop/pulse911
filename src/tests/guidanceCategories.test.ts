@@ -145,7 +145,7 @@ describe('guidance never overrides a clinical decision', () => {
   });
 
   it('builds a spoken script that includes the safety floor when abstaining', () => {
-    const t = 'my water just broke i am 9 months pregnant';
+    const t = 'my parcel never arrived';
     expect(outcomeFor(t).kind).toBe('abstain');
     const script = speakableGuidanceScript(t);
     expect(script.length).toBeGreaterThan(0);

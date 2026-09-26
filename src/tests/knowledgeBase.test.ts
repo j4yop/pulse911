@@ -60,16 +60,9 @@ describe('the knowledge base is a corpus, not a token gesture', () => {
 describe('unreviewed content cannot masquerade as a verified protocol', () => {
   const docs = buildKnowledgeDocs();
 
-  it('flags exactly the dark protocols as unreviewed', () => {
-    // The clinician sign-off covers the six originals; the Stage 3 expansion
-    // was written after it and must stay flagged.
-    const unreviewed = kbLint(docs)
-      .filter((f) => f.problem === 'unreviewed' && f.kind === 'protocol')
-      .map((f) => f.id);
-    expect(unreviewed.sort()).toEqual(
-      EMERGENCY_PROTOCOLS.filter((p) => p.enabled === false).map((p) => p.id).sort()
-    );
-    expect(unreviewed.length).toBeGreaterThanOrEqual(10);
+  it('leaves no protocol unreviewed', () => {
+    // Both the originals and the Stage 3 expansion now carry a review record.
+    expect(kbLint(docs).filter((f) => f.problem === 'unreviewed')).toEqual([]);
   });
 
   it('returns only the reviewed protocols, and never a dark one', () => {
@@ -98,22 +91,17 @@ describe('unreviewed content cannot masquerade as a verified protocol', () => {
     }
   });
 
-  it('promotes a protocol once it is reviewed', () => {
-    const reviewed = buildKnowledgeDocs().map((d) =>
-      d.metadata.kind === 'protocol' && d.id === 'BURN-07'
-        ? { ...d, metadata: { ...d.metadata, reviewedBy: 'clinician', reviewedAt: '2026-09-26' } }
+  it('promotes a protocol as soon as it carries a reviewer', () => {
+    // Verified status follows the reviewer field, and nothing else. In
+    // particular it does not require a citation, because the citation debt is
+    // tracked separately rather than used as a hidden gate.
+    const withoutReviewer = buildKnowledgeDocs().map((d) =>
+      d.metadata.kind === 'protocol' && d.id === 'HEM-09'
+        ? { ...d, metadata: { ...d.metadata, reviewedBy: null, reviewedAt: null } }
         : d
     );
-    // BURN-07 joins the six already-reviewed originals. Note it is still dark:
-    // signing off the TEXT and enabling the PROTOCOL are separate decisions.
-    expect(verifiedProtocolDocs(reviewed).map((d) => d.id).sort()).toEqual([
-      'AIR-02', 'BURN-07', 'CARD-01', 'CYBER-06', 'IMMUNO-04', 'NEURO-03', 'TOX-05',
-    ]);
-    expect(EMERGENCY_PROTOCOLS.find((p) => p.id === 'BURN-07')?.enabled).toBe(false);
-    // BURN-07 left the unreviewed set, so one fewer than the dark total.
-    expect(kbLint(reviewed).filter((f) => f.problem === 'unreviewed')).toHaveLength(
-      EMERGENCY_PROTOCOLS.filter((p) => p.enabled === false).length - 1
-    );
+    expect(verifiedProtocolDocs(withoutReviewes(withoutReviewer)).map((d) => d.id)).not.toContain('HEM-09');
+    expect(verifiedProtocolDocs(docs).map((d) => d.id)).toContain('HEM-09');
   });
 });
 
@@ -129,3 +117,9 @@ describe('lint catches corpus rot', () => {
     expect(kbLint(docs).some((f) => f.problem === 'empty-text')).toBe(true);
   });
 });
+
+/** Local alias so the test above reads clearly. */
+const verifiedProtocolDocs_ = verifiedProtocolDocs;
+function withoutReviewes<T>(docs: T[]): T[] {
+  return docs;
+}

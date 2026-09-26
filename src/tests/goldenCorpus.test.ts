@@ -146,17 +146,19 @@ describe('the abstain contract holds across the whole corpus', () => {
 describe('known-gap ratchet', () => {
   it('has not silently grown', () => {
     // Lower this ONLY alongside a deliberate corpus update.
-    const ALLOWED_GAPS = 48;
+    const ALLOWED_GAPS = 12;
     expect(totalGapCases()).toBeLessThanOrEqual(ALLOWED_GAPS);
   });
 
   it('still documents the gaps that matter most', () => {
     const gaps = gapSummary().map((g) => g.gap);
+    // Adult choking, obstetric, burns and seizure are now COVERED, so they must
+    // not reappear as gaps. What remains must still be documented.
     for (const critical of [
-      'adult choking protocol',
-      'obstetric protocol',
-      'burns protocol',
-      'seizure protocol',
+      'major bleeding protocol',
+      'trauma protocol',
+      'diabetic emergency protocol',
+      'mental health crisis protocol',
     ]) {
       expect(gaps, `gap disappeared from the corpus: ${critical}`).toContain(critical);
     }
