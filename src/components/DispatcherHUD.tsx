@@ -14,7 +14,12 @@ import {
   MessageCircleQuestion,
   UserCheck,
 } from 'lucide-react';
-import { EmergencyProtocol, MossQueryResult, DispatchedUnit } from '../types';
+import {
+  EmergencyProtocol,
+  MossQueryResult,
+  DispatchIntent,
+  OverrideRecord,
+} from '../types';
 import { CopilotCoachPanel } from './CopilotCoachPanel';
 import { EkgMonitor } from './EkgMonitor';
 import { EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
@@ -30,7 +35,9 @@ import {
 
 interface DispatcherHUDProps {
   queryResult: MossQueryResult | null;
-  dispatchedUnit: DispatchedUnit | null;
+  dispatchIntent: DispatchIntent | null;
+  overrideLog: OverrideRecord[];
+  onOverride: (protocol: EmergencyProtocol) => void;
   onTriggerMetronome: (active: boolean) => void;
   isMetronomeActive: boolean;
   transcript: string;
@@ -39,7 +46,9 @@ interface DispatcherHUDProps {
 
 export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   queryResult,
-  dispatchedUnit,
+  dispatchIntent,
+  overrideLog,
+  onOverride,
   onTriggerMetronome,
   isMetronomeActive,
   transcript,
@@ -48,6 +57,16 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   const [checkedSteps, setCheckedSteps] = useState<Record<number, boolean>>({});
   /** Manual override: a human dispatcher may select a protocol we refused. */
   const [overrideProtocol, setOverrideProtocol] = useState<EmergencyProtocol | null>(null);
+
+  /**
+   * Selecting an override both displays the protocol and records the decision.
+   * Recording lives in the parent so it survives this panel remounting and
+   * appears in the audit trail immediately.
+   */
+  const applyOverride = (p: EmergencyProtocol) => {
+    setOverrideProtocol(p);
+    onOverride(p);
+  };
 
   const abstained = queryResult?.outcome?.kind === 'abstain';
   const protocol = overrideProtocol ?? (queryResult ? matchedProtocol(queryResult.outcome) : null);
@@ -240,59 +259,55 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                 </div>
               </div>
 
-              {/* Paramedic Unit Auto-Dispatch Card with Route Tracker */}
-              {dispatchedUnit && (
+              {/* Dispatch intent — what triage asks CAD for, and nothing more. */}
+              {dispatchIntent && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                  className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-4.5 space-y-3 shadow-2xs"
+                  className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 space-y-3"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
                         <Truck className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-slate-900 block leading-tight">{dispatchedUnit.name}</span>
-                        <span className="text-[10px] text-slate-500 font-mono">{dispatchedUnit.station}</span>
+                        <span className="text-xs font-bold text-slate-900 block leading-tight">
+                          Dispatch intent &mdash; not yet dispatched
+                        </span>
+                        <span className="text-[10px] text-amber-700 font-mono">
+                          {dispatchIntent.protocolCode} &middot; {dispatchIntent.protocolId}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1 rounded-full bg-emerald-100/80 text-emerald-800 font-bold border border-emerald-300">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
-                        {dispatchedUnit.status} &bull; ETA ~{dispatchedUnit.etaMinutes} mins
-                      </span>
-                    </div>
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-bold border border-amber-300 shrink-0">
+                      {dispatchIntent.status.replace('_', ' ')}
+                    </span>
                   </div>
 
-                  {/* Dispatch Route Progression Indicator */}
-                  <div className="bg-white p-3 rounded-xl border border-slate-200/70 space-y-2">
-                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
-                      <span className="text-emerald-700 font-bold flex items-center gap-1">
-                        <Navigation className="w-3 h-3 text-emerald-600" />
-                        En Route Code 3 (Lights & Sirens)
-                      </span>
-                      <span className="text-slate-400">GPS Telemetry Stream Active</span>
+                  <dl className="bg-white p-3 rounded-xl border border-amber-200/70 space-y-2 text-[11px]">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-slate-500 font-mono">Recommended unit</dt>
+                      <dd className="font-bold text-slate-900 text-right">{dispatchIntent.unitType}</dd>
                     </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-slate-500 font-mono">Priority</dt>
+                      <dd className="font-bold text-slate-900 text-right">{dispatchIntent.priority}</dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <dt className="text-slate-500 font-mono shrink-0">Required equipment</dt>
+                      <dd className="font-bold text-slate-800 text-right truncate max-w-[190px] sm:max-w-[280px]">
+                        {dispatchIntent.requiredEquipment.join(', ')}
+                      </dd>
+                    </div>
+                  </dl>
 
-                    {/* Animated Progress Track */}
-                    <div className="relative w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <motion.div
-                        animate={{ x: ['-20%', '100%'] }}
-                        transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
-                        className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-emerald-400 via-emerald-600 to-emerald-400 rounded-full opacity-80"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-[10px] text-slate-600 font-mono pt-1">
-                      <span className="text-slate-400">Assigned Equipment:</span>
-                      <span className="font-bold text-slate-800 text-right truncate max-w-[180px] sm:max-w-[260px]">
-                        {protocol.unitRecommendation.requiredEquipment.join(', ')}
-                      </span>
-                    </div>
-                  </div>
+                  <p className="text-[10px] font-mono text-amber-900/80 leading-relaxed">
+                    No unit is assigned and no ETA exists: there is no CAD backend behind this console.
+                    Everything above is copied from the matched protocol, not from a dispatch system.
+                  </p>
                 </motion.div>
               )}
 
@@ -380,7 +395,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => setOverrideProtocol(p)}
+                      onClick={() => applyOverride(p)}
                       className="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-[11px] font-mono font-bold text-slate-700 cursor-pointer touch-manipulation"
                     >
                       {p.id}
@@ -388,11 +403,59 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                   ))}
                 </div>
                 <p className="text-[10px] font-mono text-slate-500">
-                  When a human overrides an abstain, the human owns the call.
+                  When a human overrides an abstain, the human owns the call. Every override is
+                  recorded below.
                 </p>
+
               </div>
             </motion.div>
           )}
+
+      {/* Override audit trail.
+          Rendered OUTSIDE the matched/abstain branch on purpose: while this lived
+          inside the abstain card it disappeared the instant a dispatcher used it,
+          which is exactly when an operator most needs to see what has already been
+          overridden. */}
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+              Override log ({overrideLog.length})
+            </span>
+            {overrideLog.length > 0 && (
+              <span className="text-[10px] font-mono text-slate-400">newest first</span>
+            )}
+          </div>
+
+          {overrideLog.length === 0 ? (
+            <p className="text-[10px] font-mono text-slate-400">
+              No overrides recorded this session.
+            </p>
+          ) : (
+            <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+              {overrideLog.map((r) => (
+                <li
+          key={r.id}
+          className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 space-y-0.5"
+                >
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-mono font-bold text-slate-900">
+              {r.presentedReason} &rarr; {r.chosenProtocolId}
+            </span>
+            <span className="text-[9px] font-mono text-slate-400 shrink-0">
+              {new Date(r.atIso).toLocaleTimeString()}
+            </span>
+          </div>
+          <div className="text-[9px] font-mono text-slate-500 truncate">
+            {r.chosenProtocolTitle}
+          </div>
+          <div className="text-[9px] font-mono text-slate-400 truncate">
+            refuted conf {r.presentedConfidence.toFixed(2)} &middot; {r.operator}
+          </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         </>
       </div>
     </div>

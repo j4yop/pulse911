@@ -45,14 +45,14 @@ and can no longer be **spoken** or **dispatched**.
 | 1.3 | Scale-free confidence (`margin × density`); remove corpus-order tie-break winner | `src/engine/retrievalCore.ts` | done |
 | 1.4 | Delete both `?? EMERGENCY_PROTOCOLS[0]` / `rankProtocols(...)[0]` fallbacks | `src/engine/mossEngine.ts` | done |
 | 1.5 | Single `canDispatch(outcome)` predicate; gate TTS **and** CAD auto-dispatch | `src/engine/triageGate.ts`, `src/App.tsx` | done |
-| 1.6 | Remove hardcoded console state | `src/App.tsx` | **partial — see 1.6b** |
-| 1.7 | DEFER HUD: amber card, reason, questions, safety floor, override | `src/components/DispatcherHUD.tsx` | **partial — see 1.7b** |
+| 1.6 | Remove hardcoded console state | `src/App.tsx` | done (incl. 1.6b) |
+| 1.7 | DEFER HUD: amber card, reason, questions, safety floor, override | `src/components/DispatcherHUD.tsx` | done (incl. 1.7b) |
 | 1.8 | Regression suite (30 → 54 tests) | `src/tests/` | done |
 
 **Exit criteria:** for every out-of-domain input, outcome is `abstain`; nothing is
 spoken; no unit is dispatched; console opens empty. — **met.**
 
-### 1.6b — fabricated dispatch on the *matched* path (OPEN)
+### 1.6b — fabricated dispatch on the *matched* path (CLOSED)
 
 The console no longer pre-seeds a protocol or a dispatched unit. But on every
 **matched** call, `src/App.tsx` still fabricates a dispatch:
@@ -64,17 +64,34 @@ This is the same class of defect as the original bug — invented data presented
 real — and it directly contradicts "remove the hardcoded thing totally". It is not
 visible in the abstain path, which is why browser testing did not catch it.
 
-**Done when:** matched calls show an explicit *awaiting real CAD backend* state with
-no fabricated unit, crew, or ETA, and the ETA field is either sourced or absent.
+**Closed.** `DispatchedUnit` is deleted, not merely unused — a type that can hold
+an invented unit id is an invitation to invent one again. It is replaced by
+`DispatchIntent`, whose every field is copied from the matched protocol and whose
+only legal status is `AWAITING_CAD`. The card now says *"no unit is assigned and no
+ETA exists: there is no CAD backend behind this console"*. The moving progress bar
+and "GPS Telemetry Stream Active" are gone, because nothing was moving and nothing
+was transmitting.
 
-### 1.7b — manual override is not logged (OPEN)
+Guarded by `src/tests/safetyInvariants.test.ts`, which fails if `MEDIC-14`, the
+unit name, the station, the crew names, or `etaMinutes` reappear anywhere in `src/`.
+The guards were mutation-tested: reintroducing the old code fails three of them.
+
+### 1.7b — manual override is not logged (CLOSED)
 
 The HUD renders an override control whose text implies an audit trail, but nothing
 is written anywhere. The "Definition of done" below claims it is logged. It is not.
 
-**Done when:** an override appends a real record (timestamp, operator, presented
-outcome, chosen protocol, reason) and is visible in the UI. Until then, the UI copy
-must not imply a log that does not exist.
+**Closed.** `createOverrideRecord()` in `triageGate.ts` is a pure, unit-tested
+function; the override control writes through it. Each record carries the ISO
+timestamp, the transcript, the abstention reason and confidence that was refused,
+and the protocol the human chose. Operator is the explicit string
+`unauthenticated dispatcher (no auth in this build)` — a visible placeholder
+rather than a fabricated name, which would be the same defect as the fake crew.
+
+The log deliberately does **not** reset on a new call, and it is rendered outside
+the matched/abstain branch: while it lived inside the abstain card it vanished the
+instant a dispatcher used it, which is exactly when it matters. It refuses to log
+an "override" of something triage already matched, since nothing was refused.
 
 ---
 
@@ -204,26 +221,23 @@ claim otherwise (see 6.5).
 
 - [x] No input can yield a protocol without an anchor match above threshold
 - [x] Unknown input ⇒ abstain ⇒ generic guidance only ⇒ no TTS of protocol, no dispatch
-- [~] Console opens in true standby with zero hardcoded clinical state — standby yes;
-      **matched path still fabricates unit/crew/ETA (1.6b)**
+- [x] Console opens in true standby with zero hardcoded clinical state (1.6b closed)
 - [~] Out-of-domain regression suite green — 54 local tests, but no CI gate and the
       named Stage 5 files do not exist yet
 - [ ] Every clinical string, threshold, and anchor vocabulary reviewed by a clinician
-- [~] Manual override exists and is logged — exists, **not logged (1.7b)**
+- [x] Manual override exists and is logged (1.7b closed)
 - [ ] No fabricated clinical or dispatch value anywhere in the console
 
 ---
 
 ## Suggested order
 
-1. **1.6b** — it is the same defect class as the bug we just fixed, and it is live.
-2. **1.7b** — the UI currently implies an audit trail that does not exist.
-3. **Stage 2** — the largest user-visible win; abstention is only useful if it asks.
-4. **Stage 5** — before the corpus grows, not after.
-5. **Stage 3** — blocked on clinician time; 3.5 dark-flagging means it can ship
+1. **Stage 2** — the largest user-visible win; abstention is only useful if it asks.
+2. **Stage 5** — before the corpus grows, not after.
+3. **Stage 3** — blocked on clinician time; 3.5 dark-flagging means it can ship
    dark and be enabled later.
-6. **Stage 6** — 6.1 immediately (Moss is currently broken in production);
-   6.2 is a sponsor email, not engineering.
+4. **Stage 6** — 6.2 is a sponsor email and is now the critical path: 6.8 blocks
+   Moss from contributing anything at runtime.
 
 ---
 

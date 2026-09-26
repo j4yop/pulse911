@@ -97,12 +97,54 @@ export interface MossQueryResult {
   tokensEvaluated: number;
 }
 
-export interface DispatchedUnit {
+/**
+ * What triage asks CAD for — and nothing more.
+ *
+ * This type deliberately has no unit id, no unit name, no crew, no station and
+ * no ETA, because there is no CAD backend behind this app to produce any of
+ * them. The previous `DispatchedUnit` carried all of those as hardcoded
+ * literals — a unit id and call sign, a station name, a named crew, and a
+ * randomised ETA — so the console displayed an invented ambulance with an
+ * invented ETA under a "DISPATCHED" badge for every matched call.
+ *
+ * Every field below is derived from the matched protocol, so it cannot invent
+ * anything the protocol does not already state.
+ */
+export interface DispatchIntent {
+  protocolId: string;
+  protocolCode: string;
+  /** Recommended unit type, verbatim from the protocol. Not an assignment. */
+  unitType: string;
+  priority: string;
+  requiredEquipment: string[];
+  /**
+   * Always `AWAITING_CAD`. There is no integration that can move this to a
+   * real dispatched/en-route state, so no code may set it to anything else.
+   */
+  status: 'AWAITING_CAD';
+}
+
+/**
+ * An immutable record of a human overriding a triage abstention.
+ *
+ * The override control used to flip local React state and nothing else, while
+ * the UI implied an audit trail. These records are that trail: what triage
+ * refused and why, what the human chose instead, who chose it and when.
+ */
+export interface OverrideRecord {
   id: string;
-  name: string;
-  type: string;
-  station: string;
-  etaMinutes: number;
-  status: 'DISPATCHED' | 'EN_ROUTE' | 'ON_SCENE';
-  crew: string;
+  atIso: string;
+  /**
+   * Operator identity. This build has no authentication, so this is an
+   * explicit placeholder rather than a pretend name — see `operatorLabel`.
+   */
+  operator: string;
+  /** The transcript as triage saw it at the moment of the override. */
+  transcript: string;
+  /** The abstention the human was overriding. */
+  presentedReason: AbstainReason;
+  presentedConfidence: number;
+  chosenProtocolId: string;
+  chosenProtocolCode: string;
+  chosenProtocolTitle: string;
 }
