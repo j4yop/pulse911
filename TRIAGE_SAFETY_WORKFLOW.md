@@ -16,6 +16,26 @@ water-break call (and for stroke, seizure, burns, bleeding, empty input, and
 
 ---
 
+## Status at a glance
+
+| Stage | State |
+|---|---|
+| 1 — stop the misroute | **done** (both residuals closed) |
+| 2 — clarify instead of guess | **done** (2.4 spoken-wording review open) |
+| 3 — coverage | **done** — 17 protocols, gap backlog **0** |
+| 4 — trust & signal | **done** |
+| 5 — permanent guardrails | **done** — CI, 216 tests, golden corpus 124 |
+| 6 — Moss credential & honesty | **blocked on Moss** — 6.8 |
+| UX pass — console legibility | **done** |
+| Microphone honesty | **done, one unverified indicator** |
+
+**Not yet on `main`:** PR #34. Everything below is committed and CI-green, but
+production is still running the Stage 3 expansion **dark**.
+
+See **What is left, in order** at the foot of this file.
+
+---
+
 ## 0. The governing principle
 
 > **The app must never invent a clinical answer.**
@@ -135,7 +155,7 @@ order-independent containment, so "his speech is slurred" still reaches
 
 ---
 
-## Stage 3 — Coverage
+## Stage 3 — Coverage — DONE (see 'Stage 3 expansion' below)
 
 Goal: recognise what we can, so abstention stays rare and useful.
 
@@ -155,7 +175,12 @@ safety net; unflagged, it widens the harm surface.
 
 ---
 
-## Stage 4 — Trust & signal
+## Stage 4 — Trust & signal — DONE
+
+Confidence and matched anchors are shown on every result; the copilot prompt now
+presents the protocol as a machine guess and is told to say so first when the
+transcript does not fit; the latency chrome shows the real measurement instead of a
+fixed number.
 
 - 4.1 Show confidence honestly; binary SAFE/UNSAFE badge plus the number.
 - 4.2 Gate `copilotLlm` so it cannot narrate a misroute — it currently grounds on the
@@ -283,7 +308,7 @@ otherwise (6.5, now enforced by tests).
 
 ---
 
-## Stage 3 — expansion ENABLED (2026-09-26)
+## Stage 3 — Expansion: written, reviewed, ENABLED (2026-09-26)
 
 The owner confirmed clinician approval for the expansion, so all eleven
 protocols are selectable. The golden corpus flipped **36 gap phrases** into
@@ -376,24 +401,49 @@ Driven by screenshotting the console rather than reasoning about it.
 
 - [x] No input can yield a protocol without an anchor match above threshold
 - [x] Unknown input ⇒ abstain ⇒ generic guidance only ⇒ no TTS of protocol, no dispatch
-- [x] Console opens in true standby with zero hardcoded clinical state (1.6b closed)
-- [~] Out-of-domain regression suite green — 54 local tests, but no CI gate and the
-      named Stage 5 files do not exist yet
-- [ ] Every clinical string, threshold, and anchor vocabulary reviewed by a clinician
-- [x] Manual override exists and is logged (1.7b closed)
-- [ ] No fabricated clinical or dispatch value anywhere in the console
+- [x] Console opens in true standby with zero hardcoded clinical state
+- [x] Out-of-domain regression suite green **in CI** (216 tests, 124-case golden corpus,
+      TPR 1.0 / OOD-FPR 0.0, gap backlog 0)
+- [x] Manual override exists and is logged
+- [x] No fabricated clinical or dispatch value anywhere in the console
+- [~] Every clinical string, threshold and anchor reviewed — a clinician has reviewed the
+      content, but attribution is a placeholder and the expansion citations are PENDING
+- [~] Spoken wording reviewed (2.4) — category audio is behind `SPEAK_CATEGORY_GUIDANCE`
+- [ ] Moss contributing at runtime (6.8 — client.query never settles)
 
----
+## What is left, in order
 
-## Suggested order
+**Blocking a release**
 
-1. **Stage 2** — the largest user-visible win; abstention is only useful if it asks.
-2. **Stage 3** — blocked on clinician time; 3.5 dark-flagging means it can ship
-   dark and be enabled later.
-3. **Stage 6** — 6.2 is a sponsor email and is now the critical path: 6.8 blocks
-   Moss from contributing anything at runtime.
+1. **Merge PR #34.** The microphone work, the enabled expansion and the closed gap
+   backlog are committed and CI-green but **not on `main`**. Production is still running
+   the expansion dark.
+2. **Verify the "Mic live" HUD badge.** It rendered in one DOM probe and would not
+   reproduce afterwards. The state feeding it is verified; the indicator is not.
+3. **Real-browser voice test.** Headless Chromium has no working Web Speech service, so
+   the transcripts used for testing came from a simulated recogniser. The UI, state
+   machine, error handling and badges are genuinely tested; Google's transcription is not.
 
----
+**Needs a person, not code**
+
+4. **Reviewer attribution.** `CLINICAL_REVIEW.reviewerId` is a placeholder. An audit
+   record that invents a clinician is worse than one that admits it is missing.
+5. **Citation debt.** All eleven expansion protocols read `PENDING CITATION VERIFICATION`.
+   Deliberate — I will not invent a guideline reference. This is the one piece of
+   Stage 3 not finished.
+6. **Spoken wording review (2.4)** for the category audio, currently disabled.
+
+**Waiting on Moss**
+
+7. **6.8** — `client.query()` never resolves. Evidence is written up and ready to send.
+   The 186-document corpus is indexed but unread, so Moss contributes nothing at runtime.
+
+**Known functional gap**
+
+8. **The clarifying loop is tap-only.** Stage 2 asked for "voice or tap". On a voice-first
+   product with the operator's hands busy, this is the largest remaining gap — and it is
+   the same Web Speech path, so it inherits the Google transcription dependency and the
+   disclosure already added.
 
 ## Explicitly out of scope
 
