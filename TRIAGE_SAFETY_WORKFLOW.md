@@ -454,3 +454,58 @@ present multiple simultaneous findings. Logged as follow-up, not pretended away.
 Also out of scope, deliberately: rewriting the existing citation strings and adding
 a clinical-use disclaimer (owner declined both), and building a custom credential
 proxy for Moss (see Stage 6 for why).
+
+## 2.4 — Clarifying questions by voice (this change)
+
+Tap answering shipped earlier; voice did not, which left the headline feature
+half-built on a console whose premise is a caller speaking while the operator's
+hands are busy.
+
+Speech that arrives while a question is pending is now treated as an **answer**,
+not as a new emergency description. Before this, saying "no" during a question
+would have been triaged as a patient description.
+
+The matcher (`src/engine/clarifyVoice.ts`) is built to refuse rather than guess,
+because a misheard clinical answer selects the wrong protocol for a real person:
+
+- Short answers are mapped deliberately ("yeah", "nope", "not sure", "no idea").
+- A yes/no marker only resolves when the question has exactly one such option.
+- A genuine tie — "breathing normally", which fits both the Yes and No options —
+  is **refused**; adding the marker resolves it.
+- Anything unrecognised changes nothing and is shown back to the operator
+  ("Heard … not an answer I can use"), with the buttons still up.
+- Non-yes/no options (e.g. "Breathing but struggling", "Adult") are never
+  reachable from a bare "yes".
+
+10 unit tests in `src/tests/clarifyVoice.test.ts` cover the rules, including the
+refusal cases. `npm run verify:clarify-voice` drives the real Web Speech wiring
+in a browser and skips cleanly when Playwright is absent.
+
+**Not verified:** actual Google transcription quality. That needs a headed
+browser and a real microphone; see the verification gaps above.
+
+## 6 — Moss 6.8: query does not return
+
+`init()` succeeds in ~14s (auth 201, index 200, artifact 200, confirm), and the
+index now carries **197** documents. `client.query()` never resolves: the model
+artifact downloads with 200, and the query then hangs — tested to a 180s budget
+on a fresh browser profile without a single resolution or rejection.
+
+Two honest caveats:
+
+- **Headless Chromium may be the cause.** Onnx/WASM inference without a real
+  browser's JIT can be pathologically slow, so this does not yet prove a Moss
+  service defect. A headed-browser test would settle it.
+- The Node SDK separately 401s on
+  `models.moss.link/artifacts/v1/moss-minilm/bind1~…` while the browser gets
+  `sealed1~…` with 200, so SDK/runtime paths differ.
+
+`MOSS_REFINEMENT_BUDGET_MS` stays at **8000** as a leak guard. Rather than leave
+this looking healthy, the engine now records why Moss is not serving and the
+console states it plainly: **"Moss unavailable — local triage only"**, with the
+reason in the tooltip. The app no longer implies a corpus it is not reading.
+
+Note: `pulse911-kb-v2` was created with 186 documents, before the 11 expansion
+protocols. `createIndex` failures are swallowed and the existing index is loaded,
+so **bump the index name** whenever the corpus changes or the new protocols are
+silently missing.

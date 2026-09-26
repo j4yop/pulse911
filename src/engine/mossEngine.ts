@@ -89,6 +89,15 @@ class Pulse911RetrievalEngine {
   private initPromise: Promise<void> | null = null;
   private lastInitError: string | null = null;
   private totalQueries = 0;
+  /**
+   * Why the Moss path is not serving queries, or null while it is.
+   *
+   * The badge used to read "Moss Local" for both "working as designed" and
+   * "permanently broken", which is the same lie in both directions. Recorded
+   * explicitly so the console can state the real reason.
+   */
+  private mossUnavailableReason: string | null = null;
+  private mossReady = false;
 
   /**
    * Kick off async initialization; safe to call multiple times.
@@ -113,6 +122,8 @@ class Pulse911RetrievalEngine {
         // this failure on every subsequent query.
         this.mode = 'local-fallback';
         this.client = null;
+        this.mossReady = false;
+        this.mossUnavailableReason = this.lastInitError;
         console.warn(`[Pulse911] Moss runtime unavailable, using local-fallback: ${this.lastInitError}`);
       });
     }
@@ -148,7 +159,25 @@ class Pulse911RetrievalEngine {
 
     await this.client.loadIndex(INDEX_NAME);
     this.mode = 'moss-wasm';
+    this.mossReady = true;
+    this.mossUnavailableReason = null;
     console.log(`[Pulse911] Moss WASM runtime ready — index "${INDEX_NAME}" (${docs.length} knowledge documents) loaded in-process.`);
+  }
+
+  /**
+   * Real Moss availability, for the console to state plainly.
+   *
+   * `ready` means the runtime initialised and queries have not failed. It does
+   * NOT mean the corpus is being read — that requires a query to have actually
+   * returned, which is tracked separately so the product cannot imply Moss is
+   * contributing when it is not.
+   */
+  public getMossStatus(): { ready: boolean; serving: boolean; reason: string | null } {
+    return {
+      ready: this.mossReady,
+      serving: this.mossUnavailableReason === null && this.mossReady,
+      reason: this.mossUnavailableReason,
+    };
   }
 
   public getMode(): EngineMode {
@@ -262,11 +291,9 @@ class Pulse911RetrievalEngine {
     } catch (err) {
       // Was `catch { return null }`. A silent catch here is what let a broken
       // Moss path look identical to a healthy one for an entire release.
-      console.warn(
-        `[Pulse911] Moss refinement unavailable, keeping local triage: ${
-          err instanceof Error ? err.message : String(err)
-        }`
-      );
+      const reason = err instanceof Error ? err.message : String(err);
+      this.mossUnavailableReason = reason;
+      console.warn(`[Pulse911] Moss refinement unavailable, keeping local triage: ${reason}`);
       return null;
     }
   }

@@ -45,6 +45,16 @@ interface CallerPanelProps {
   retrievalLatencyMs?: number | null;
   /** Fires whenever the microphone lifecycle changes, so the dock can mirror it. */
   onMicStateChange?: (state: MicState) => void;
+  /**
+   * While a clarifying question is pending, speech is an ANSWER, not a new
+   * emergency description. Returns true when it handled the utterance, so the
+   * recogniser knows not to also dispatch it to triage.
+   */
+  onSpokenAnswer?: (spoken: string) => boolean;
+  /** Set while an answer is expected, so the banner can say so. */
+  awaitingAnswerFor?: string | null;
+  /** What speech was heard but not understood, so the operator can see it. */
+  clarifyHeard?: string | null;
 }
 
 export const CallerPanel: React.FC<CallerPanelProps> = ({
@@ -56,6 +66,9 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
   onClearCall,
   retrievalLatencyMs,
   onMicStateChange,
+  onSpokenAnswer,
+  awaitingAnswerFor,
+  clarifyHeard,
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [customInput, setCustomInput] = useState('');
@@ -124,6 +137,8 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
    */
   const submitRef = useRef(onProcessTranscript);
   submitRef.current = onProcessTranscript;
+  const onSpokenAnswerRef = useRef(onSpokenAnswer);
+  onSpokenAnswerRef.current = onSpokenAnswer;
 
   const setMic = (next: MicState) => {
     micStateRef.current = next;
@@ -213,6 +228,14 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
 
         const final = transcript.trim();
         if (!final) return;
+
+        // A pending clarifying question changes what speech MEANS. While one is
+        // open, the operator is answering it — so "no" is an answer, not a
+        // patient description to be triaged.
+        if (onSpokenAnswerRef.current?.(final)) {
+          setInterimTranscript('');
+          return;
+        }
 
         latestRef.current = final;
         if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
@@ -525,8 +548,12 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
                 {micState === 'starting'
                   ? 'Starting microphone...'
                   : heardSpeech
-                    ? 'Listening — go ahead'
-                    : 'Listening — speak any emergency in English'}
+                    ? awaitingAnswerFor
+                      ? 'Listening — answer the question aloud, or tap'
+                      : 'Listening — go ahead'
+                    : awaitingAnswerFor
+                      ? 'Listening — answer aloud, or tap an option'
+                      : 'Listening — speak any emergency in English'}
               </span>
             </div>
             <div className="flex items-center justify-between gap-3">
