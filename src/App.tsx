@@ -4,11 +4,21 @@ import { TopLoader } from './components/TopLoader';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuroraBackground } from '@/components/ui/aurora-background';
 import { ViewSkeleton } from './components/Deferred';
-import { EmergencyScenario, MossQueryResult, DispatchedUnit } from './types';
+import {
+  EmergencyProtocol,
+  EmergencyScenario,
+  MossQueryResult,
+  DispatchIntent,
+  OverrideRecord,
+} from './types';
 import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from './engine/emergencyProtocols';
 import { mossEngine } from './engine/mossEngine';
 import { audioService } from './engine/speechSimulation';
-import { canDispatch, matchedProtocol, UNIVERSAL_SAFETY_FLOOR } from './engine/triageGate';
+import {
+  createOverrideRecord,
+  matchedProtocol,
+  UNIVERSAL_SAFETY_FLOOR,
+} from './engine/triageGate';
 import { cn } from '@/lib/utils';
 
 // ── Route-level code splitting ──────────────────────────────────────────────
@@ -72,9 +82,18 @@ export const App: React.FC = () => {
   const [currentTranscript, setCurrentTranscript] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [queryResult, setQueryResult] = useState<MossQueryResult | null>(null);
-  const [dispatchedUnit, setDispatchedUnit] = useState<DispatchedUnit | null>(null);
+  const [dispatchIntent, setDispatchIntent] = useState<DispatchIntent | null>(null);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const [audioFeedbackEnabled, setAudioFeedbackEnabled] = useState(true);
+  /**
+   * Append-only audit trail of human overrides of a triage abstention.
+   *
+   * Deliberately NOT cleared when a new call arrives — a log that resets on
+   * every call is not a log. Only `handleClearCall` and the explicit clear
+   * button remove entries, so an operator can see what has already been
+   * overridden during a shift.
+   */
+  const [overrideLog, setOverrideLog] = useState<OverrideRecord[]>([]);
   /** Measured latency of the last query. Null until a real query has run. */
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   /** Increments per processed call — keys/cancels async AI enrichment per scenario. */
@@ -129,15 +148,22 @@ export const App: React.FC = () => {
             }
           );
 
-          // Auto-assign CAD Unit — only ever for a matched protocol.
-          setDispatchedUnit({
-            id: 'MEDIC-14',
-            name: 'Medic Engine 14 (ALS Paramedic Rescue)',
-            type: protocol.unitRecommendation.unitType,
-            station: 'Station 4 \u2022 Downtown Core',
-            etaMinutes: Math.floor(Math.random() * 2) + 3, // Simulated demo ETA
-            status: 'DISPATCHED',
-            crew: 'Captain R. Torres, Paramedic J. Vance',
+          // Record what triage is ASKING CAD for — never invent the response.
+          //
+          // This used to fabricate a whole ambulance: id MEDIC-14, the name
+          // "Medic Engine 14 (ALS Paramedic Rescue)", "Station 4 • Downtown
+          // Core", a named crew, and `Math.random()` for the ETA — all rendered
+          // under a "DISPATCHED" badge with a moving progress bar and "GPS
+          // Telemetry Stream Active". None of it came from a system. There is
+          // no CAD backend, so there is nothing truthful to say beyond what the
+          // protocol itself recommends.
+          setDispatchIntent({
+            protocolId: protocol.id,
+            protocolCode: protocol.code,
+            unitType: protocol.unitRecommendation.unitType,
+            priority: protocol.unitRecommendation.priority,
+            requiredEquipment: protocol.unitRecommendation.requiredEquipment,
+            status: 'AWAITING_CAD',
           });
 
           if (speakAudio && audioFeedbackEnabled) {
@@ -152,7 +178,7 @@ export const App: React.FC = () => {
           // speak a clinical protocol, do not dispatch. Only the universal
           // zero-risk safety floor is spoken.
           setActiveScenario(scenario ?? null);
-          setDispatchedUnit(null);
+          setDispatchIntent(null);
           setIsMetronomeActive(false);
           audioService.stopCprMetronome();
 
@@ -219,6 +245,29 @@ export const App: React.FC = () => {
     setAudioFeedbackEnabled((prev) => !prev);
   }, []);
 
+  /**
+   * A human overriding a triage abstention is the safety valve that makes
+   * abstention usable — and the single most important thing to audit later.
+   * So the override is recorded the moment it happens, with what triage
+   * refused and why.
+   *
+   * The operator is an explicit placeholder, not a pretend name: this build has
+   * no authentication, so claiming a dispatcher identity would be the same
+   * fabrication we removed from the dispatch card.
+   */
+  const handleOverride = useCallback(
+    (protocol: EmergencyProtocol) => {
+      const record = createOverrideRecord({
+        outcome: queryResult?.outcome,
+        transcript: currentTranscript,
+        chosen: protocol,
+        seq: overrideLog.length,
+      });
+      if (record) setOverrideLog((prev) => [record, ...prev]);
+    },
+    [queryResult, currentTranscript, overrideLog.length]
+  );
+
   const handleClearCall = useCallback(() => {
     audioService.stopSpeaking();
     audioService.stopCprMetronome();
@@ -226,7 +275,7 @@ export const App: React.FC = () => {
     setActiveScenario(null);
     setCurrentTranscript('');
     setQueryResult(null);
-    setDispatchedUnit(null);
+    setDispatchIntent(null);
   }, []);
 
   return (
@@ -281,7 +330,9 @@ export const App: React.FC = () => {
                 currentTranscript={currentTranscript}
                 isProcessing={isProcessing}
                 queryResult={queryResult}
-                dispatchedUnit={dispatchedUnit}
+                dispatchIntent={dispatchIntent}
+                overrideLog={overrideLog}
+                onOverride={handleOverride}
                 isMetronomeActive={isMetronomeActive}
                 audioFeedbackEnabled={audioFeedbackEnabled}
                 latencyMs={latencyMs}

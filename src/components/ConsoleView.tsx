@@ -23,7 +23,13 @@ import { GlassDock, DockItem } from '@/components/ui/glass-dock';
 import { CardSpotlight } from '@/components/ui/card-spotlight';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { StatsCounter } from '@/components/ui/stats-counter';
-import { EmergencyScenario, MossQueryResult, DispatchedUnit } from '../types';
+import {
+  EmergencyProtocol,
+  EmergencyScenario,
+  MossQueryResult,
+  DispatchIntent,
+  OverrideRecord,
+} from '../types';
 import { EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
 import { matchedProtocol } from '../engine/triageGate';
 import { cn } from '@/lib/utils';
@@ -49,7 +55,9 @@ export interface ConsoleViewProps {
   currentTranscript: string;
   isProcessing: boolean;
   queryResult: MossQueryResult | null;
-  dispatchedUnit: DispatchedUnit | null;
+  dispatchIntent: DispatchIntent | null;
+  overrideLog: OverrideRecord[];
+  onOverride: (protocol: EmergencyProtocol) => void;
   isMetronomeActive: boolean;
   audioFeedbackEnabled: boolean;
   latencyMs: number | null;
@@ -69,7 +77,9 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
   currentTranscript,
   isProcessing,
   queryResult,
-  dispatchedUnit,
+  dispatchIntent,
+  overrideLog,
+  onOverride,
   isMetronomeActive,
   audioFeedbackEnabled,
   latencyMs,
@@ -358,7 +368,9 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
           </div>
           <DispatcherHUD
             queryResult={queryResult}
-            dispatchedUnit={dispatchedUnit}
+            dispatchIntent={dispatchIntent}
+            overrideLog={overrideLog}
+            onOverride={onOverride}
             onTriggerMetronome={onToggleMetronome}
             isMetronomeActive={isMetronomeActive}
             transcript={currentTranscript}
