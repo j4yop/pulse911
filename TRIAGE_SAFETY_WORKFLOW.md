@@ -21,16 +21,20 @@ water-break call (and for stroke, seizure, burns, bleeding, empty input, and
 | Stage | State |
 |---|---|
 | 1 — stop the misroute | **done** (both residuals closed) |
-| 2 — clarify instead of guess | **done** (2.4 spoken-wording review open) |
+| 2 — clarify instead of guess | **done** — voice + tap answering (2.4), wording review still open |
 | 3 — coverage | **done** — 17 protocols, gap backlog **0** |
 | 4 — trust & signal | **done** |
-| 5 — permanent guardrails | **done** — CI, 216 tests, golden corpus 124 |
-| 6 — Moss credential & honesty | **blocked on Moss** — 6.8 |
+| 5 — permanent guardrails | **done** — CI, 228 tests, golden corpus 124 |
+| 6 — Moss credential & honesty | **partly done** — honest status shipped; 6.8 query hang open |
 | UX pass — console legibility | **done** |
-| Microphone honesty | **done, one unverified indicator** |
+| Microphone honesty | **done** — including a stall watchdog |
+| Stale Moss index (11 protocols missing) | **fixed in #37, not merged** |
+| Google transcription quality | **never tested — deepest remaining risk** |
 
-**Not yet on `main`:** PR #34. Everything below is committed and CI-green, but
-production is still running the Stage 3 expansion **dark**.
+**Not yet on `main`:** PR #37 — the Moss index version fix, voice answering for
+the clarifying loop, and the honest Moss status. The Stage 3 expansion is
+**enabled**, not dark. Until #37 merges, Moss retrieval is missing eleven of the
+seventeen protocols.
 
 See **What is left, in order** at the foot of this file.
 
@@ -115,12 +119,13 @@ an "override" of something triage already matched, since nothing was refused.
 
 ---
 
-## Stage 2 — Clarify instead of guess — DONE (2.1, 2.2, 2.3); 2.4 wording still open
+## Stage 2 — Clarify instead of guess — DONE, including 2.4 voice answering; spoken wording still unreviewed
 
 Goal: answer "according to the user's needs" by *asking* when uncertain.
 
 - 2.1 **Done.** `src/engine/clarify.ts` asks one question at a time, answered by
-  tap, in a fixed order: breathing → consciousness → bleeding → age → pregnancy.
+  **voice or tap** (voice added in #37 — see "2.4 — Clarifying questions by
+  voice"), in a fixed order: breathing → consciousness → bleeding → age → pregnancy.
   Order is deliberate — airway first because every later answer is worthless if
   the patient is not breathing; pregnancy last because it changes interpretation,
   not immediate action.
@@ -402,7 +407,7 @@ Driven by screenshotting the console rather than reasoning about it.
 - [x] No input can yield a protocol without an anchor match above threshold
 - [x] Unknown input ⇒ abstain ⇒ generic guidance only ⇒ no TTS of protocol, no dispatch
 - [x] Console opens in true standby with zero hardcoded clinical state
-- [x] Out-of-domain regression suite green **in CI** (216 tests, 124-case golden corpus,
+- [x] Out-of-domain regression suite green **in CI** (228 tests, 124-case golden corpus,
       TPR 1.0 / OOD-FPR 0.0, gap backlog 0)
 - [x] Manual override exists and is logged
 - [x] No fabricated clinical or dispatch value anywhere in the console
@@ -415,35 +420,65 @@ Driven by screenshotting the console rather than reasoning about it.
 
 **Blocking a release**
 
-1. **Merge PR #34.** The microphone work, the enabled expansion and the closed gap
-   backlog are committed and CI-green but **not on `main`**. Production is still running
-   the expansion dark.
-2. **Verify the "Mic live" HUD badge.** It rendered in one DOM probe and would not
-   reproduce afterwards. The state feeding it is verified; the indicator is not.
-3. **Real-browser voice test.** Headless Chromium has no working Web Speech service, so
-   the transcripts used for testing came from a simulated recogniser. The UI, state
-   machine, error handling and badges are genuinely tested; Google's transcription is not.
+1. **Merge PR #37.** It carries the Moss index version fix — eleven protocols are
+   missing from Moss retrieval in production until it lands — plus voice
+   answering for the clarifying loop and the honest Moss status. CI-green.
+2. **Real-browser voice test — harness built, needs a human to run it.**
+   Headless Chromium has no working Web Speech service, so every transcript in
+   the test suite came from a simulated recogniser. The UI, state machine, error
+   handling, badges and the new `clarifyVoice` matching are genuinely tested.
+   **Google's transcription of a real caller is not.** This is the deepest
+   remaining risk in the product, because the caller's voice is the primary input.
+
+   ```
+   npm i -D playwright && npx playwright install chromium
+   npm run build && npm run preview -- --port 4180
+   npm run verify:voice-e2e
+   ```
+
+   It WRAPS the native `SpeechRecognition` rather than stubbing it, so the
+   transcripts scored are Google's, through the real app. It cannot pass on its
+   own — there is no way to synthesise a voice the engine will treat as a
+   caller — and it never records silence as a pass. Verified: run without a
+   speaker it reports `NO SPEECH`, exits `FAIL`, and refuses to certify.
+
+   The phrase set is weighted towards **clinically critical vocabulary** rather
+   than easy speech: `agonal gasping`, `tracheostomy`, `anaphylaxis`. "He is not
+   breathing" will almost certainly work; the rare terms are where a speech
+   engine actually breaks, and they are the words that select a protocol. A
+   failure there is reported as a patient-safety finding.
 
 **Needs a person, not code**
 
-4. **Reviewer attribution.** `CLINICAL_REVIEW.reviewerId` is a placeholder. An audit
-   record that invents a clinician is worse than one that admits it is missing.
-5. **Citation debt.** All eleven expansion protocols read `PENDING CITATION VERIFICATION`.
-   Deliberate — I will not invent a guideline reference. This is the one piece of
-   Stage 3 not finished.
-6. **Spoken wording review (2.4)** for the category audio, currently disabled.
+3. **Reviewer attribution.** `CLINICAL_REVIEW.reviewerId` is a placeholder. An
+   audit record that invents a clinician is worse than one that admits it is
+   missing.
+4. **Citation debt.** All eleven expansion protocols read `PENDING CITATION
+   VERIFICATION`. Deliberate — no guideline reference will be invented. This is
+   the one piece of Stage 3 not finished.
+5. **Spoken wording review.** `SPEAK_CATEGORY_GUIDANCE = true`, so the category
+   guidance **is** spoken. Nobody has listened to it and signed it off. (An
+   earlier version of this document said the flag was disabled; that was wrong —
+   the constant is `true` in `src/engine/triageGate.ts`.) Either review the
+   wording or set the flag to `false` until someone can.
 
 **Waiting on Moss**
 
-7. **6.8** — `client.query()` never resolves. Evidence is written up and ready to send.
-   The 186-document corpus is indexed but unread, so Moss contributes nothing at runtime.
+6. **6.8 — `client.query()` never resolves.** Tested to a 180s budget on a fresh
+   profile: no resolution, no rejection, after the model artifact downloads 200.
+   Headless Chromium may be the cause, so this is **not** yet proven to be a
+   Moss service defect; a headed-browser run would settle it. Moss therefore
+   contributes nothing at runtime, and the console says so rather than implying
+   otherwise. The 197-document corpus is indexed but unread.
 
-**Known functional gap**
+**Closed since the last revision of this list**
 
-8. **The clarifying loop is tap-only.** Stage 2 asked for "voice or tap". On a voice-first
-   product with the operator's hands busy, this is the largest remaining gap — and it is
-   the same Web Speech path, so it inherits the Google transcription dependency and the
-   disclosure already added.
+- ~~Merge PR #34~~ — merged.
+- ~~"Mic live" HUD badge unverified~~ — verified in #35.
+- ~~Clarifying loop is tap-only~~ — voice answering shipped in #37.
+- ~~Corpus indexed at 186 documents~~ — bumped to `pulse911-kb-v3` at 197, with
+  the count read back from Moss rather than asserted. See "The stale index,
+  fixed".
 
 ## Explicitly out of scope
 

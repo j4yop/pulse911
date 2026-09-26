@@ -106,6 +106,44 @@ try {
   // 3. Voice must not leave the tap path broken.
   check('tap answering still works', (await page.locator('text=/answer the question|tap an option/i').count()) >= 0);
 
+  /**
+   * A recogniser that never fires onstart used to strand the operator on
+   * "Starting..." forever: no badge, no error, no way to tell it had failed.
+   * The watchdog must turn that silence into an honest, actionable failure.
+   */
+  const stalled = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const stalledErrors = [];
+  stalled.on('pageerror', (e) => stalledErrors.push(e.message));
+  // start() succeeds; onstart never arrives, as with a stalled speech service.
+  await stalled.addInitScript(() => {
+    window.SpeechRecognition = class {
+      constructor() {
+        this.continuous = true;
+        this.interimResults = true;
+        this.lang = 'en-US';
+      }
+      start() {}
+      stop() {}
+      abort() {}
+      addEventListener() {}
+      removeEventListener() {}
+    };
+  });
+  await stalled.goto(URL, { waitUntil: 'load' });
+  await stalled.locator('[data-testid=mic-toggle]').waitFor({ state: 'visible', timeout: 20_000 });
+  await stalled.locator('[data-testid=mic-toggle]').click();
+  await sleep(2000);
+  check('a stalled start does not yet claim to be live', /Starting/i.test(await stalled.locator('[data-testid=mic-toggle]').innerText()));
+  await sleep(9000);
+  const finalLabel = await stalled.locator('[data-testid=mic-toggle]').innerText();
+  check('a stalled start becomes an honest error, not a hang', !/Starting/i.test(finalLabel), finalLabel.replace(/\n/g, ' '));
+  check(
+    'the operator is told what to do',
+    (await stalled.locator('text=/never started listening/i').count()) > 0
+  );
+  check('no page errors while stalling', stalledErrors.length === 0, stalledErrors.join('; '));
+  await stalled.close();
+
   check('no page errors', pageErrors.length === 0, pageErrors.join('; '));
 } finally {
   await browser.close();
