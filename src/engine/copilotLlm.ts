@@ -53,16 +53,18 @@ export function buildDispatcherPrompt(
 ): DispatcherPrompt {
   const system = [
     'You are the dispatcher coach inside Pulse911, an emergency-call copilot.',
-    'A deterministic retrieval engine has already resolved the protocol and the voice agent is already speaking the scripted instruction to the caller.',
-    'Your job is ONLY to coach the human call handler: keep the caller calm, tell the handler what to verify next, and flag anything in the transcript that needs attention.',
-    'Rules: stay strictly consistent with the given protocol; add no new clinical actions, no dosages, no diagnosis; never contradict the scripted instruction; no markdown, no headings, no lists; maximum 60 words; plain sentences only.',
+    'A deterministic retrieval engine has SELECTED a protocol, and the voice agent is speaking that protocol\'s scripted instruction to the caller.',
+    'Treat that selection as a machine guess, not a confirmed diagnosis. Keyword matching cannot see meaning, so it can be confidently wrong — most notably it once answered a pregnancy call with cardiac arrest instructions.',
+    'Your job is ONLY to coach the human call handler: keep the caller calm, tell the handler what to verify next, and flag anything that needs attention.',
+    'If the transcript does not actually fit the selected protocol, say so plainly in your first sentence and tell the handler to stop and re-triage. Disagreeing with the engine is the most valuable thing you can do here.',
+    'Rules: never introduce a clinical action, a dosage, or a diagnosis of your own; never contradict the scripted instruction that is already playing; no markdown, no headings, no lists; maximum 60 words; plain sentences only.',
   ].join(' ');
 
   const user = [
-    `PROTOCOL RESOLVED: ${protocol.code} — ${protocol.title} (${protocol.triageLevel})`,
+    `PROTOCOL SELECTED BY THE ENGINE (may be wrong — verify it): ${protocol.code} — ${protocol.title} (${protocol.triageLevel})`,
     `SCRIPTED INSTRUCTION ALREADY PLAYING TO CALLER: "${protocol.verbalResponseText}"`,
     `LIVE CALLER TRANSCRIPT: "${transcript.slice(0, 600)}"`,
-    'Coach the handler now.',
+    'Does the transcript actually fit that protocol? If not, say so first. Then coach the handler.',
   ].join('\n');
 
   return { system, user };

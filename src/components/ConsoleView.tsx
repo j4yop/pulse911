@@ -365,6 +365,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             currentTranscript={currentTranscript}
             spokenInstruction={matchedProtocol(queryResult?.outcome)?.verbalResponseText}
             onClearCall={onClearCall}
+            retrievalLatencyMs={queryResult?.latencyMs ?? null}
           />
         </div>
 

@@ -185,7 +185,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
               <div>
                 <p className="font-bold text-slate-800 text-base">CAD Standby</p>
                 <p className="text-xs text-slate-500 max-w-sm mt-1 leading-relaxed">
-                  Select an emergency scenario or speak into the microphone to observe sub-10ms Moss semantic retrieval of clinical protocols.
+                  Select an emergency scenario or speak into the microphone to see sub-10ms in-browser protocol matching against a real call.
                 </p>
               </div>
             </motion.div>

@@ -452,7 +452,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
               <div className="flex justify-between text-slate-500 text-[11px]">
                 <span>VAD (70ms)</span>
                 <span>STT (90ms)</span>
-                <span className="text-emerald-700 font-bold">Moss WASM (4ms)</span>
+                <span className="text-emerald-700 font-bold">Triage (sub-10ms)</span>
                 <span>TTS (100ms)</span>
               </div>
               <div className="w-full h-3 rounded-full bg-slate-200 overflow-hidden flex">
@@ -499,7 +499,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
               <div className="space-y-3 mt-auto">
                 <div className="flex items-center gap-2.5 text-sm text-slate-600">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                  <span>Sub-10ms In-Process Vector Query</span>
+                  <span>Sub-10ms In-Process Protocol Match</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-sm text-slate-600">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
@@ -678,7 +678,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
               Experience Zero-Latency 911 Dispatch in Action
             </h2>
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto font-sans">
-              Test real-time speech transcription, sub-10ms Moss WASM protocol retrieval, and acoustic CPR metronome synchronization under authentic high-stress scenarios.
+              Test real-time speech transcription, sub-10ms in-browser protocol retrieval, and acoustic CPR metronome synchronization under authentic high-stress scenarios.
             </p>
           </div>
 
