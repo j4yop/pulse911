@@ -29,6 +29,24 @@ try {
 const URL = process.env.CONSOLE_URL ?? 'http://localhost:4180/?tab=console';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Fail with instructions rather than a raw ERR_CONNECTION_REFUSED stack. */
+async function requireServer(target) {
+  // NOTE: these scripts declare `const URL = ...`, which shadows the global URL
+  // constructor. Use the string directly rather than `new URL()`.
+  try {
+    const res = await fetch(target, { method: 'HEAD' });
+    if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
+  } catch (err) {
+    console.error(
+      `\nCannot reach the app at ${target}\n  (${err instanceof Error ? err.message : String(err)})\n` +
+        '  Start it first, in another terminal:\n\n' +
+        '    npm run build && npm run preview -- --port 4180\n'
+    );
+    process.exit(2);
+  }
+}
+
+
 let failures = 0;
 const check = (label, ok, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? ` — ${detail}` : ''}`);
@@ -61,6 +79,8 @@ const SPEECH_MOCK = () => {
     return 'fired';
   };
 };
+
+await requireServer(URL);
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
