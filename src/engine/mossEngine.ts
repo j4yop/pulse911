@@ -13,7 +13,11 @@ import { resolveTriageOutcome, MIN_CONFIDENCE } from './retrievalCore';
 type MossClientInstance = {
   createIndex(name: string, docs: Array<{ id: string; text: string; metadata: Record<string, string> }>): Promise<{ docCount?: number } | undefined>;
   loadIndex(name: string): Promise<unknown>;
-  query(name: string, query: string, options: { topK: number }): Promise<SearchResult>;
+  query(
+    name: string,
+    query: string,
+    options: { topK: number; filter?: unknown }
+  ): Promise<SearchResult>;
   getIndex(name: string): Promise<{ docCount: number; status: string; updatedAt?: string }>;
 };
 
@@ -80,6 +84,33 @@ const INDEX_NAME = 'pulse911-kb-v3';
  */
 const MOSS_REFINEMENT_BUDGET_MS = 8000;
 
+/**
+ * The FIRST query also downloads and instantiates the model runtime. Measured in
+ * a real browser: 141s cold, then 27-40ms warm. The old single 8s budget sat on
+ * the cold query, so it could never succeed and Moss was declared dead on
+ * arrival.
+ */
+const MOSS_COLD_START_BUDGET_MS = 180000;
+
+/**
+ * Restricts retrieval to protocol documents, server-side.
+ *
+ * Two reasons, and the second is the safety one:
+ *  1. Protocol docs are 17 of 197 documents, so unfiltered retrieval returns
+ *     action and red-flag snippets and never a protocol.
+ *  2. `SearchResult.docs[].metadata` comes back EMPTY from Moss even though it
+ *     was uploaded and is filterable. The old code gated on
+ *     `metadata.kind === 'protocol'`, which therefore never passed and Moss
+ *     could never contribute a clinical decision.
+ *
+ * Filtering at the source makes "a guidance hit is not a protocol" structural
+ * rather than dependent on the service echoing metadata back.
+ */
+const PROTOCOL_ONLY_FILTER = {
+  field: 'kind',
+  condition: { $eq: 'protocol' },
+} as const;
+
 /** Flatten a protocol into one indexable text block (retrieved verbatim on match). */
 function protocolToDocText(p: EmergencyProtocol): string {
   return [
@@ -117,6 +148,9 @@ class Pulse911RetrievalEngine {
    */
   private mossUnavailableReason: string | null = null;
   private mossReady = false;
+  /** True once the model runtime has actually served one query. */
+  private mossWarm = false;
+  private warmupPromise: Promise<void> | null = null;
 
   /**
    * Kick off async initialization; safe to call multiple times.
@@ -214,6 +248,28 @@ class Pulse911RetrievalEngine {
       `Moss WASM runtime ready — index "${INDEX_NAME}" (${created ? 'created' : 'existing'}, ` +
         `${remoteCount ?? 'unverified'} documents) loaded in-process.`
     );
+
+    /**
+     * Pay the ~140s model download and WASM instantiation NOW, in the background,
+     * instead of on the operator's first query. Deliberately not awaited: init
+     * stays fast and the caller-facing budget covers the wait.
+     */
+    this.warmupPromise = (async () => {
+      try {
+        await this.client!.query(INDEX_NAME, 'emergency', {
+          topK: 1,
+          filter: PROTOCOL_ONLY_FILTER,
+        });
+        this.mossWarm = true;
+        console.log('[Pulse911] Moss model runtime warm.');
+      } catch (err) {
+        // Not fatal: the next real query will pay the cold start itself.
+        this.mossWarm = false;
+        console.warn(
+          `[Pulse911] Moss warmup did not complete: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    })();
   }
 
   /**
@@ -224,10 +280,19 @@ class Pulse911RetrievalEngine {
    * returned, which is tracked separately so the product cannot imply Moss is
    * contributing when it is not.
    */
-  public getMossStatus(): { ready: boolean; serving: boolean; reason: string | null } {
+  public getMossStatus(): {
+    ready: boolean;
+    warming: boolean;
+    serving: boolean;
+    reason: string | null;
+  } {
     return {
       ready: this.mossReady,
-      serving: this.mossUnavailableReason === null && this.mossReady,
+      // Ready but not yet warm: the model runtime is still downloading and
+      // instantiating. Claiming "serving" here would be the old dishonesty in a
+      // new place — the runtime is up, but no query has ever been answered.
+      warming: this.mossReady && !this.mossWarm,
+      serving: this.mossUnavailableReason === null && this.mossReady && this.mossWarm,
       reason: this.mossUnavailableReason,
     };
   }
@@ -285,13 +350,30 @@ class Pulse911RetrievalEngine {
    */
   public async refineWithMoss(transcript: string, topK = 3): Promise<MossQueryResult | null> {
     if (!this.client || this.mode !== 'moss-wasm') return null;
+    const startedAt = performance.now();
+    const cold = !this.mossWarm;
+    const budget = cold ? MOSS_COLD_START_BUDGET_MS : MOSS_REFINEMENT_BUDGET_MS;
+
     try {
+      // If warmup is already in flight, let it finish first so this query is
+      // charged the warm budget rather than racing the cold one.
+      if (cold && this.warmupPromise) {
+        await Promise.race([
+          this.warmupPromise,
+          new Promise<void>((r) => setTimeout(r, budget)),
+        ]);
+      }
+
       const result: SearchResult = await Promise.race([
-        this.client.query(INDEX_NAME, transcript, { topK }),
+        this.client.query(INDEX_NAME, transcript, {
+          topK,
+          filter: PROTOCOL_ONLY_FILTER,
+        }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Moss query timed out')), MOSS_REFINEMENT_BUDGET_MS)
+          setTimeout(() => reject(new Error('Moss query timed out')), budget)
         ),
       ]);
+      this.mossWarm = true;
       const docs = result.docs ?? [];
       if (docs.length === 0) return null;
 
@@ -310,20 +392,24 @@ class Pulse911RetrievalEngine {
       // put anything in their mouth" is a useful *guidance* hit, but treating
       // an action document as a protocol would manufacture a clinical claim out
       // of a first-aid snippet.
-      const isProtocolDoc = top?.metadata?.kind === 'protocol';
-      const protocol = isProtocolDoc
-        ? EMERGENCY_PROTOCOLS.find((p) => p.id === (top.metadata?.sourceId ?? top.id))
-        : null;
+      // Resolve the protocol from the id, not from metadata. Moss returns
+      // `metadata: {}` on retrieval even though it was uploaded, so the old
+      // `metadata.kind === 'protocol'` gate could never pass. Protocol documents
+      // are indexed with `id: p.id` and nothing else uses that shape, so matching
+      // the id against the live protocol registry is both reliable and stricter:
+      // an id that is not a real protocol cannot become a clinical decision.
+      const matchedById = EMERGENCY_PROTOCOLS.find((p) => p.id === top?.id);
+      const protocol = matchedById ?? null;
 
       if (!protocol) {
-        // A guidance hit is not a protocol. Report nothing rather than
+        // A non-protocol id is not a protocol. Report nothing rather than
         // inventing an outcome from it.
         return null;
       }
 
       if (confidence < MIN_CONFIDENCE) {
         return {
-          outcome: this.abstain(!protocol ? 'no-anchor-match' : 'low-confidence'),
+          outcome: this.abstain('low-confidence'),
           score: +topScore.toFixed(4),
           latencyMs: +(result.timeTakenMs ?? 0).toFixed(2),
           engine: 'Moss WASM Runtime (@moss-dev/moss-web)',
@@ -344,8 +430,18 @@ class Pulse911RetrievalEngine {
       // Was `catch { return null }`. A silent catch here is what let a broken
       // Moss path look identical to a healthy one for an entire release.
       const reason = err instanceof Error ? err.message : String(err);
+      // A timeout means slow, not broken. Recording it as "unavailable" is how a
+      // cold start got reported as a dead service for an entire release. Only
+      // real failures (auth, network, init) mark Moss unavailable.
+      if (/timed out/i.test(reason)) {
+        console.warn(
+          `[Pulse911] Moss query exceeded its ${cold ? 'cold-start' : 'warm'} budget ` +
+            `(${Math.round(performance.now() - startedAt)}ms); keeping local triage.`
+        );
+        return null;
+      }
       this.mossUnavailableReason = reason;
-      console.warn(`[Pulse911] Moss refinement unavailable, keeping local triage: ${reason}`);
+      console.warn(`[Pulse911] Moss refinement failed, keeping local triage: ${reason}`);
       return null;
     }
   }

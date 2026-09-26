@@ -63,7 +63,7 @@ export interface ConsoleViewProps {
   guidance: CategoryMatch[];
   transcriptSource: 'mic' | 'typed' | null;
   micState: MicState;
-  mossStatus: { ready: boolean; serving: boolean; reason: string | null } | null;
+  mossStatus: { ready: boolean; warming: boolean; serving: boolean; reason: string | null } | null;
   onMicStateChange: (s: MicState) => void;
   onSpokenAnswer: (spoken: string) => boolean;
   awaitingAnswerFor: string | null;
