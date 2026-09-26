@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   MessageCircleQuestion,
   UserCheck,
+  LifeBuoy,
 } from 'lucide-react';
 import {
   EmergencyProtocol,
@@ -20,6 +21,7 @@ import {
   DispatchIntent,
   OverrideRecord,
 } from '../types';
+import { speakableCategories, type CategoryMatch } from '../engine/guidanceCategories';
 import { CopilotCoachPanel } from './CopilotCoachPanel';
 import { EkgMonitor } from './EkgMonitor';
 import { EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
@@ -36,6 +38,7 @@ import {
 interface DispatcherHUDProps {
   queryResult: MossQueryResult | null;
   dispatchIntent: DispatchIntent | null;
+  guidance: CategoryMatch[];
   overrideLog: OverrideRecord[];
   onOverride: (protocol: EmergencyProtocol) => void;
   onTriggerMetronome: (active: boolean) => void;
@@ -47,6 +50,7 @@ interface DispatcherHUDProps {
 export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   queryResult,
   dispatchIntent,
+  guidance,
   overrideLog,
   onOverride,
   onTriggerMetronome,
@@ -369,6 +373,59 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                   ))}
                 </ol>
               </div>
+
+              {/* Broad, low-risk guidance. This is what makes an abstention a
+                  real answer rather than a refusal: we cannot name the condition,
+                  but for most presentations the right first action does not depend
+                  on the name. */}
+              {guidance.length > 0 && (
+                <div className="bg-sky-50/80 border border-sky-200 rounded-2xl p-4 space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-sky-900 flex items-center gap-1.5">
+                    <LifeBuoy className="w-4 h-4 text-sky-600" />
+                    <span>Do this now &mdash; {guidance[0].category.label}</span>
+                  </h4>
+
+                  <ul className="space-y-1.5 text-xs text-sky-950 list-disc list-inside font-sans leading-relaxed">
+                    {guidance[0].category.safeActions.map((a, i) => (
+                      <li key={i}>{a}</li>
+                    ))}
+                  </ul>
+
+                  <div className="pt-2 border-t border-sky-200 space-y-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-rose-700">
+                      Call 911 now if:
+                    </span>
+                    <ul className="space-y-1 text-[11px] text-rose-900 list-disc list-inside">
+                      {guidance[0].category.redFlags.map((f, i) => (
+                        <li key={i}>{f}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="pt-2 border-t border-sky-200 space-y-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-700">
+                      Do not:
+                    </span>
+                    <ul className="space-y-1 text-[11px] text-amber-900 list-disc list-inside">
+                      {guidance[0].category.doNot.map((d, i) => (
+                        <li key={i}>{d}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {guidance.length > 1 && (
+                    <p className="text-[10px] font-mono text-sky-800/80 pt-1">
+                      Also possible: {guidance.slice(1).map((g) => g.category.label).join(' · ')}
+                    </p>
+                  )}
+
+                  <p className="text-[10px] font-mono text-sky-900/70 pt-1">
+                    General first aid for this kind of emergency &mdash; not a diagnosis.
+                    Confidence {(guidance[0].confidence * 100).toFixed(0)}%
+                    {speakableCategories(guidance).length === 0 && ', shown on screen only'}
+                  </p>
+                </div>
+              )}
 
               <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
