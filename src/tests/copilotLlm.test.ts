@@ -28,7 +28,7 @@ describe('copilotLlm · buildDispatcherPrompt', () => {
 
   it('forbids the LLM from adding clinical actions or contradicting the script', () => {
     const { system } = buildDispatcherPrompt('test', CARDIAC);
-    expect(system).toMatch(/no new clinical actions/i);
+    expect(system).toMatch(/never introduce a clinical action/i);
     expect(system).toMatch(/never contradict/i);
     expect(system).toMatch(/60 words|maximum 60/i);
   });
@@ -72,5 +72,51 @@ describe('copilotLlm · configuration guard', () => {
   it('reports unconfigured when gateway env vars are absent', () => {
     // In the vitest environment no VITE_HIDEVS_* vars are set — the guard must be honest about it.
     expect(typeof isLlmConfigured()).toBe('boolean');
+  });
+});
+
+/**
+ * The laundering defect (workflow 4.2).
+ *
+ * The copilot used to be told the protocol "has already resolved", which meant a
+ * WRONG match was coached around with confidence and no invitation to dissent.
+ * A confidence-laundering copilot is worse than none: it makes an engine error
+ * look like a considered clinical judgement.
+ */
+describe('the copilot is a second pair of eyes, not a launderer', () => {
+  const protocol = {
+    code: 'AHA-2026-CPR',
+    title: 'Adult Cardiac Arrest',
+    triageLevel: 'ESI-1 (Immediate Resuscitation)',
+    verbalResponseText: 'Start chest compressions now.',
+  } as const;
+
+  it('presents the protocol as a machine guess, not a confirmed diagnosis', () => {
+    const { system, user } = buildDispatcherPrompt('my water broke, I am 9 months pregnant', protocol);
+    expect(system).toMatch(/SELECTED a protocol/i);
+    expect(system).toMatch(/machine guess, not a confirmed diagnosis/i);
+    expect(system).toMatch(/can be confidently wrong/i);
+    expect(user).toMatch(/may be wrong/i);
+    expect(user).not.toMatch(/PROTOCOL RESOLVED/);
+  });
+
+  it('invites disagreement and tells it to be the first thing said', () => {
+    const { system } = buildDispatcherPrompt('x', protocol);
+    expect(system).toMatch(/If the transcript does not actually fit/i);
+    expect(system).toMatch(/say so plainly in your first sentence/i);
+  });
+
+  it('still forbids the model from inventing clinical content', () => {
+    const { system } = buildDispatcherPrompt('x', protocol);
+    expect(system).toMatch(/never introduce a clinical action/i);
+    expect(system).toMatch(/a dosage/i);
+    expect(system).toMatch(/never contradict the scripted instruction/i);
+  });
+
+  it('keeps the transcript bounded so a caller cannot flood the request', () => {
+    const long = 'a'.repeat(5000);
+    const { user } = buildDispatcherPrompt(long, protocol);
+    const quoted = user.match(/TRANSCRIPT: "([^"]*)"/)?.[1] ?? '';
+    expect(quoted.length).toBeLessThanOrEqual(600);
   });
 });
