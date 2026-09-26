@@ -14,6 +14,13 @@ import {
 import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from './engine/emergencyProtocols';
 import { mossEngine } from './engine/mossEngine';
 import { routeTranscript, type RouteVerdict } from './engine/routing';
+import {
+  advanceClarify,
+  emptyClarifyState,
+  stopClarify,
+  type ClarifyState,
+  matchingTranscript,
+} from './engine/clarify';
 import type { CategoryMatch } from './engine/guidanceCategories';
 import { audioService } from './engine/speechSimulation';
 import {
@@ -97,6 +104,12 @@ export const App: React.FC = () => {
    * engine decided on, so the two can never disagree about what was said.
    */
   const [route, setRoute] = useState<RouteVerdict | null>(null);
+  /**
+   * The clarifying session for the current call. Started on every query and
+   * advanced by the dispatcher answering one question at a time. Purely
+   * additive to the caller's own words, and it can still end in abstention.
+   */
+  const [clarify, setClarify] = useState<ClarifyState | null>(null);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const [audioFeedbackEnabled, setAudioFeedbackEnabled] = useState(true);
   /**
@@ -120,6 +133,89 @@ export const App: React.FC = () => {
    */
   const callTokenRef = useRef(0);
 
+
+  /**
+   * Everything that happens once a protocol is decided: the scenario card, the
+   * dispatch intent, the spoken instruction and the CPR pacer.
+   *
+   * Extracted so the clarifying loop can reach the same presentation. The safety
+   * gate is still `matchedProtocol()` upstream — this function is only ever
+   * handed a protocol that already passed it, and it never decides anything.
+   */
+  const presentMatch = useCallback(
+    (
+      protocol: EmergencyProtocol,
+      text: string,
+      scenario?: EmergencyScenario,
+      speakAudio = true
+    ) => {
+          setActiveScenario(
+          scenario ?? {
+            id: 'scen_live_call',
+            title: 'Live Inbound 911 Call (Real-Time Ingest)',
+            tagline: 'Live voice audio / freeform speech transcribed & routed via Moss',
+            iconName: 'PhoneCall',
+            callerProfile: 'Live Caller (Direct Audio Stream)',
+            callerSpeechTranscript: text,
+            callerLocation: {
+              address: 'Triangulating Cell Tower GPS',
+              city: 'Metro Dispatch Sector 4',
+              coordinates: '37.7749\u00b0 N, 122.4194\u00b0 W',
+            },
+            reportedVitals: {
+              consciousness: 'TRIAGED IN REAL TIME',
+              breathing: 'VAD MONITORED',
+              pulse: protocol.cadenceBpm ? `${protocol.cadenceBpm} BPM TARGET` : 'MONITORED',
+            },
+            triagePriority: (protocol.triageLevel.includes('1')
+              ? 'ESI-1 (Immediate Resuscitation)'
+              : 'ESI-2 (Emergent)') as any,
+          }
+        );
+
+        // Record what triage is ASKING CAD for — never invent the response.
+        //
+        // This used to fabricate a whole ambulance: id MEDIC-14, the name
+        // "Medic Engine 14 (ALS Paramedic Rescue)", "Station 4 • Downtown
+        // Core", a named crew, and `Math.random()` for the ETA — all rendered
+        // under a "DISPATCHED" badge with a moving progress bar and "GPS
+        // Telemetry Stream Active". None of it came from a system. There is
+        // no CAD backend, so there is nothing truthful to say beyond what the
+        // protocol itself recommends.
+        setDispatchIntent({
+          protocolId: protocol.id,
+          protocolCode: protocol.code,
+          unitType: protocol.unitRecommendation.unitType,
+          priority: protocol.unitRecommendation.priority,
+          requiredEquipment: protocol.unitRecommendation.requiredEquipment,
+          status: 'AWAITING_CAD',
+        });
+
+        if (speakAudio && audioFeedbackEnabled) {
+          audioService.speakVerbalInstruction(protocol.verbalResponseText);
+        }
+
+
+        setDispatchIntent({
+          protocolId: protocol.id,
+          protocolCode: protocol.code,
+          unitType: protocol.unitRecommendation.unitType,
+          priority: protocol.unitRecommendation.priority,
+          requiredEquipment: protocol.unitRecommendation.requiredEquipment,
+          status: 'AWAITING_CAD',
+        });
+
+        if (speakAudio && audioFeedbackEnabled) {
+          audioService.speakVerbalInstruction(protocol.verbalResponseText);
+        }
+
+        if (protocol.cadenceBpm && isMetronomeActive) {
+          audioService.startCprMetronome(protocol.cadenceBpm);
+        }
+      },
+    [audioFeedbackEnabled, isMetronomeActive]
+  );
+
   const handleProcessTranscript = useCallback(
     async (text: string, scenario?: EmergencyScenario, speakAudio = true) => {
       setIsProcessing(true);
@@ -138,60 +234,13 @@ export const App: React.FC = () => {
         setGuidance(guidanceFor(text));
         const r = routeTranscript(text);
         setRoute(r);
+        setClarify(emptyClarifyState(text));
 
         // SAFETY GATE — the single point deciding what may be spoken or sent.
         const protocol = matchedProtocol(res.outcome);
 
         if (protocol) {
-          setActiveScenario(
-            scenario ?? {
-              id: 'scen_live_call',
-              title: 'Live Inbound 911 Call (Real-Time Ingest)',
-              tagline: 'Live voice audio / freeform speech transcribed & routed via Moss',
-              iconName: 'PhoneCall',
-              callerProfile: 'Live Caller (Direct Audio Stream)',
-              callerSpeechTranscript: text,
-              callerLocation: {
-                address: 'Triangulating Cell Tower GPS',
-                city: 'Metro Dispatch Sector 4',
-                coordinates: '37.7749\u00b0 N, 122.4194\u00b0 W',
-              },
-              reportedVitals: {
-                consciousness: 'TRIAGED IN REAL TIME',
-                breathing: 'VAD MONITORED',
-                pulse: protocol.cadenceBpm ? `${protocol.cadenceBpm} BPM TARGET` : 'MONITORED',
-              },
-              triagePriority: (protocol.triageLevel.includes('1')
-                ? 'ESI-1 (Immediate Resuscitation)'
-                : 'ESI-2 (Emergent)') as any,
-            }
-          );
-
-          // Record what triage is ASKING CAD for — never invent the response.
-          //
-          // This used to fabricate a whole ambulance: id MEDIC-14, the name
-          // "Medic Engine 14 (ALS Paramedic Rescue)", "Station 4 • Downtown
-          // Core", a named crew, and `Math.random()` for the ETA — all rendered
-          // under a "DISPATCHED" badge with a moving progress bar and "GPS
-          // Telemetry Stream Active". None of it came from a system. There is
-          // no CAD backend, so there is nothing truthful to say beyond what the
-          // protocol itself recommends.
-          setDispatchIntent({
-            protocolId: protocol.id,
-            protocolCode: protocol.code,
-            unitType: protocol.unitRecommendation.unitType,
-            priority: protocol.unitRecommendation.priority,
-            requiredEquipment: protocol.unitRecommendation.requiredEquipment,
-            status: 'AWAITING_CAD',
-          });
-
-          if (speakAudio && audioFeedbackEnabled) {
-            audioService.speakVerbalInstruction(protocol.verbalResponseText);
-          }
-
-          if (protocol.cadenceBpm && isMetronomeActive) {
-            audioService.startCprMetronome(protocol.cadenceBpm);
-          }
+          presentMatch(protocol, text, scenario, speakAudio);
         } else {
           // ABSTAIN: no protocol, no unit, no CPR pacer. Do not guess, do not
           // speak a clinical protocol, do not dispatch. What IS spoken is the
@@ -298,6 +347,46 @@ export const App: React.FC = () => {
     [queryResult, currentTranscript, overrideLog.length]
   );
 
+
+  /**
+   * Record one answer and re-triage.
+   *
+   * The dispatcher asks; the loop never invents an answer. On a resolve we go
+   * through exactly the same presentation as a first-pass match, so a
+   * dispatcher-confirmed protocol is indistinguishable from an engine-matched
+   * one downstream — no second, weaker path into speech or dispatch.
+   */
+  const handleClarifyAnswer = useCallback(
+    (questionId: string, optionLabel: string) => {
+      if (!clarify) return;
+      const result = advanceClarify(clarify, questionId, optionLabel, EMERGENCY_PROTOCOLS);
+      setClarify(result.state);
+
+      if (result.outcome.kind === 'matched') {
+        const confirmed: MossQueryResult = {
+          outcome: result.outcome,
+          score: result.outcome.confidence,
+          latencyMs: 0,
+          engine: 'Clarifying questions (dispatcher-confirmed)',
+          vectorDistance: +(1 - result.outcome.confidence).toFixed(3),
+          tokensEvaluated: result.state.answers.length,
+        };
+        setQueryResult(confirmed);
+        setGuidance([]);
+        presentMatch(result.outcome.protocol, clarify.transcript, undefined, true);
+      } else {
+        // Still unresolved: refresh the safety-floor guidance for the fuller
+        // picture the answers now give us.
+        setGuidance(guidanceFor(matchingTranscript(result.state)));
+      }
+    },
+    [clarify, presentMatch]
+  );
+
+  const handleStopClarify = useCallback(() => {
+    setClarify((prev) => (prev ? stopClarify(prev) : prev));
+  }, []);
+
   const handleClearCall = useCallback(() => {
     audioService.stopSpeaking();
     audioService.stopCprMetronome();
@@ -308,6 +397,7 @@ export const App: React.FC = () => {
     setDispatchIntent(null);
     setGuidance([]);
     setRoute(null);
+    setClarify(null);
   }, []);
 
   return (
@@ -365,6 +455,9 @@ export const App: React.FC = () => {
                 dispatchIntent={dispatchIntent}
                 guidance={guidance}
                 route={route}
+                clarify={clarify}
+                onClarifyAnswer={handleClarifyAnswer}
+                onStopClarify={handleStopClarify}
                 overrideLog={overrideLog}
                 onOverride={handleOverride}
                 isMetronomeActive={isMetronomeActive}

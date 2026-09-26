@@ -61,6 +61,17 @@ function tokenize(text: string): string[] {
 }
 
 /**
+ * Tokens that invert the meaning of the words around them.
+ *
+ * These are the reason order-independent containment cannot be applied blindly.
+ * See `phrasePresent`.
+ */
+const NEGATION_TOKENS = new Set([
+  'not', 'no', 'never', 'none', 'nothing', 'without', 'neither', 'nor',
+  'cannot', 'isnt', 'aint', 'dont', 'doesnt', 'didnt', 'wont', 'cant',
+]);
+
+/**
  * Order-independent containment: every stemmed token of `phrase` must appear
  * somewhere in the transcript.
  *
@@ -70,14 +81,41 @@ function tokenize(text: string): string[] {
  * words, drop articles and splice clauses, so presence is the right primitive.
  * Specificity is instead controlled by MIN_ANCHOR_WEIGHT: a one-word match
  * alone is never enough to select a protocol.
+ *
+ * ## EXCEPT: phrases containing a negation require a consecutive run
+ *
+ * This exception is a safety fix, and it was found by the clarifying loop, which
+ * feeds multi-clause text containing answers like "breathing normally".
+ *
+ * Bag-of-words matching cannot see scope, so the keyword "not breathing"
+ * matched the transcript "something is not right with my dad. breathing
+ * normally" — the `not` was satisfied by an unrelated clause four words earlier
+ * and `breathing` by the answer. The result was a confident **CARD-01** for a
+ * caller who said their patient was breathing perfectly: cardiac arrest
+ * instructions, spoken aloud, for someone who was fine.
+ *
+ * For a negated phrase the word order *is* the meaning, so order-independent
+ * matching is not an option: it must appear as a run.
  */
 function phrasePresent(haystackTokens: string[], phrase: string): boolean {
   const needle = tokenize(phrase);
   if (needle.length === 0) return false;
   if (needle.length > haystackTokens.length) return false;
 
-  const seen = new Set(haystackTokens);
-  return needle.every((t) => seen.has(t));
+  const requiresRun = needle.some((t) => NEGATION_TOKENS.has(t));
+  if (!requiresRun) {
+    const seen = new Set(haystackTokens);
+    return needle.every((t) => seen.has(t));
+  }
+
+  // Negated phrase: only a consecutive run counts.
+  outer: for (let i = 0; i + needle.length <= haystackTokens.length; i++) {
+    for (let j = 0; j < needle.length; j++) {
+      if (haystackTokens[i + j] !== needle[j]) continue outer;
+    }
+    return true;
+  }
+  return false;
 }
 
 /** Evidence threshold: a single 1-word hit is never enough to act on. */

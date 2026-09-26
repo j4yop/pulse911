@@ -95,18 +95,41 @@ an "override" of something triage already matched, since nothing was refused.
 
 ---
 
-## Stage 2 — Clarify instead of guess
+## Stage 2 — Clarify instead of guess — DONE (2.1, 2.2, 2.3); 2.4 wording still open
 
 Goal: answer "according to the user's needs" by *asking* when uncertain.
 
-- 2.1 Clarifying-question script, asked one at a time, answered by voice or tap:
-  breathing → consciousness → bleeding → age → pregnancy.
-- 2.2 Re-run triage on each answer; allow the question set to terminate early.
-- 2.3 Universal zero-risk actions (never wrong, always permitted):
-  put phone on speaker · unlock the door · do not hang up · note when symptoms started.
-- 2.4 DEFER speech template, containing the single safety floor:
-  *"If they are unresponsive and not breathing normally, start chest compressions
-  now."* — correct in the worst case, and the reason we do not go silent.
+- 2.1 **Done.** `src/engine/clarify.ts` asks one question at a time, answered by
+  tap, in a fixed order: breathing → consciousness → bleeding → age → pregnancy.
+  Order is deliberate — airway first because every later answer is worthless if
+  the patient is not breathing; pregnancy last because it changes interpretation,
+  not immediate action.
+- 2.2 **Done.** Each answer re-runs triage, and the loop stops the instant the
+  answers resolve a protocol, so a fifth question is never asked unneeded.
+- 2.3 **Done** (earlier). Universal zero-risk actions.
+- 2.4 **Open.** DEFER speech template carries the safety floor plus, when
+  clearly matched, one category action and red flag. `SPEAK_CATEGORY_GUIDANCE`
+  disables the category audio pending review. The clarifying questions are
+  deliberately **not** spoken — they are for the dispatcher to ask the caller.
+
+### The safety decision that matters most here
+
+Answers are re-fed to the ranker as text, and the ranker cannot tell assertion
+from denial — it only sees words. So **negative and unknown answers are recorded
+but contribute nothing to matching.** "No, not bleeding" must never be evidence
+of bleeding. Tests assert a caller who denies everything ends in abstention.
+
+### 2.2 exposed a latent negation bug in the ranker (fixed)
+
+Feeding multi-clause text revealed that bag-of-words matching cannot see scope:
+the keyword `"not breathing"` matched *"something is **not** right with my dad.
+breathing normally"* — the `not` satisfied by an unrelated clause, `breathing`
+by the answer. Result: confident **CARD-01** for a caller who said their patient
+was breathing perfectly.
+
+Negated phrases now require a **consecutive run**; non-negated phrases keep
+order-independent containment, so "his speech is slurred" still reaches
+"slurred speech". Four regression tests pin both halves.
 
 **Owner review required:** exact wording of every spoken string.
 

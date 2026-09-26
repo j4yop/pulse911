@@ -209,3 +209,57 @@ describe('matching quality (word-boundary + stemming)', () => {
     expect((performance.now() - t0) / 100).toBeLessThan(5);
   });
 });
+
+/**
+ * Negation scoping. Found by the clarifying loop, which feeds multi-clause text
+ * containing answers like "breathing normally".
+ *
+ * Bag-of-words matching cannot see scope, so the keyword "not breathing" used to
+ * match "something is not right with my dad. breathing normally" — the `not`
+ * was satisfied by an unrelated clause and `breathing` by the answer. The result
+ * was a confident CARD-01, spoken aloud, for a caller whose patient was
+ * breathing perfectly. Negated phrases now require a consecutive run.
+ */
+describe('negation is scoped, not bag-of-words', () => {
+  it('does not read a negated keyword out of an unrelated clause', () => {
+    const res = resolveTriageOutcome(
+      'something is not right with my dad. breathing normally',
+      EMERGENCY_PROTOCOLS
+    );
+    expect(res.kind).toBe('abstain');
+  });
+
+  it('still matches a real cardiac arrest', () => {
+    for (const t of [
+      'he is not breathing and has no pulse',
+      'he is not breathing normally',
+      'he collapsed and is not breathing',
+    ]) {
+      const res = resolveTriageOutcome(t, EMERGENCY_PROTOCOLS);
+      expect(res.kind, t).toBe('matched');
+      if (res.kind === 'matched') expect(res.protocol.id, t).toBe('CARD-01');
+    }
+  });
+
+  it('keeps order-independent matching for phrases without negation', () => {
+    // "his speech is slurred" does not contain the run [slurred, speech].
+    // Losing this would silently stop the stroke protocol firing.
+    const res = resolveTriageOutcome(
+      'one arm is drooping and her speech is slurred',
+      EMERGENCY_PROTOCOLS
+    );
+    expect(res.kind).toBe('matched');
+    if (res.kind === 'matched') expect(res.protocol.id).toBe('NEURO-03');
+  });
+
+  it('does not let an answer about normal breathing pull a cardiac protocol', () => {
+    const affirmations = [
+      'he is fine. breathing normally',
+      'she is talking to me. breathing normally',
+      'no problem, he is breathing normally',
+    ];
+    for (const t of affirmations) {
+      expect(resolveTriageOutcome(t, EMERGENCY_PROTOCOLS).kind, t).toBe('abstain');
+    }
+  });
+});

@@ -32,6 +32,7 @@ import {
 } from '../types';
 import type { CategoryMatch } from '../engine/guidanceCategories';
 import type { RouteVerdict } from '../engine/routing';
+import type { ClarifyState } from '../engine/clarify';
 import { EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
 import { matchedProtocol } from '../engine/triageGate';
 import { cn } from '@/lib/utils';
@@ -60,6 +61,9 @@ export interface ConsoleViewProps {
   dispatchIntent: DispatchIntent | null;
   guidance: CategoryMatch[];
   route: RouteVerdict | null;
+  clarify: ClarifyState | null;
+  onClarifyAnswer: (questionId: string, optionLabel: string) => void;
+  onStopClarify: () => void;
   overrideLog: OverrideRecord[];
   onOverride: (protocol: EmergencyProtocol) => void;
   isMetronomeActive: boolean;
@@ -84,6 +88,9 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
   dispatchIntent,
   guidance,
   route,
+  clarify,
+  onClarifyAnswer,
+  onStopClarify,
   overrideLog,
   onOverride,
   isMetronomeActive,
@@ -377,6 +384,9 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             dispatchIntent={dispatchIntent}
             guidance={guidance}
             route={route}
+            clarify={clarify}
+            onClarifyAnswer={onClarifyAnswer}
+            onStopClarify={onStopClarify}
             overrideLog={overrideLog}
             onOverride={onOverride}
             onTriggerMetronome={onToggleMetronome}
