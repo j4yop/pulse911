@@ -33,6 +33,7 @@ import {
 import type { CategoryMatch } from '../engine/guidanceCategories';
 import type { RouteVerdict } from '../engine/routing';
 import type { ClarifyState } from '../engine/clarify';
+import type { MicState } from './CallerPanel';
 import { EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
 import { matchedProtocol } from '../engine/triageGate';
 import { cn } from '@/lib/utils';
@@ -60,6 +61,9 @@ export interface ConsoleViewProps {
   queryResult: MossQueryResult | null;
   dispatchIntent: DispatchIntent | null;
   guidance: CategoryMatch[];
+  transcriptSource: 'mic' | 'typed' | null;
+  micState: MicState;
+  onMicStateChange: (s: MicState) => void;
   route: RouteVerdict | null;
   clarify: ClarifyState | null;
   onClarifyAnswer: (questionId: string, optionLabel: string) => void;
@@ -70,7 +74,11 @@ export interface ConsoleViewProps {
   audioFeedbackEnabled: boolean;
   latencyMs: number | null;
   callRequestId: number;
-  onProcessTranscript: (text: string, scenario?: EmergencyScenario) => void;
+  onProcessTranscript: (
+    text: string,
+    scenario?: EmergencyScenario,
+    source?: 'mic' | 'typed'
+  ) => void;
   onToggleMetronome: (active: boolean) => void;
   onToggleAudioFeedback: () => void;
   onClearCall: () => void;
@@ -87,6 +95,9 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
   queryResult,
   dispatchIntent,
   guidance,
+  transcriptSource,
+  micState,
+  onMicStateChange,
   route,
   clarify,
   onClarifyAnswer,
@@ -377,13 +388,14 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             <span className="text-[10px] text-slate-400 hidden sm:inline shrink-0">16kHz PCM &bull; LIVE AUDIO</span>
           </div>
           <CallerPanel
-            onProcessTranscript={(txt, scen) => onProcessTranscript(txt, scen)}
+            onProcessTranscript={(txt, scen, src) => onProcessTranscript(txt, scen, src)}
             isProcessing={isProcessing}
             activeScenario={activeScenario}
             currentTranscript={currentTranscript}
             spokenInstruction={matchedProtocol(queryResult?.outcome)?.verbalResponseText}
             onClearCall={onClearCall}
             retrievalLatencyMs={queryResult?.latencyMs ?? null}
+            onMicStateChange={onMicStateChange}
           />
         </div>
 
@@ -402,6 +414,8 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             queryResult={queryResult}
             dispatchIntent={dispatchIntent}
             guidance={guidance}
+            transcriptSource={transcriptSource}
+            micState={micState}
             route={route}
             clarify={clarify}
             onClarifyAnswer={onClarifyAnswer}

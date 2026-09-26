@@ -13,6 +13,7 @@ import {
 } from './types';
 import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from './engine/emergencyProtocols';
 import { mossEngine } from './engine/mossEngine';
+import type { MicState } from './components/CallerPanel';
 import { routeTranscript, type RouteVerdict } from './engine/routing';
 import {
   advanceClarify,
@@ -99,6 +100,10 @@ export const App: React.FC = () => {
    * the engine decided on, and so speech and screen can never disagree.
    */
   const [guidance, setGuidance] = useState<CategoryMatch[]>([]);
+  /** Whether the engine received speech or typed text. Shown on the result. */
+  const [transcriptSource, setTranscriptSource] = useState<'mic' | 'typed' | null>(null);
+  /** Mirrors the microphone lifecycle so the dock can show it while scrolled away. */
+  const [micState, setMicState] = useState<MicState>('idle');
   /**
    * Emergency vs general-question routing. Evaluated from the same text the
    * engine decided on, so the two can never disagree about what was said.
@@ -213,11 +218,17 @@ export const App: React.FC = () => {
   );
 
   const handleProcessTranscript = useCallback(
-    async (text: string, scenario?: EmergencyScenario, speakAudio = true) => {
+    async (
+      text: string,
+      scenario?: EmergencyScenario,
+      source: 'mic' | 'typed' = 'typed',
+      speakAudio = true
+    ) => {
       setIsProcessing(true);
       setCurrentTranscript(text);
       setCallRequestId((n) => n + 1);
       const callToken = ++callTokenRef.current;
+      setTranscriptSource(source);
       audioService.playRadioChirp();
 
       try {
@@ -392,6 +403,7 @@ export const App: React.FC = () => {
     setQueryResult(null);
     setDispatchIntent(null);
     setGuidance([]);
+    setTranscriptSource(null);
     setRoute(null);
     setClarify(null);
   }, []);
@@ -432,7 +444,7 @@ export const App: React.FC = () => {
                 <LandingView
                   onLaunchConsole={(scen) => {
                     if (scen) {
-                      handleProcessTranscript(scen.callerSpeechTranscript, scen, true);
+                      handleProcessTranscript(scen.callerSpeechTranscript, scen, 'typed', true);
                     }
                     handleSelectTab('console');
                   }}
@@ -450,6 +462,9 @@ export const App: React.FC = () => {
                 queryResult={queryResult}
                 dispatchIntent={dispatchIntent}
                 guidance={guidance}
+                transcriptSource={transcriptSource}
+                micState={micState}
+                onMicStateChange={setMicState}
                 route={route}
                 clarify={clarify}
                 onClarifyAnswer={handleClarifyAnswer}
@@ -460,7 +475,7 @@ export const App: React.FC = () => {
                 audioFeedbackEnabled={audioFeedbackEnabled}
                 latencyMs={latencyMs}
                 callRequestId={callRequestId}
-                onProcessTranscript={(txt, scen) => handleProcessTranscript(txt, scen, true)}
+                onProcessTranscript={(txt, scen, src) => handleProcessTranscript(txt, scen, src)}
                 onToggleMetronome={handleToggleMetronome}
                 onToggleAudioFeedback={handleToggleAudioFeedback}
                 onClearCall={handleClearCall}
