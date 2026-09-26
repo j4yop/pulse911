@@ -1,6 +1,7 @@
 import type { SearchResult } from '@moss-dev/moss-web';
 import type { EmergencyProtocol, MossQueryResult, TriageOutcome, AbstainReason } from '../types';
 import { EMERGENCY_PROTOCOLS } from './emergencyProtocols';
+import { toIndexPayload } from './knowledgeBase';
 import { resolveTriageOutcome, MIN_CONFIDENCE } from './retrievalCore';
 
 /**
@@ -36,7 +37,13 @@ type MossClientInstance = {
 
 export type EngineMode = 'moss-wasm' | 'local-fallback';
 
-const INDEX_NAME = 'pulse911-protocols-v1';
+/**
+ * v2: the corpus changed shape entirely (6 protocol documents -> 186
+ * actionable-fact documents). Reusing v1 would silently keep serving the old
+ * six-document index, so the name is versioned. The old `pulse911-protocols-v1`
+ * index is now orphaned in Moss Cloud and can be deleted.
+ */
+const INDEX_NAME = 'pulse911-kb-v2';
 
 /**
  * Hard deadline for ONE background Moss refinement query.
@@ -126,11 +133,12 @@ class Pulse911RetrievalEngine {
     this.client = new MossClient(projectId, projectKey) as unknown as MossClientInstance;
 
     // Idempotent ingestion: create the index (no-op-safe), then load into runtime memory.
-    const docs = EMERGENCY_PROTOCOLS.map((p) => ({
-      id: p.id,
-      text: protocolToDocText(p),
-      metadata: protocolToMetadata(p),
-    }));
+    //
+    // This indexes the KNOWLEDGE BASE, not the six protocols. The old index held
+    // one document per protocol — six documents, which is not a corpus and made
+    // a 28MB semantic runtime pointless. The knowledge base is one document per
+    // actionable fact (186 of them), so retrieval has something to retrieve.
+    const docs = toIndexPayload();
 
     try {
       await this.client.createIndex(INDEX_NAME, docs);
@@ -140,7 +148,7 @@ class Pulse911RetrievalEngine {
 
     await this.client.loadIndex(INDEX_NAME);
     this.mode = 'moss-wasm';
-    console.log(`[Pulse911] Moss WASM runtime ready — index "${INDEX_NAME}" (${docs.length} protocols) loaded in-process.`);
+    console.log(`[Pulse911] Moss WASM runtime ready — index "${INDEX_NAME}" (${docs.length} knowledge documents) loaded in-process.`);
   }
 
   public getMode(): EngineMode {
@@ -211,11 +219,28 @@ class Pulse911RetrievalEngine {
       const topScore = top?.score ?? 0;
       const margin = topScore > 0 ? (topScore - (second?.score ?? 0)) / topScore : 0;
       const confidence = +(margin * Math.min(1, Math.max(0, topScore))).toFixed(3);
-      const protocol =
-        EMERGENCY_PROTOCOLS.find((p) => p.id === top.id) ??
-        EMERGENCY_PROTOCOLS.find((p) => p.id === top.metadata?.protocolId);
 
-      if (!protocol || confidence < MIN_CONFIDENCE) {
+      // The index now holds one document per *actionable fact*, not one per
+      // protocol, so ids look like `cat-airway::safe-action::0`. Only a
+      // document explicitly marked `kind: 'protocol'` may become a clinical
+      // decision.
+      //
+      // This matters for safety, not just correctness: Moss retrieving "do not
+      // put anything in their mouth" is a useful *guidance* hit, but treating
+      // an action document as a protocol would manufacture a clinical claim out
+      // of a first-aid snippet.
+      const isProtocolDoc = top?.metadata?.kind === 'protocol';
+      const protocol = isProtocolDoc
+        ? EMERGENCY_PROTOCOLS.find((p) => p.id === (top.metadata?.sourceId ?? top.id))
+        : null;
+
+      if (!protocol) {
+        // A guidance hit is not a protocol. Report nothing rather than
+        // inventing an outcome from it.
+        return null;
+      }
+
+      if (confidence < MIN_CONFIDENCE) {
         return {
           outcome: this.abstain(!protocol ? 'no-anchor-match' : 'low-confidence'),
           score: +topScore.toFixed(4),

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mossEngine } from '../engine/mossEngine';
 import { matchedProtocol, canDispatch } from '../engine/triageGate';
+import { buildKnowledgeDocs } from '../engine/knowledgeBase';
 
 describe('mossEngine integration', () => {
   it('returns a well-formed result for an emergency scenario', async () => {
@@ -26,10 +27,16 @@ describe('mossEngine integration', () => {
     expect(res.outcome.kind).toBe('abstain');
   });
 
+  it('indexes a real corpus rather than six protocol documents', () => {
+    // The index used to hold one document per protocol. Six documents is not a
+    // corpus, and it made a 28MB semantic runtime pointless.
+    expect(buildKnowledgeDocs().length).toBeGreaterThan(150);
+  });
+
   it('reports operational statistics', () => {
     const stats = mossEngine.getStats();
     expect(stats.protocolsCount).toBe(6);
-    expect(stats.indexName).toBe('pulse911-protocols-v1');
+    expect(stats.indexName).toBe('pulse911-kb-v2');
     expect(stats.totalQueries).toBeGreaterThan(0);
   });
 });
