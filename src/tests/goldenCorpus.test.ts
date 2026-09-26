@@ -144,22 +144,16 @@ describe('the abstain contract holds across the whole corpus', () => {
  * half-done, and the number cannot drift upward unnoticed.
  */
 describe('known-gap ratchet', () => {
-  it('has not silently grown', () => {
-    // Lower this ONLY alongside a deliberate corpus update.
-    const ALLOWED_GAPS = 48;
-    expect(totalGapCases()).toBeLessThanOrEqual(ALLOWED_GAPS);
+  it('is fully closed and cannot silently regrow', () => {
+    expect(totalGapCases()).toBe(0);
   });
 
   it('still documents the gaps that matter most', () => {
     const gaps = gapSummary().map((g) => g.gap);
-    for (const critical of [
-      'adult choking protocol',
-      'obstetric protocol',
-      'burns protocol',
-      'seizure protocol',
-    ]) {
-      expect(gaps, `gap disappeared from the corpus: ${critical}`).toContain(critical);
-    }
+    // The backlog is CLOSED. Every gap phrase the corpus once proved now
+    // resolves to a real protocol, so the gap list must be empty. If a gap
+    // reappears, a protocol regressed and this fails.
+    expect(gaps).toEqual([]);
   });
 });
 

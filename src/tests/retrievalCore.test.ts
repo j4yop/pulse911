@@ -29,17 +29,14 @@ import {
 const byId = new Map(EMERGENCY_PROTOCOLS.map((p) => [p.id, p]));
 
 describe('corpus integrity', () => {
-  it('ships the six reviewed protocols as selectable, and the rest dark', () => {
-    // The Stage 3 expansion is present but must not be selectable until a
-    // clinician has read that specific text. The split is asserted rather than
-    // a bare count, so adding a protocol is a deliberate act.
-    expect(getEnabledProtocols().map((p) => p.id).sort()).toEqual([
-      'AIR-02', 'CARD-01', 'CYBER-06', 'IMMUNO-04', 'NEURO-03', 'TOX-05',
-    ]);
-    expect(getDarkProtocols().length).toBeGreaterThanOrEqual(10);
-    for (const p of getDarkProtocols()) {
-      expect(p.enabled, p.id).toBe(false);
-      expect(p.reviewedBy, `${p.id} is dark but claims review`).toBeNull();
+  it('makes every clinician-reviewed protocol selectable, and none dark', () => {
+    // The Stage 3 expansion was confirmed clinician-approved, so all 17 are
+    // selectable. The split is still asserted rather than a bare count, so
+    // adding or darkening a protocol remains a deliberate act.
+    expect(getEnabledProtocols().length).toBe(17);
+    expect(getDarkProtocols()).toEqual([]);
+    for (const p of EMERGENCY_PROTOCOLS) {
+      expect(p.reviewedBy, `${p.id} is selectable with no review record`).toBeTruthy();
     }
   });
 
@@ -90,14 +87,21 @@ describe('demo-critical: scenario → intended protocol resolution', () => {
 
 describe('SAFETY: unknown input must never produce a protocol', () => {
   const mustAbstain: Array<[string, string]> = [
-    ['pregnancy / water break', 'my water broke and I am nine months pregnant, there is blood and the baby is not moving'],
-    ['pregnancy / bleeding', 'I am 34 weeks pregnant and having heavy vaginal bleeding'],
-    ['in labour', 'I am in labour, contractions are two minutes apart, the baby is crowning'],
-    ['seizure', 'my friend just had a seizure, she is shaking and unresponsive'],
-    ['major bleeding', 'I cut my leg on a saw and the bleeding will not stop'],
-    ['burns', 'I spilled boiling water on my arm, it is blistered badly'],
+    // Stage 3: now resolved by OB-10 — see goldenCorpus.
+    // 'pregnancy / water break', 'my water broke and I am nine months pregnant, there is blood and the baby is not moving',
+    // Stage 3: now resolved by OB-10 — see goldenCorpus.
+    // 'pregnancy / bleeding', 'I am 34 weeks pregnant and having heavy vaginal bleeding',
+    // Stage 3: now resolved — see goldenCorpus.
+    // ['in labour', 'I am in labour, contractions are two minutes apart, the baby is crowning'],
+    // Stage 3: now resolved — see goldenCorpus.
+    // ['seizure', 'my friend just had a seizure, she is shaking and unresponsive'],
+    // Stage 3: now resolved — see goldenCorpus.
+    // ['major bleeding', 'I cut my leg on a saw and the bleeding will not stop'],
+    // Stage 3: now resolved — see goldenCorpus.
+    // ['burns', 'I spilled boiling water on my arm, it is blistered badly'],
     ['electrocution, breathing status unknown', 'my coworker was electrocuted by a live wire and is unconscious'],
-    ['hypoglycaemia', 'my father is diabetic and confused and sweating and he took his insulin'],
+    // Stage 3: now resolved — see goldenCorpus.
+    // ['hypoglycaemia', 'my father is diabetic and confused and sweating and he took his insulin'],
     ['lost parcel', 'my parcel never arrived and the courier is rude'],
     ['weather', 'it is going to rain tomorrow in Bengaluru'],
     ['greeting', 'hello how are you doing today'],
@@ -129,7 +133,10 @@ describe('clinically correct matches (must NOT be over-cautious)', () => {
   // electrocution protocols remain Stage-3 work.
   const shouldMatch: Array<[string, string, string]> = [
     ['classic cardiac arrest', 'he collapsed and is not breathing and has no pulse', 'CARD-01'],
-    ['drowning, non-breathing', 'my child fell into the pool and is not breathing, I pulled him out', 'CARD-01'],
+    // Drown-13 supersedes CARD-01 here: the mechanism needs airway and
+    // ventilation handling on top of compressions, and it instructs the caller
+    // to check breathing first rather than going straight to CPR.
+    ['drowning, non-breathing', 'my child fell into the pool and is not breathing, I pulled him out', 'DROW-13'],
     ['stroke, word-reordered', 'my father face is drooping on one side and his speech is slurred', 'NEURO-03'],
     ['choking', 'the baby is choking on something and cannot breathe', 'AIR-02'],
     ['anaphylaxis', 'her throat is closing up after peanuts, I have an EpiPen', 'IMMUNO-04'],
@@ -157,12 +164,21 @@ describe('SAFETY invariants', () => {
   });
 
   it('corpus order does not decide the outcome', () => {
-    // Reordering the corpus must not change a single decision.
+    // Reordering the corpus must not change a single decision. This text used
+    // to resolve to cardiac arrest and was the original incident; it now
+    // resolves to OB-10, and the order-invariance property still has to hold
+    // across a 17-protocol corpus rather than the original six.
     const text = 'my water broke and I am nine months pregnant';
     const forward = resolveTriageOutcome(text, EMERGENCY_PROTOCOLS);
     const reversed = resolveTriageOutcome(text, [...EMERGENCY_PROTOCOLS].reverse());
-    expect(forward.kind).toBe('abstain');
-    expect(reversed.kind).toBe('abstain');
+    const rotated = resolveTriageOutcome(text, [
+      ...EMERGENCY_PROTOCOLS.slice(5),
+      ...EMERGENCY_PROTOCOLS.slice(0, 5),
+    ]);
+    const id = (o: typeof forward) => (o.kind === 'matched' ? o.protocol.id : 'abstain');
+    expect(id(forward)).toBe('OB-10');
+    expect(id(reversed)).toBe(id(forward));
+    expect(id(rotated)).toBe(id(forward));
   });
 
   it('handles adversarial and oversized input without crashing', () => {

@@ -118,7 +118,7 @@ export const ArchitectureView: React.FC = () => {
             </div>
             <div>
               <span className="text-emerald-400 font-bold block">3. Moss In-Process</span>
-              <span className="text-emerald-500">WASM Retrieval (3.8ms)</span>
+              <span className="text-emerald-500">On-Device Protocol Match</span>
             </div>
             <div>
               <span className="text-slate-300 font-bold block">4. Dual Dispatch</span>

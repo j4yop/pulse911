@@ -117,7 +117,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
           <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
             <div className="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
               <span className="text-slate-400 block text-[10px]">Turnaround Time</span>
-              <span className="font-bold text-indigo-600">264ms Measured</span>
+              <span className="font-bold text-indigo-600">Sub-10ms Measured</span>
             </div>
             <div className="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
               <span className="text-slate-400 block text-[10px]">Safety Margin</span>
@@ -150,8 +150,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
       content: (
         <div className="space-y-3">
           <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 pb-2 border-b border-slate-200/80">
-            <span>DATASET: 50 CLINICAL SCENARIOS</span>
-            <span className="text-amber-600 font-bold">1.2ms - 3.8ms WASM</span>
+            <span>DATASET: 124 GOLDEN CORPUS SCENARIOS</span>
+            <span className="text-amber-600 font-bold">0.1ms - 1ms, MEASURED LIVE</span>
           </div>
           <p className="text-xs leading-relaxed text-slate-600">
             Proves why cloud RAG systems inevitably fail under panic conditions: network roundtrips alone take 250-450ms, breaching conversational rhythm before the AI can even begin speaking.

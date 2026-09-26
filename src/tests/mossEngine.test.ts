@@ -15,12 +15,19 @@ describe('mossEngine integration', () => {
   });
 
   it('ABSTAINS on out-of-domain input instead of returning cardiac arrest', async () => {
-    const res = await mossEngine.query(
-      'my water broke and I am nine months pregnant, there is blood and the baby is not moving'
-    );
+    const res = await mossEngine.query('my parcel never arrived and I want to complain');
     expect(res.outcome.kind).toBe('abstain');
     expect(matchedProtocol(res.outcome)).toBeNull();
     expect(canDispatch(res.outcome)).toBe(false);
+  });
+
+  it('resolves obstetric calls now that OB-10 exists', async () => {
+    // The original incident. This used to be cardiac arrest.
+    const res = await mossEngine.query(
+      'my water broke and I am nine months pregnant, there is blood and the baby is not moving'
+    );
+    expect(res.outcome.kind).toBe('matched');
+    expect(matchedProtocol(res.outcome)?.id).toBe('OB-10');
   });
 
   it('ABSTAINS on an empty transcript', async () => {
