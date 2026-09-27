@@ -134,14 +134,16 @@ export const App: React.FC = () => {
   }, []);
   /** Polled so the console can state Moss's real availability. */
   const [mossStatus, setMossStatus] = useState(mossEngine.getMossStatus());
-  /** Set when speech arrived while a question was pending but did not match. */
-  const [clarifyHeard, setClarifyHeard] = useState<string | null>(null);
   /** Everything the caller has said, in order. Retractions supersede earlier turns. */
   const [utterances, setUtterances] = useState<Utterance[]>([]);
   const utterancesRef = useRef<Utterance[]>([]);
   const [timeline, setTimeline] = useState<CallTimeline>(() => buildTimeline([]));
   /** Withdrawals and changed findings. Written by the decision, never recomputed. */
   const [callNotes, setCallNotes] = useState<string[]>([]);
+  /** The effective transcript, so the console can show what the decision used. */
+  const [matchText, setMatchText] = useState('');
+  /** Whether each clarify question was answered by voice or by tap. */
+  const [answerSources, setAnswerSources] = useState<Record<string, 'voice' | 'tap'>>({});
   /**
    * Emergency vs general-question routing. Evaluated from the same text the
    * engine decided on, so the two can never disagree about what was said.
@@ -289,6 +291,7 @@ export const App: React.FC = () => {
       const decision = decideCall(nextUtterances);
       setTimeline(decision.timeline);
       setCallNotes(decision.notes);
+      setMatchText(decision.matchText || text);
       const matchText = decision.matchText || text;
       setCallRequestId((n) => n + 1);
       const callToken = ++callTokenRef.current;
@@ -437,10 +440,11 @@ export const App: React.FC = () => {
    * one downstream — no second, weaker path into speech or dispatch.
    */
   const handleClarifyAnswer = useCallback(
-    (questionId: string, optionLabel: string) => {
+    (questionId: string, optionLabel: string, source: 'voice' | 'tap' = 'tap') => {
       if (!clarify) return;
       const result = advanceClarify(clarify, questionId, optionLabel, EMERGENCY_PROTOCOLS);
       setClarify(result.state);
+      setAnswerSources((prev) => ({ ...prev, [questionId]: source }));
 
       if (result.outcome.kind === 'matched') {
         const confirmed: MossQueryResult = {
@@ -491,10 +495,8 @@ export const App: React.FC = () => {
       if (!option) {
         // NOT an answer, so it is not ours to swallow. Fall through and let it
         // be triaged as new information.
-        setClarifyHeard(null);
         return false;
       }
-      setClarifyHeard(null);
       const r = handleClarifyAnswer(pending.id, option.label);
       return true;
     },
@@ -517,10 +519,11 @@ export const App: React.FC = () => {
     setTranscriptSource(null);
     setRoute(null);
     setClarify(null);
-    setClarifyHeard(null);
     utterancesRef.current = [];
     setUtterances([]);
     setTimeline(buildTimeline([]));
+    setMatchText('');
+    setAnswerSources({});
   }, []);
 
   return (
@@ -583,8 +586,10 @@ export const App: React.FC = () => {
                 onMicStateChange={setMicState}
                 onSpokenAnswer={handleSpokenAnswer}
                 awaitingAnswerFor={clarify && !clarify.resolvedProtocolId ? (nextQuestion(clarify)?.text ?? null) : null}
-                clarifyHeard={clarifyHeard}
                 callNotes={callNotes}
+                timeline={timeline}
+                matchText={matchText}
+                answerSources={answerSources}
                 route={route}
                 clarify={clarify}
                 onClarifyAnswer={handleClarifyAnswer}

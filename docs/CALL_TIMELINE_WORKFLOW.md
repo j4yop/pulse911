@@ -165,6 +165,46 @@ conversation — route, resolve, present, permit — so this class of bug fails 
 suite. It duplicates the call order rather than importing it; extracting the
 decision into one shared function is the durable fix and is still open.
 
+## The UI audit: what the engine knew and the operator could not see
+
+Stage 7 gave the engine a memory, and almost none of it reached the screen. Four
+findings from re-reading every change made during the conversation:
+
+1. **A withdrawal was a 10px badge whose detail lived in a `title=` tooltip.**
+   There is no hover on a tablet, and a dispatch console is very likely to be
+   touched. The single most important event in a call — the caller withdrawing
+   "he is not breathing" — was invisible without a mouse.
+2. **The decision input was never shown at all.** The screen displayed the
+   LATEST utterance while the decision ran on the corrected picture. An operator
+   could watch a retraction happen with no way to see what replaced it. For a tool
+   whose whole value is that the screen can be trusted, "what is this based on?"
+   has to be answerable on screen.
+3. **`clarifyHeard` was dead UI.** Since the fall-through fix, every
+   `setClarifyHeard` call passes `null`, so the amber *"Heard … not an answer I
+   can use"* box could never render — about 15 lines of markup and three props
+   threaded through three components, describing behaviour the app no longer had.
+   Removed.
+4. **No call history existed.** The `utterances` array was only ever fed to the
+   decision. The conversation was not visible as a conversation.
+
+### What replaced it: `src/components/CallRecord.tsx`
+
+- every turn in order, marked spoken or typed
+- withdrawn turns struck through and labelled, so history is never silently
+  rewritten
+- partly-retracted turns show exactly what was kept
+- what changed, in words — and a non-clinical correction says *"no finding
+  withdrawn"* rather than claiming a withdrawal that did not happen
+- **"What this decision is based on"** — the effective transcript, verbatim
+- clarify answers labelled voice or tap
+
+Collapsed by default so it never pushes the protocol off screen, and it **opens
+itself the moment the call changes**, because that is exactly when someone needs
+to read it. Hoisted above the matched/abstain branch for the same reason as the
+provenance block: a withdrawal is precisely the moment a protocol is *not*
+displayed, so hiding the record then would hide the reason. The badge is now a
+button that scrolls to the record rather than a hover target.
+
 ## Resolved since: items 3, 4 and 5 from the open list
 
 **3 — the duplicated decision order.** Gone. `src/engine/callDecision.ts` exports

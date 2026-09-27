@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { CallRecord } from './CallRecord';
+import type { CallTimeline } from '../engine/callTimeline';
 import { motion } from 'motion/react';
 import {
   Zap,
@@ -48,13 +50,17 @@ interface DispatcherHUDProps {
   micState: MicState;
   /** Real Moss availability, so the console never implies it is working. */
   mossStatus: { ready: boolean; warming: boolean; serving: boolean; reason: string | null } | null;
-  /** Speech heard while a question was open but not understood. */
-  clarifyHeard: string | null;
   /** Withdrawals and changed findings during this call. Never applied silently. */
   callNotes: string[];
+  /** The call so far, so the operator can see what the decision is based on. */
+  timeline: CallTimeline | null;
+  /** The effective transcript — everything said minus what was taken back. */
+  matchText: string;
+  /** How each clarify question was answered, so voice and tap are distinguishable. */
+  answerSources: Record<string, 'voice' | 'tap'>;
   route: RouteVerdict | null;
   clarify: ClarifyState | null;
-  onClarifyAnswer: (questionId: string, optionLabel: string) => void;
+  onClarifyAnswer: (questionId: string, optionLabel: string, source?: 'voice' | 'tap') => void;
   onStopClarify: () => void;
   overrideLog: OverrideRecord[];
   onOverride: (protocol: EmergencyProtocol) => void;
@@ -71,8 +77,10 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   transcriptSource,
   micState,
   mossStatus,
-  clarifyHeard,
   callNotes,
+  timeline,
+  matchText,
+  answerSources,
   route,
   clarify,
   onClarifyAnswer,
@@ -99,6 +107,13 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   };
 
   const abstained = queryResult?.outcome?.kind === 'abstain';
+
+  /** The badge scrolls to the record rather than hiding the detail in a tooltip. */
+  const scrollToCallRecord = () => {
+    document
+      .querySelector('[data-testid="call-record"]')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
   const protocol = overrideProtocol ?? (queryResult ? matchedProtocol(queryResult.outcome) : null);
   const confidence = confidenceOf(queryResult?.outcome);
 
@@ -185,13 +200,15 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
               </span>
             )}
             {callNotes.length > 0 && (
-              <span
+              <button
+                type="button"
                 data-testid="call-notes"
-                className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-400 bg-amber-100 text-amber-900 cursor-help"
-                title={callNotes.join('\n')}
+                onClick={() => scrollToCallRecord()}
+                className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-400 bg-amber-100 text-amber-900 hover:bg-amber-200 cursor-pointer"
+                title="See what changed in this call"
               >
                 Call updated &times;{callNotes.length}
-              </span>
+              </button>
             )}
             {mossStatus && mossStatus.warming && (
               <span
@@ -221,6 +238,17 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
               branch on purpose: while this lived inside the abstain card it
               disappeared the instant the answers resolved a protocol — exactly
               when the dispatcher most needs to see why. */}
+          {/* The call record is hoisted above the matched/abstain branch for the
+              same reason as the provenance block above: a withdrawal is exactly
+              the moment a protocol is NOT shown, and hiding the record then would
+              hide the reason. */}
+          <CallRecord
+            timeline={timeline}
+            matchText={matchText}
+            notes={callNotes}
+            answerSources={answerSources}
+          />
+
           {clarify?.resolvedProtocolId && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 space-y-1.5">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-800">
@@ -587,21 +615,12 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                           {q.text}
                         </p>
                         <p className="text-[10px] font-mono text-slate-500">{q.rationale}</p>
-                        {clarifyHeard && (
-                          <p
-                            data-testid="clarify-unheard"
-                            className="text-[11px] font-mono text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5"
-                          >
-                            Heard &ldquo;{clarifyHeard}&rdquo; &mdash; not an answer I can use. Tap an
-                            option, or repeat more clearly.
-                          </p>
-                        )}
                         <div className="flex flex-wrap gap-1.5 pt-1">
                           {q.options.map((o) => (
                             <button
                               key={o.label}
                               type="button"
-                              onClick={() => onClarifyAnswer(q.id, o.label)}
+                              onClick={() => onClarifyAnswer(q.id, o.label, 'tap')}
                               className="px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-[11px] font-mono font-bold text-amber-900 cursor-pointer touch-manipulation"
                             >
                               {o.label}

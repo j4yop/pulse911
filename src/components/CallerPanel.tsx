@@ -53,8 +53,6 @@ interface CallerPanelProps {
   onSpokenAnswer?: (spoken: string) => boolean;
   /** Set while an answer is expected, so the banner can say so. */
   awaitingAnswerFor?: string | null;
-  /** What speech was heard but not understood, so the operator can see it. */
-  clarifyHeard?: string | null;
 }
 
 export const CallerPanel: React.FC<CallerPanelProps> = ({
@@ -68,7 +66,6 @@ export const CallerPanel: React.FC<CallerPanelProps> = ({
   onMicStateChange,
   onSpokenAnswer,
   awaitingAnswerFor,
-  clarifyHeard,
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [customInput, setCustomInput] = useState('');
