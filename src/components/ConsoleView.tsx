@@ -68,6 +68,8 @@ export interface ConsoleViewProps {
   onSpokenAnswer: (spoken: string) => boolean;
   awaitingAnswerFor: string | null;
   clarifyHeard: string | null;
+  /** Withdrawals and changed findings during this call. */
+  callNotes: string[];
   route: RouteVerdict | null;
   clarify: ClarifyState | null;
   onClarifyAnswer: (questionId: string, optionLabel: string) => void;
@@ -106,6 +108,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
   onSpokenAnswer,
   awaitingAnswerFor,
   clarifyHeard,
+  callNotes,
   route,
   clarify,
   onClarifyAnswer,
@@ -429,6 +432,7 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             micState={micState}
             mossStatus={mossStatus}
             clarifyHeard={clarifyHeard}
+            callNotes={callNotes}
             route={route}
             clarify={clarify}
             onClarifyAnswer={onClarifyAnswer}

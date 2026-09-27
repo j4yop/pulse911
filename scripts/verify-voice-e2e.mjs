@@ -247,7 +247,12 @@ console.log(`
 `);
 
 const results = [];
+let aborted = null;
 for (const [i, phrase] of selected.entries()) {
+  if (page.isClosed() || browser.isConnected?.() === false) {
+    aborted = `the browser closed after ${results.length} of ${selected.length} phrases`;
+    break;
+  }
   const mark = await page.evaluate(() => window.__captured.length);
   const t0 = Date.now();
   process.stdout.write(
@@ -257,14 +262,28 @@ for (const [i, phrase] of selected.entries()) {
   );
 
   let heard = '';
-  while (Date.now() - t0 < TIMEOUT_S * 1000) {
-    await sleep(250);
-    const chunk = await page.evaluate((from) => window.__captured.slice(from), mark);
-    const fin = chunk.filter((c) => c.final).map((c) => c.text);
-    if (fin.length) {
-      heard = fin.join(' ');
-      break;
+  try {
+    while (Date.now() - t0 < TIMEOUT_S * 1000) {
+      await sleep(250);
+      if (page.isClosed()) {
+        aborted = `the browser closed during phrase ${i + 1} ("${phrase.say}")`;
+        break;
+      }
+      const chunk = await page.evaluate((from) => window.__captured.slice(from), mark);
+      const fin = chunk.filter((c) => c.final).map((c) => c.text);
+      if (fin.length) {
+        heard = fin.join(' ');
+        break;
+      }
     }
+  } catch (err) {
+    aborted = `lost contact with the browser during phrase ${i + 1}: ${
+      err instanceof Error ? err.message : String(err)
+    }`;
+  }
+  if (aborted) {
+    process.stdout.write('ABORTED\n');
+    break;
   }
 
   if (!heard) {
@@ -279,12 +298,27 @@ for (const [i, phrase] of selected.entries()) {
   results.push({ ...phrase, heard, verdict, f1 });
 }
 
-const engineErrors = await page.evaluate(() => window.__errors);
-await browser.close();
+let engineErrors = [];
+try {
+  if (!page.isClosed()) engineErrors = await page.evaluate(() => window.__errors);
+} catch {
+  engineErrors = ['unavailable: browser closed'];
+}
+try {
+  await browser.close();
+} catch {
+  /* already gone */
+}
 
 // --------------------------------------------------------------- report
 
-const failed = results.filter((r) => r.verdict === 'wrong' || r.verdict === 'no-speech');
+if (aborted) {
+  // An incomplete run is not a pass, and must never be reported as one.
+  results.push({ id: '(run incomplete)', say: '-', critical: false, heard: '', verdict: 'aborted', f1: 0 });
+}
+const failed = results.filter(
+  (r) => r.verdict === 'wrong' || r.verdict === 'no-speech' || r.verdict === 'aborted'
+);
 const criticalFailed = failed.filter((r) => r.critical);
 const noSpeech = results.filter((r) => r.verdict === 'no-speech');
 
@@ -308,7 +342,17 @@ if (criticalFailed.length) {
   console.log(`   A failure here is a patient-safety finding, not a test failure.`);
 }
 
-const verdict = criticalFailed.length || noSpeech.length === results.length ? 'FAIL' : failed.length ? 'PARTIAL' : 'PASS';
+if (aborted) {
+  console.log(`\n RUN ABORTED: ${aborted}`);
+  console.log(' An incomplete run is NOT a pass. Re-run when the machine is quiet.');
+}
+const verdict = aborted
+  ? 'FAIL'
+  : criticalFailed.length || noSpeech.length === results.length
+    ? 'FAIL'
+    : failed.length
+      ? 'PARTIAL'
+      : 'PASS';
 console.log(`\n VERDICT: ${verdict}`);
 console.log(` Google transcription is ${verdict === 'PASS' ? 'VERIFIED' : 'NOT verified — do not record Stage 2.4 as fully closed'}.`);
 console.log(`=========================================================================\n`);
