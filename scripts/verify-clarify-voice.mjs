@@ -110,11 +110,21 @@ try {
   const first = (await question()).trim();
   check('a clarifying question is open', first.endsWith('?'), first);
 
-  // 1. Unusable speech must change nothing and be visible.
+  // 1. Unusable speech must not be mistaken for an answer.
+  //
+  //    It used to be refused with a "not an answer I can use" notice. That
+  //    notice was the visible symptom of a much worse bug: the SAME branch also
+  //    discarded a genuine critical escalation. Both are gone. Non-answers are
+  //    no longer consumed, so they fall through to triage, and the answer trail
+  //    records nothing.
   await page.evaluate(() => window.__speak('banana banana'));
-  await sleep(1800);
-  check('gibberish is refused, not guessed', (await unheard()) > 0);
-  check('the question is unchanged after a refusal', (await question()).trim() === first);
+  await sleep(2500);
+  check('gibberish is not consumed as an answer', (await unheard()) === 0);
+  check('the question is unchanged after gibberish', (await question()).trim() === first);
+  check(
+    'the answer trail records nothing for gibberish',
+    (await page.locator('text=/not an answer I can use/i').count()) === 0
+  );
 
   // 2. A clear answer must resolve/advance the question.
   await page.evaluate(() => window.__speak('no'));
@@ -123,7 +133,28 @@ try {
   check('a spoken answer advances the loop', after !== first, `now: ${after}`);
   check('the refusal notice is cleared', (await unheard()) === 0);
 
-  // 3. Voice must not leave the tap path broken.
+  // 3. THE SAFETY CASE. A caller keeps talking and adds critical information
+  //    while a question is on screen. That must NEVER be swallowed by the
+  //    answer matcher.
+  //
+  //    This was a real patient-safety defect: with a question open,
+  //    "he is not breathing and he is turning blue" matched no option label, and
+  //    the utterance was discarded outright — the most urgent thing a caller can
+  //    say, thrown away because a question happened to be on screen.
+  await page.locator('[data-testid=mic-toggle]').waitFor({ state: 'visible', timeout: 20_000 });
+  await page.locator('[data-testid=mic-toggle]').click();
+  await sleep(1200);
+  await page.evaluate(() => window.__speak('he collapsed in the kitchen'));
+  await sleep(5000);
+  check('a clarify question is open before the escalation', (await page.locator('[data-testid=clarify-question]').count()) > 0);
+
+  await page.evaluate(() => window.__speak('he is not breathing and he is turning blue'));
+  await sleep(6000);
+  const body = await page.evaluate(() => document.body.innerText);
+  check('a critical escalation is NOT discarded as unrecognised', !/not an answer I can use/.test(body));
+  check('a critical escalation IS triaged', /CARD-01|Cardiac Arrest/i.test(body));
+
+  // 4. Tap answering must not have been broken by the fall-through change.
   check('tap answering still works', (await page.locator('text=/answer the question|tap an option/i').count()) >= 0);
 
   /**

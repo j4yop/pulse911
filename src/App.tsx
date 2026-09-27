@@ -400,10 +400,19 @@ export const App: React.FC = () => {
   /**
    * Interpret speech as an answer to the pending clarifying question.
    *
-   * Returns true when it consumed the utterance, so the caller knows not to
-   * also treat it as an emergency description. A mismatch returns false and
-   * surfaces what was heard — refusing is the safe default, because a misheard
-   * clinical answer selects the wrong protocol for a real person.
+   * Returns true ONLY when the speech unambiguously answered the pending
+   * question, so the caller knows not to also treat it as an emergency
+   * description.
+   *
+   * Returning true for anything else was a patient-safety bug: with a question
+   * open, "he is not breathing and he is turning blue" was matched against the
+   * option labels, found no match, and was DISCARDED. The single most urgent
+   * thing a caller can say was silently thrown away because a question happened
+   * to be on screen.
+   *
+   * So a non-answer now falls through to triage. Callers talk continuously and
+   * add and change information; an interaction model that only accepts
+   * one-word replies to its own question is not a conversation.
    */
   const handleSpokenAnswer = useCallback(
     (spoken: string): boolean => {
@@ -414,9 +423,10 @@ export const App: React.FC = () => {
 
       const option = matchSpokenAnswer(spoken, pending);
       if (!option) {
-        // Not understood. Say so and leave the buttons up — never guess.
-        setClarifyHeard(spoken);
-        return true;
+        // NOT an answer, so it is not ours to swallow. Fall through and let it
+        // be triaged as new information.
+        setClarifyHeard(null);
+        return false;
       }
       setClarifyHeard(null);
       const r = handleClarifyAnswer(pending.id, option.label);
