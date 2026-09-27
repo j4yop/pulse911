@@ -88,6 +88,66 @@ flip that happened is a historical fact whether or not we still act on it.
   that can be missed.
 - 246 unit tests, `tsc -b` and `vite build` clean.
 
+## The multi-turn corpus, and what it caught immediately
+
+`src/eval/multiTurnCorpus.ts` + `src/tests/multiTurnCorpus.test.ts` — conversations
+of two or more turns, replayed through the **same path the app uses**: build the
+timeline, take the effective transcript, run the triage gate.
+
+Labelled to what is clinically correct, never to what the engine currently does.
+On the first run, **3 of 12 conversations failed**, and all three were real bugs:
+
+### Bug A — a correction destroyed an unrelated critical finding
+
+`sorry i misspoke that is my mother not my father` mentions no clinical finding,
+but the old code withdrew the **whole previous turn** on any cue. So it also threw
+away `not breathing` from the same call:
+
+| | before | after |
+|---|---|---|
+| "my father collapsed and is not breathing" | CARD-01 | CARD-01 |
+| "+ that is my mother not my father" | **abstain** | **CARD-01** |
+
+This is the mirror of the stale-match bug and **more dangerous**, because the
+screen then shows nothing wrong while someone is dying. Under-triage fails
+silently; over-triage is at least visible.
+
+Fixed by scoping withdrawal to the claims actually retracted, at clause level, so
+`he is unresponsive and not breathing` keeps its breathing when only the
+responsiveness is taken back.
+
+### Bug B — corrections chain, and the chain was not followed
+
+`... not my father` then `actually that was my cat` refers **past** the subject
+correction, because the correction never changed the claim. Withdrawing only the
+immediately preceding turn left the original `not breathing` alive, with cardiac
+arrest on screen for a cat. The retraction now walks back over the correction
+chain to the claim underneath.
+
+### Bug C — our own audit line lied
+
+`describeRetraction` said "was withdrawn" for every correction, including ones
+that deliberately withdrew nothing. An audit line that overstates the change is
+worse than none: the operator learns to ignore the ones that matter.
+
+## Known open: the corpus tests the local path only
+
+The corpus calls `resolveTriageOutcome` — the deterministic local engine. The app
+additionally queries **Moss**, and the displayed protocol can come from that
+result. So a conversation that abstains locally can still show a protocol in the
+running app.
+
+Observed and **not yet root-caused**: after the three-turn cat retraction the app
+computes the correct effective transcript (`"sorry i misspoke that is my mother not
+my father. actually that was my cat he is fine"`, no `not breathing`) and the
+local engine abstains, but CARD-01 is still rendered.
+
+So there is a **composition gap**: the corpus proves the timeline and the local
+gate, not the composition the operator actually sees. Closing it means a
+conversation harness that runs the same path the app runs, with Moss stubbed to a
+recorded result. That is the next piece of work, and it is the same family as
+"a protocol must not outlive its evidence".
+
 ## Next, in order
 
 1. **Clinical review of the predicate list.** Add or remove findings. This is the

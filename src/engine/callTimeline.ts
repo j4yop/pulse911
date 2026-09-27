@@ -53,6 +53,15 @@ export interface Retraction {
   supersedes: number;
   by: number;
   kind: 'retraction' | 'correction';
+  /**
+   * Which findings were withdrawn.
+   *
+   * Empty means the correction was NOT clinical — "that is my mother, not my
+   * father" corrects who, not what. Those are recorded for the operator but
+   * withdraw no clinical claim, because withdrawing the whole turn would throw
+   * away unrelated critical findings the caller never took back.
+   */
+  predicates: string[];
 }
 
 export interface Contradiction {
@@ -67,8 +76,15 @@ export interface Contradiction {
 
 export interface CallTimeline {
   utterances: Utterance[];
-  /** Sequences withdrawn by a later utterance. */
+  /** Sequences withdrawn entirely by a later utterance. */
   superseded: number[];
+  /**
+   * seq -> the utterance with only the retracted claims removed.
+   *
+   * Clause-level, not utterance-level. "He is unresponsive AND not breathing"
+   * with only the responsiveness taken back must keep the breathing.
+   */
+  reduced: Record<number, string>;
   retractions: Retraction[];
   contradictions: Contradiction[];
   /** What should actually be matched on: withdrawn utterances removed. */
@@ -188,6 +204,72 @@ export function polarityOf(text: string, key: string): Polarity | null {
   return null;
 }
 
+
+/** Predicates this utterance actually makes a claim about. */
+function mentionedPredicates(text: string): string[] {
+  return PREDICATES.filter((p) => polarityOf(text, p.key) !== null).map((p) => p.key);
+}
+
+/**
+ * A correction that only RENAMES the person.
+ *
+ * "Sorry, that's my mother, not my father" changes who is in trouble, not
+ * whether anyone is. Withdrawing the whole turn here would throw away "not
+ * breathing" from a real cardiac arrest — the worst kind of bug, because the
+ * screen then shows nothing wrong while a person is dying.
+ *
+ * Deliberately narrow. Only an explicit person-swapping phrase counts, because
+ * the alternative mistakes are far more expensive: reading "that was my cat" as
+ * a mere renaming would leave "completely unresponsive" standing as a live
+ * protocol.
+ */
+function isPersonCorrection(text: string): boolean {
+  const PERSON = 'mother|father|mum|mom|mom\b|dad|son|daughter|brother|sister|wife|husband|partner|friend|neighbour|neighbor|grandma|grandad|grandpa|grandmother|grandfather|nan|pop|uncle|aunt|cousin';
+  return new RegExp(`\\b(?:that|it)?'?s?\\s+is\\s+my\\s+(?:${PERSON})\\b`, 'i').test(text)
+    || new RegExp(`\\bnot\\s+my\\s+(?:${PERSON})\\b`, 'i').test(text)
+    || new RegExp(`\\bsorry,?\\s+(?:it)?'?s?\\s+my\\s+(?:${PERSON})\\b`, 'i').test(text);
+}
+
+/**
+ * "I was wrong about all of that" withdraws everything, not one finding.
+ *
+ * Without this, a blanket retraction would be read as scoped to whatever
+ * predicate it happened to mention, and the caller's "all of it" would be
+ * narrowed to a single claim they did not limit it to.
+ */
+function isBlanketRetraction(text: string): boolean {
+  return /\ball (of (that|it|this))?\b|\beverything\b|\bthe whole thing\b|\bnone of (that|it)\b/i.test(text);
+}
+
+/**
+ * Split into clauses so a retraction can be scoped to one claim.
+ *
+ * Deliberately crude. It only has to separate "he is unresponsive" from "not
+ * breathing", and a cleverer splitter would be easier to fool.
+ */
+function clauses(text: string): string[] {
+  return text
+    .split(/\s*(?:,|;|\band\b|\bbut\b|\bthen\b|\balso\b)\s*/i)
+    .map((c) => c.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Remove only the clauses that assert the withdrawn findings.
+ *
+ * This is the fix for the worst bug the multi-turn corpus found: withdrawing the
+ * whole previous utterance on any cue. "Sorry, that's my mother not my father"
+ * mentioned no clinical finding, so it withdrew nothing — but before this, it
+ * also threw away "not breathing" from the same call, turning a cardiac arrest
+ * into an abstain. Under-triage is more dangerous than a stale match, because
+ * nothing on screen looks wrong.
+ */
+function dropClaims(text: string, predicates: string[]): string {
+  return clauses(text)
+    .filter((clause) => !predicates.some((k) => polarityOf(clause, k) !== null))
+    .join(' ');
+}
+
 // ------------------------------------------------------------ timeline
 
 /**
@@ -203,16 +285,64 @@ export function polarityOf(text: string, key: string): Polarity | null {
  */
 export function buildTimeline(utterances: Utterance[]): CallTimeline {
   const superseded = new Set<number>();
+  const reduced = new Map<number, string>();
   const retractions: Retraction[] = [];
 
   for (let i = 1; i < utterances.length; i++) {
-    if (!isRetraction(utterances[i].text)) continue;
+    const cur = utterances[i];
+    if (!isRetraction(cur.text)) continue;
     const prev = utterances[i - 1];
-    // Never retract the correction itself, and never retract an already-dead
-    // utterance (the operator is correcting the live statement, not an old one).
-    if (superseded.has(prev.seq)) continue;
-    superseded.add(prev.seq);
-    retractions.push({ supersedes: prev.seq, by: utterances[i].seq, kind: 'retraction' });
+    // Never withdraw something already withdrawn: the caller is correcting the
+    // live statement, not an old one.
+    if (superseded.has(prev.seq) || reduced.has(prev.seq)) continue;
+
+    if (isBlanketRetraction(cur.text)) {
+      superseded.add(prev.seq);
+      reduced.delete(prev.seq);
+      retractions.push({ supersedes: prev.seq, by: cur.seq, kind: 'retraction', predicates: [] });
+      continue;
+    }
+
+    const predicates = mentionedPredicates(cur.text);
+
+    if (predicates.length === 0) {
+      if (isPersonCorrection(cur.text)) {
+        // Only the identity changed. The person is still in trouble, so NO
+        // clinical claim is withdrawn. Recorded so the operator sees the change.
+        retractions.push({ supersedes: prev.seq, by: cur.seq, kind: 'correction', predicates: [] });
+        continue;
+      }
+      // No clinical finding named and no person renamed: "that was my cat",
+      // "i meant the kettle", "i was wrong, he is fine". The report is being
+      // taken back, so withdraw it. Defaulting the other way would leave
+      // "completely unresponsive" standing as a live protocol.
+      //
+      // Corrections CHAIN. "Sorry i misspoke that is my mother" then "actually
+      // that was my cat" refers past the subject correction, because the
+      // correction never changed the claim. Withdrawing only the immediately
+      // preceding turn leaves the original "not breathing" alive and the screen
+      // still showing cardiac arrest for a cat. So walk back over the retraction
+      // chain and withdraw the claim underneath it.
+      let target = i - 1;
+      while (
+        target > 0 &&
+        isRetraction(utterances[target].text) &&
+        !superseded.has(utterances[target].seq) &&
+        // Stop if the claim underneath is already gone: there is nothing left to
+        // withdraw, and the live statement is the one that must be taken back.
+        !superseded.has(utterances[target - 1].seq)
+      ) {
+        target--;
+      }
+      superseded.add(utterances[target].seq);
+      retractions.push({ supersedes: utterances[target].seq, by: cur.seq, kind: 'retraction', predicates: [] });
+      continue;
+    }
+
+    const kept = dropClaims(prev.text, predicates);
+    if (!kept.trim()) superseded.add(prev.seq);
+    else reduced.set(prev.seq, kept.trim());
+    retractions.push({ supersedes: prev.seq, by: cur.seq, kind: 'correction', predicates });
   }
 
   // Contradictions are detected across the WHOLE call, including utterances that
@@ -243,21 +373,40 @@ export function buildTimeline(utterances: Utterance[]): CallTimeline {
     }
   }
 
-  const live = utterances.filter((u) => !superseded.has(u.seq));
+  const live = utterances
+    .filter((u) => !superseded.has(u.seq))
+    .map((u) => reduced.get(u.seq) ?? u.text)
+    .filter((t) => t.trim().length > 0);
 
   return {
     utterances,
     superseded: [...superseded],
+    reduced: Object.fromEntries(reduced),
     retractions,
     contradictions,
-    effectiveText: live.map((u) => u.text).join('. ').trim(),
+    effectiveText: live.join('. ').trim(),
     changed: retractions.length > 0 || contradictions.length > 0,
   };
 }
 
-/** Human-readable note for a retraction, for the operator. */
+/**
+ * Human-readable note for a retraction, for the operator.
+ *
+ * The wording is load-bearing. This originally said "was withdrawn" for every
+ * correction, including ones that deliberately withdrew NOTHING — so the console
+ * told the operator that "not breathing" had been taken back when it had not.
+ * An audit line that overstates the change is worse than no audit line: the
+ * operator stops trusting the ones that matter.
+ */
 export function describeRetraction(r: Retraction, by: Utterance, was: Utterance): string {
-  return `"${was.text}" was withdrawn — "${by.text}"`;
+  if (r.kind === 'correction' && r.predicates.length === 0) {
+    // A non-clinical correction: the person was renamed, nothing withdrawn.
+    return `Corrected — no finding withdrawn: "${by.text}"`;
+  }
+  if (r.predicates.length > 0) {
+    return `Withdrawn (${r.predicates.join(', ')}): "${was.text}" — corrected by "${by.text}"`;
+  }
+  return `Withdrawn: "${was.text}" — "${by.text}"`;
 }
 
 /** Human-readable note for a contradiction, for the operator. */
