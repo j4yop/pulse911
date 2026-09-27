@@ -298,7 +298,10 @@ export const App: React.FC = () => {
         // governs, and this quietly backs it up.
         setGuidance(guidanceFor(matchText));
         setMossStatus(mossEngine.getMossStatus());
-        const r = routeTranscript(text);
+        // NOTE: the effective transcript, not the latest utterance. Routing on
+        // the raw turn meant a withdrawn emergency still routed as an emergency,
+        // because "actually that was my cat" carries no clinical words of its own.
+        const r = routeTranscript(matchText);
         setRoute(r);
         setClarify(emptyClarifyState(matchText));
 
@@ -326,7 +329,7 @@ export const App: React.FC = () => {
           if (speakAudio && audioFeedbackEnabled && r.kind === 'emergency') {
             // Never a dead end: the zero-risk safety floor, plus at most one
             // clearly-matched broad category's first action and red flag.
-            for (const line of speakableGuidanceScript(text)) {
+            for (const line of speakableGuidanceScript(matchText)) {
               audioService.speakVerbalInstruction(line);
             }
           }
@@ -345,7 +348,12 @@ export const App: React.FC = () => {
         // emergency. Surfacing that disagreement is future work, not a swap.
         if (protocol) {
           void mossEngine
-            .refineWithMoss(text)
+            // The effective transcript here too. Refining on the raw turn let a
+            // retraction be ignored by the Moss path entirely: the local engine
+            // had already corrected the picture, then Moss re-derived a protocol
+            // from the withdrawn words. This is the composition gap the
+            // multi-turn corpus could not see, because the corpus is local-only.
+            .refineWithMoss(matchText)
             .then((refined) => {
               if (callToken !== callTokenRef.current) return; // superseded
               if (!refined) return; // runtime not warm — keep the local result

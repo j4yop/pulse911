@@ -130,23 +130,36 @@ chain to the claim underneath.
 that deliberately withdrew nothing. An audit line that overstates the change is
 worse than none: the operator learns to ignore the ones that matter.
 
-## Known open: the corpus tests the local path only
+## The composition gap — found, and closed
 
 The corpus calls `resolveTriageOutcome` — the deterministic local engine. The app
-additionally queries **Moss**, and the displayed protocol can come from that
-result. So a conversation that abstains locally can still show a protocol in the
-running app.
+runs a longer sequence, and **three call sites in `App.tsx` were still passing the
+RAW latest utterance instead of the effective transcript**:
 
-Observed and **not yet root-caused**: after the three-turn cat retraction the app
-computes the correct effective transcript (`"sorry i misspoke that is my mother not
-my father. actually that was my cat he is fine"`, no `not breathing`) and the
-local engine abstains, but CARD-01 is still rendered.
+| call site | consequence of the bug |
+|---|---|
+| `routeTranscript(text)` | a withdrawn emergency still routed as an emergency, because "actually that was my cat" carries no clinical words of its own |
+| `speakableGuidanceScript(text)` | guidance spoken from a withdrawn finding |
+| `refineWithMoss(text)` | Moss re-derived a protocol from words the caller had taken back |
 
-So there is a **composition gap**: the corpus proves the timeline and the local
-gate, not the composition the operator actually sees. Closing it means a
-conversation harness that runs the same path the app runs, with Moss stubbed to a
-recorded result. That is the next piece of work, and it is the same family as
-"a protocol must not outlive its evidence".
+Every existing test passed with those bugs present, because they all called
+`resolveTriageOutcome` directly. **A corpus can only catch what it is wired to
+see.** All three now use the effective transcript.
+
+Verified headed, using a `data-testid` on the dispatch card rather than a text
+search (an earlier loose locator matched an unrelated button and produced a false
+reading):
+
+| turn | dispatch card |
+|---|---|
+| "my father collapsed and is not breathing" | shown |
+| "+ that is my mother not my father" | shown — emergency stands |
+| "+ actually that was my cat" | **cleared** |
+
+`src/tests/callComposition.test.ts` now runs the app's whole decision sequence per
+conversation — route, resolve, present, permit — so this class of bug fails the
+suite. It duplicates the call order rather than importing it; extracting the
+decision into one shared function is the durable fix and is still open.
 
 ## Next, in order
 

@@ -398,6 +398,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
 
               {/* Dispatch intent — what triage asks CAD for, and nothing more. */}
               {dispatchIntent && (
+                <div data-testid="dispatch-intent">
                 <motion.div
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -446,6 +447,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                     Everything above is copied from the matched protocol, not from a dispatch system.
                   </p>
                 </motion.div>
+              </div>
               )}
 
               {/* Contraindications & Critical Warnings */}
