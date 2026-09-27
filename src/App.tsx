@@ -14,7 +14,8 @@ import {
 import { EMERGENCY_SCENARIOS, EMERGENCY_PROTOCOLS } from './engine/emergencyProtocols';
 import { mossEngine } from './engine/mossEngine';
 import type { MicState } from './components/CallerPanel';
-import { routeTranscript, type RouteVerdict } from './engine/routing';
+import type { RouteVerdict } from './engine/routing';
+import { decideCall } from './engine/callDecision';
 import { matchSpokenAnswer } from './engine/clarifyVoice';
 import {
   buildTimeline,
@@ -37,7 +38,6 @@ import {
   createOverrideRecord,
   guidanceFor,
   matchedProtocol,
-  speakableGuidanceScript,
 } from './engine/triageGate';
 import { cn } from '@/lib/utils';
 
@@ -121,29 +121,8 @@ export const App: React.FC = () => {
   const [utterances, setUtterances] = useState<Utterance[]>([]);
   const utterancesRef = useRef<Utterance[]>([]);
   const [timeline, setTimeline] = useState<CallTimeline>(() => buildTimeline([]));
-
-  /**
-   * What the operator must be told about the conversation so far.
-   *
-   * A withdrawal that changes nothing on screen is indistinguishable from a
-   * withdrawal that was ignored. So the changes are stated, not just applied.
-   */
-  const callNotes = useMemo(() => {
-    const notes: string[] = [];
-    for (const r of timeline.retractions) {
-      const was = timeline.utterances.find((x) => x.seq === r.supersedes);
-      const by = timeline.utterances.find((x) => x.seq === r.by);
-      if (was && by) notes.push(`Withdrawn: ${describeRetraction(r, by, was)}`);
-    }
-    for (const c of timeline.contradictions) {
-      const prev = timeline.utterances.find((x) => x.seq === c.previous);
-      const cur = timeline.utterances.find((x) => x.seq === c.seq);
-      if (prev && cur) {
-        notes.push(`Changed: ${describeContradiction(c, prev, cur)} ("${prev.text}" -> "${cur.text}")`);
-      }
-    }
-    return notes;
-  }, [timeline]);
+  /** Withdrawals and changed findings. Written by the decision, never recomputed. */
+  const [callNotes, setCallNotes] = useState<string[]>([]);
   /**
    * Emergency vs general-question routing. Evaluated from the same text the
    * engine decided on, so the two can never disagree about what was said.
@@ -280,10 +259,18 @@ export const App: React.FC = () => {
         { seq: utterancesRef.current.length, text, source },
       ];
       utterancesRef.current = nextUtterances;
-      const nextTimeline = buildTimeline(nextUtterances);
       setUtterances(nextUtterances);
-      setTimeline(nextTimeline);
-      const matchText = nextTimeline.effectiveText || text;
+
+      /**
+       * ONE decision, from ONE function. The app used to compute the transcript
+       * and then call routing, the gate, guidance and Moss separately — which is
+       * how three of them ended up judging the raw utterance while the tests
+       * judged the corrected one. There is no second sequence to drift now.
+       */
+      const decision = decideCall(nextUtterances);
+      setTimeline(decision.timeline);
+      setCallNotes(decision.notes);
+      const matchText = decision.matchText || text;
       setCallRequestId((n) => n + 1);
       const callToken = ++callTokenRef.current;
       setTranscriptSource(source);
@@ -296,12 +283,12 @@ export const App: React.FC = () => {
         setLatencyMs(res.latencyMs);
         // Computed for matched and abstained alike: on a match the protocol
         // governs, and this quietly backs it up.
-        setGuidance(guidanceFor(matchText));
+        setGuidance(decision.guidance);
         setMossStatus(mossEngine.getMossStatus());
         // NOTE: the effective transcript, not the latest utterance. Routing on
         // the raw turn meant a withdrawn emergency still routed as an emergency,
         // because "actually that was my cat" carries no clinical words of its own.
-        const r = routeTranscript(matchText);
+        const r = decision.route;
         setRoute(r);
         setClarify(emptyClarifyState(matchText));
 
@@ -329,7 +316,7 @@ export const App: React.FC = () => {
           if (speakAudio && audioFeedbackEnabled && r.kind === 'emergency') {
             // Never a dead end: the zero-risk safety floor, plus at most one
             // clearly-matched broad category's first action and red flag.
-            for (const line of speakableGuidanceScript(matchText)) {
+            for (const line of decision.speakable) {
               audioService.speakVerbalInstruction(line);
             }
           }
@@ -353,7 +340,7 @@ export const App: React.FC = () => {
             // had already corrected the picture, then Moss re-derived a protocol
             // from the withdrawn words. This is the composition gap the
             // multi-turn corpus could not see, because the corpus is local-only.
-            .refineWithMoss(matchText)
+            .refineWithMoss(matchText) // matchText === decision.matchText, by construction
             .then((refined) => {
               if (callToken !== callTokenRef.current) return; // superseded
               if (!refined) return; // runtime not warm — keep the local result
