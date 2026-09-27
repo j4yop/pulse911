@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import { TopLoader } from './components/TopLoader';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -16,6 +16,13 @@ import { mossEngine } from './engine/mossEngine';
 import type { MicState } from './components/CallerPanel';
 import { routeTranscript, type RouteVerdict } from './engine/routing';
 import { matchSpokenAnswer } from './engine/clarifyVoice';
+import {
+  buildTimeline,
+  describeContradiction,
+  describeRetraction,
+  type CallTimeline,
+  type Utterance,
+} from './engine/callTimeline';
 import {
   advanceClarify,
   emptyClarifyState,
@@ -110,6 +117,33 @@ export const App: React.FC = () => {
   const [mossStatus, setMossStatus] = useState(mossEngine.getMossStatus());
   /** Set when speech arrived while a question was pending but did not match. */
   const [clarifyHeard, setClarifyHeard] = useState<string | null>(null);
+  /** Everything the caller has said, in order. Retractions supersede earlier turns. */
+  const [utterances, setUtterances] = useState<Utterance[]>([]);
+  const utterancesRef = useRef<Utterance[]>([]);
+  const [timeline, setTimeline] = useState<CallTimeline>(() => buildTimeline([]));
+
+  /**
+   * What the operator must be told about the conversation so far.
+   *
+   * A withdrawal that changes nothing on screen is indistinguishable from a
+   * withdrawal that was ignored. So the changes are stated, not just applied.
+   */
+  const callNotes = useMemo(() => {
+    const notes: string[] = [];
+    for (const r of timeline.retractions) {
+      const was = timeline.utterances.find((x) => x.seq === r.supersedes);
+      const by = timeline.utterances.find((x) => x.seq === r.by);
+      if (was && by) notes.push(`Withdrawn: ${describeRetraction(r, by, was)}`);
+    }
+    for (const c of timeline.contradictions) {
+      const prev = timeline.utterances.find((x) => x.seq === c.previous);
+      const cur = timeline.utterances.find((x) => x.seq === c.seq);
+      if (prev && cur) {
+        notes.push(`Changed: ${describeContradiction(c, prev, cur)} ("${prev.text}" -> "${cur.text}")`);
+      }
+    }
+    return notes;
+  }, [timeline]);
   /**
    * Emergency vs general-question routing. Evaluated from the same text the
    * engine decided on, so the two can never disagree about what was said.
@@ -232,6 +266,24 @@ export const App: React.FC = () => {
     ) => {
       setIsProcessing(true);
       setCurrentTranscript(text);
+
+      /**
+       * Record this turn and match on the EFFECTIVE transcript — everything the
+       * caller has said minus what they have since taken back.
+       *
+       * Matching on `text` alone is what left a stale CARD-01 on screen after the
+       * caller said "actually he is breathing normally, I was wrong". The most
+       * recent statement wins, and the withdrawal is never silently ignored.
+       */
+      const nextUtterances: Utterance[] = [
+        ...utterancesRef.current,
+        { seq: utterancesRef.current.length, text, source },
+      ];
+      utterancesRef.current = nextUtterances;
+      const nextTimeline = buildTimeline(nextUtterances);
+      setUtterances(nextUtterances);
+      setTimeline(nextTimeline);
+      const matchText = nextTimeline.effectiveText || text;
       setCallRequestId((n) => n + 1);
       const callToken = ++callTokenRef.current;
       setTranscriptSource(source);
@@ -239,22 +291,22 @@ export const App: React.FC = () => {
 
       try {
         // Query Moss in-memory semantic retrieval engine
-        const res = await mossEngine.query(text);
+        const res = await mossEngine.query(matchText);
         setQueryResult(res);
         setLatencyMs(res.latencyMs);
         // Computed for matched and abstained alike: on a match the protocol
         // governs, and this quietly backs it up.
-        setGuidance(guidanceFor(text));
+        setGuidance(guidanceFor(matchText));
         setMossStatus(mossEngine.getMossStatus());
         const r = routeTranscript(text);
         setRoute(r);
-        setClarify(emptyClarifyState(text));
+        setClarify(emptyClarifyState(matchText));
 
         // SAFETY GATE — the single point deciding what may be spoken or sent.
         const protocol = matchedProtocol(res.outcome);
 
         if (protocol) {
-          presentMatch(protocol, text, scenario, speakAudio);
+          presentMatch(protocol, matchText, scenario, speakAudio);
         } else {
           // ABSTAIN: no protocol, no unit, no CPR pacer. Do not guess, do not
           // speak a clinical protocol, do not dispatch. What IS spoken is the
@@ -452,6 +504,9 @@ export const App: React.FC = () => {
     setRoute(null);
     setClarify(null);
     setClarifyHeard(null);
+    utterancesRef.current = [];
+    setUtterances([]);
+    setTimeline(buildTimeline([]));
   }, []);
 
   return (
@@ -515,6 +570,7 @@ export const App: React.FC = () => {
                 onSpokenAnswer={handleSpokenAnswer}
                 awaitingAnswerFor={clarify && !clarify.resolvedProtocolId ? (nextQuestion(clarify)?.text ?? null) : null}
                 clarifyHeard={clarifyHeard}
+                callNotes={callNotes}
                 route={route}
                 clarify={clarify}
                 onClarifyAnswer={handleClarifyAnswer}

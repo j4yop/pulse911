@@ -154,7 +154,29 @@ try {
   check('a critical escalation is NOT discarded as unrecognised', !/not an answer I can use/.test(body));
   check('a critical escalation IS triaged', /CARD-01|Cardiac Arrest/i.test(body));
 
-  // 4. Tap answering must not have been broken by the fall-through change.
+  // 4. A CALLER MUST BE ABLE TO CHANGE THEIR MIND.
+  //
+  //    Retractions used to be ignored: "actually he is breathing normally, I was
+  //    wrong" left a stale CARD-01 on screen with nothing saying why. Now the
+  //    withdrawn utterance is dropped from what gets matched, and the change is
+  //    stated rather than applied silently.
+  await page.evaluate(() => window.__speak('he is not breathing'));
+  await sleep(5000);
+  await page.evaluate(() => window.__speak('actually he is breathing normally i was wrong'));
+  await sleep(5500);
+
+  const noteBadge = page.locator('[data-testid=call-notes]');
+  check('a retraction is reported to the operator', (await noteBadge.count()) > 0);
+  const noteText = (await noteBadge.getAttribute('title').catch(() => '')) || '';
+  check('the report names what was withdrawn', /withdrawn/i.test(noteText), noteText.slice(0, 70));
+
+  // The badge must survive later turns. A withdrawal that only shows while a
+  // question happens to be open is a withdrawal that can be missed.
+  await page.evaluate(() => window.__speak('now he has collapsed again and is unresponsive'));
+  await sleep(5500);
+  check('the withdrawal is still visible after later information', (await noteBadge.count()) > 0);
+
+  // 5. Tap answering must not have been broken by the fall-through change.
   check('tap answering still works', (await page.locator('text=/answer the question|tap an option/i').count()) >= 0);
 
   /**

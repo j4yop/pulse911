@@ -50,6 +50,8 @@ interface DispatcherHUDProps {
   mossStatus: { ready: boolean; warming: boolean; serving: boolean; reason: string | null } | null;
   /** Speech heard while a question was open but not understood. */
   clarifyHeard: string | null;
+  /** Withdrawals and changed findings during this call. Never applied silently. */
+  callNotes: string[];
   route: RouteVerdict | null;
   clarify: ClarifyState | null;
   onClarifyAnswer: (questionId: string, optionLabel: string) => void;
@@ -70,6 +72,7 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
   micState,
   mossStatus,
   clarifyHeard,
+  callNotes,
   route,
   clarify,
   onClarifyAnswer,
@@ -179,6 +182,15 @@ export const DispatcherHUD: React.FC<DispatcherHUDProps> = ({
                 )}
               >
                 {transcriptSource === 'mic' ? 'From microphone' : 'Typed'}
+              </span>
+            )}
+            {callNotes.length > 0 && (
+              <span
+                data-testid="call-notes"
+                className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-400 bg-amber-100 text-amber-900 cursor-help"
+                title={callNotes.join('\n')}
+              >
+                Call updated &times;{callNotes.length}
               </span>
             )}
             {mossStatus && mossStatus.warming && (

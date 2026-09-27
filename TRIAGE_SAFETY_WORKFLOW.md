@@ -612,3 +612,41 @@ Verified in-browser: the first run returned `202` on `/index/init` and logged
 `already exists` and `(existing, 197 documents)` — that 197 read back from Moss,
 matching the corpus. `npm test` pins the index name and guards the unverified-log
 pattern.
+
+
+## On adding protocols
+
+**Short answer: yes technically, no responsibly — and the blocker is not code.**
+
+The gap backlog reads 0, but that number is measured against a 124-case corpus
+*we wrote*. It says the current corpus is fully covered. It does not say the
+corpus is complete, and treating it as proof of coverage is how a system comes
+to believe it is finished when it is not.
+
+Three things gate a new protocol, and only the first is engineering:
+
+1. **Written content** — signs, actions, contraindications, verbal script. I can
+   draft this. I have, eleven times.
+2. **A real citation to a document someone has actually read.** Eleven protocols
+   currently read `PENDING CITATION VERIFICATION`. Adding more in that state makes
+   the audit trail worse, not better: it is an inventory of unsourced claims
+   dressed as clinical guidance.
+3. **Named clinical review.** `CLINICAL_REVIEW.reviewerId` is still a
+   placeholder.
+
+So the honest position: the count is not the constraint and raising it does not
+make the system safer. More protocols with placeholder citations means more ways
+to match the wrong thing, with less traceability for each. If coverage of, say,
+paediatric anaphylaxis is a real gap, the useful next step is naming a reviewer
+and sourcing the guideline — after which adding protocols is quick.
+
+What would genuinely raise capability, in order:
+
+- **Citation verification** on the eleven that exist. Turns placeholder claims
+  into sourced ones.
+- **Reviewer attribution.** Without it there is no audit trail at all.
+- **Stage 7's predicate list** reviewed clinically. It changes which protocol is
+  selected on the most common findings, which matters more than a nineteenth
+  protocol for a rare one.
+- **A protocol must not outlive its evidence** (Stage 7, item 2). A stale critical
+  match is worse than a missing one.
