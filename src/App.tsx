@@ -113,6 +113,25 @@ export const App: React.FC = () => {
   const [transcriptSource, setTranscriptSource] = useState<'mic' | 'typed' | null>(null);
   /** Mirrors the microphone lifecycle so the dock can show it while scrolled away. */
   const [micState, setMicState] = useState<MicState>('idle');
+
+  /**
+   * Warm Moss on idle so the first call of a shift is not answered by the local
+   * engine alone. The model costs ~140s to download and instantiate, and that
+   * used to start on the operator's first query. Deferred to idle so it never
+   * competes with first paint.
+   */
+  useEffect(() => {
+    const idle: (cb: () => void, opts?: { timeout: number }) => number =
+      typeof (window as any).requestIdleCallback === 'function'
+        ? (window as any).requestIdleCallback
+        : (cb) => window.setTimeout(cb, 2000);
+    const cancel: (h: number) => void =
+      typeof (window as any).cancelIdleCallback === 'function'
+        ? (window as any).cancelIdleCallback
+        : (h) => window.clearTimeout(h);
+    const handle = idle(() => mossEngine.prewarm(), { timeout: 4000 });
+    return () => cancel(handle);
+  }, []);
   /** Polled so the console can state Moss's real availability. */
   const [mossStatus, setMossStatus] = useState(mossEngine.getMossStatus());
   /** Set when speech arrived while a question was pending but did not match. */

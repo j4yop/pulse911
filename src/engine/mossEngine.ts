@@ -150,6 +150,7 @@ class Pulse911RetrievalEngine {
   private mossReady = false;
   /** True once the model runtime has actually served one query. */
   private mossWarm = false;
+  private warmupStarted = false;
   private warmupPromise: Promise<void> | null = null;
 
   /**
@@ -348,6 +349,26 @@ class Pulse911RetrievalEngine {
    * through the real WASM index and return a better-scored outcome. Returns
    * null when Moss is not ready, so callers can keep the local result.
    */
+  /**
+   * Start loading Moss before anyone speaks.
+   *
+   * The model runtime costs ~140s to download and instantiate — measured. That
+   * used to begin on the operator's FIRST QUERY, so the first call of every shift
+   * was answered by the local engine alone while the screen said "warming".
+   *
+   * Called on idle after first paint: the WASM and the model are fetched while
+   * the console is idle, not on the critical path, and never block it. Idempotent,
+   * and a failure here is silent by design — the operator must not see a scary
+   * error for something they did not ask for.
+   */
+  public prewarm(): void {
+    if (this.warmupStarted) return;
+    this.warmupStarted = true;
+    void this.init().catch(() => {
+      // Prewarming is best-effort. A later query will surface any real problem.
+    });
+  }
+
   public async refineWithMoss(transcript: string, topK = 3): Promise<MossQueryResult | null> {
     if (!this.client || this.mode !== 'moss-wasm') return null;
     const startedAt = performance.now();
