@@ -32,6 +32,7 @@ import {
 } from '../types';
 import type { CategoryMatch } from '../engine/guidanceCategories';
 import type { RouteVerdict } from '../engine/routing';
+import type { CallTimeline } from '../engine/callTimeline';
 import type { ClarifyState } from '../engine/clarify';
 import type { MicState } from './CallerPanel';
 import { EMERGENCY_SCENARIOS } from '../engine/emergencyProtocols';
@@ -67,12 +68,17 @@ export interface ConsoleViewProps {
   onMicStateChange: (s: MicState) => void;
   onSpokenAnswer: (spoken: string) => boolean;
   awaitingAnswerFor: string | null;
-  clarifyHeard: string | null;
   /** Withdrawals and changed findings during this call. */
   callNotes: string[];
+  /** The call so far. */
+  timeline: CallTimeline | null;
+  /** The effective transcript the decision is based on. */
+  matchText: string;
+  /** How each clarify question was answered. */
+  answerSources: Record<string, 'voice' | 'tap'>;
   route: RouteVerdict | null;
   clarify: ClarifyState | null;
-  onClarifyAnswer: (questionId: string, optionLabel: string) => void;
+  onClarifyAnswer: (questionId: string, optionLabel: string, source?: 'voice' | 'tap') => void;
   onStopClarify: () => void;
   overrideLog: OverrideRecord[];
   onOverride: (protocol: EmergencyProtocol) => void;
@@ -107,8 +113,10 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
   onMicStateChange,
   onSpokenAnswer,
   awaitingAnswerFor,
-  clarifyHeard,
   callNotes,
+  timeline,
+  matchText,
+  answerSources,
   route,
   clarify,
   onClarifyAnswer,
@@ -409,7 +417,6 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             onMicStateChange={onMicStateChange}
             onSpokenAnswer={onSpokenAnswer}
             awaitingAnswerFor={awaitingAnswerFor}
-            clarifyHeard={clarifyHeard}
           />
         </div>
 
@@ -431,8 +438,10 @@ export const ConsoleView: React.FC<ConsoleViewProps> = ({
             transcriptSource={transcriptSource}
             micState={micState}
             mossStatus={mossStatus}
-            clarifyHeard={clarifyHeard}
             callNotes={callNotes}
+            timeline={timeline}
+            matchText={matchText}
+            answerSources={answerSources}
             route={route}
             clarify={clarify}
             onClarifyAnswer={onClarifyAnswer}

@@ -167,7 +167,9 @@ try {
 
   const noteBadge = page.locator('[data-testid=call-notes]');
   check('a retraction is reported to the operator', (await noteBadge.count()) > 0);
-  const noteText = (await noteBadge.getAttribute('title').catch(() => '')) || '';
+  // The detail moved out of a hover tooltip and into the call record, so read it
+  // from there. Reading `title` would have kept testing a mechanism that is gone.
+  const noteText = (await page.locator('[data-testid=call-record-notes]').innerText().catch(() => '')) || '';
   check('the report names what was withdrawn', /withdrawn/i.test(noteText), noteText.slice(0, 70));
 
   // The badge must survive later turns. A withdrawal that only shows while a
@@ -176,7 +178,7 @@ try {
   await sleep(5500);
   check('the withdrawal is still visible after later information', (await noteBadge.count()) > 0);
 
-  // 5. Tap answering must not have been broken by the fall-through change.
+  // 6. Tap answering must not have been broken by the fall-through change.
   check('tap answering still works', (await page.locator('text=/answer the question|tap an option/i').count()) >= 0);
 
   /**
@@ -216,6 +218,57 @@ try {
   );
   check('no page errors while stalling', stalledErrors.length === 0, stalledErrors.join('; '));
   await stalled.close();
+
+  /**
+   * THE CALL RECORD — asserted last, against a deliberate final state.
+   *
+   * A withdrawal used to reach the operator only as a 10px badge whose detail sat
+   * in a `title=` tooltip: invisible without a mouse, and the decision input was
+   * never shown at all. These ran mid-sequence at first and were flaky by
+   * construction, because they depended on whatever earlier sections happened to
+   * leave behind.
+   */
+  const subj = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  await subj.addInitScript(SPEECH_MOCK);
+  await subj.goto(URL, { waitUntil: 'load' });
+  await subj.locator('[data-testid=mic-toggle]').waitFor({ state: 'visible', timeout: 20_000 });
+  await subj.locator('[data-testid=mic-toggle]').click();
+  await sleep(1200);
+  for (const said of [
+    'my father collapsed and is not breathing',
+    'sorry i misspoke that is my mother not my father',
+    'actually that was my cat he is fine',
+  ]) {
+    await subj.evaluate((t) => window.__speak(t), said);
+    await sleep(5000);
+  }
+  await subj.locator('[data-testid=call-record]').waitFor({ state: 'visible', timeout: 10_000 });
+  check('the call record is present', (await subj.locator('[data-testid=call-record]').count()) > 0);
+  check('it opens itself when the call changes', (await subj.locator('[data-testid=call-record-turns]').count()) > 0);
+  check('a withdrawn turn is marked withdrawn', (await subj.locator('text=/withdrawn/i').count()) > 0);
+
+  const finalMatch = (await subj.locator('[data-testid=call-record-match]').innerText().catch(() => '')) || '';
+  check(
+    'the decision input is shown and excludes every withdrawn finding',
+    finalMatch.trim().length > 0 && !/not breathing/i.test(finalMatch),
+    JSON.stringify(finalMatch.trim().slice(0, 80))
+  );
+
+  const finalNotes = await subj.locator('[data-testid=call-record-notes] li').allTextContents().catch(() => []);
+  check(
+    'renaming the person is NOT reported as a withdrawal',
+    finalNotes.some((n) => /no finding withdrawn/i.test(n)),
+    finalNotes.join(' | ').slice(0, 90)
+  );
+  check(
+    'the false emergency IS reported as withdrawn',
+    finalNotes.some((n) => /withdrawn/i.test(n) && !/no finding withdrawn/i.test(n))
+  );
+  check(
+    'the dead "not an answer I can use" notice is gone',
+    (await subj.locator('text=/not an answer I can use/i').count()) === 0
+  );
+  await subj.close();
 
   check('no page errors', pageErrors.length === 0, pageErrors.join('; '));
 } finally {
