@@ -1,80 +1,43 @@
 import { describe, it, expect } from 'vitest';
 import { MULTI_TURN_CORPUS } from '../eval/multiTurnCorpus';
-import { buildTimeline, type Utterance } from '../engine/callTimeline';
-import { routeTranscript } from '../engine/routing';
-import { resolveTriageOutcome } from '../engine/retrievalCore';
-import { EMERGENCY_PROTOCOLS } from '../engine/emergencyProtocols';
-import { matchedProtocol, canDispatch } from '../engine/triageGate';
+import { decideCall } from '../engine/callDecision';
+import type { Utterance } from '../engine/callTimeline';
 
 /**
- * Composition coverage — the path the app actually takes.
+ * Composition coverage — the app's decision, not a copy of it.
  *
- * `multiTurnCorpus.test.ts` exercises the timeline and the local gate. This file
- * exercises the *sequence* the app runs on every utterance, in order:
+ * ## The history, because it explains the file
  *
- *   1. route the turn          -> routeTranscript()
- *   2. resolve the outcome     -> mossEngine.query() -> localQuery()
- *   3. decide what to present  -> matchedProtocol()
- *   4. check what is permitted -> canDispatch()
+ * Three bugs shipped where the app judged the raw latest utterance while the
+ * tests judged the effective transcript (`routeTranscript(text)`,
+ * `speakableGuidanceScript(text)`, `refineWithMoss(text)`). Every test passed,
+ * because every test called `resolveTriageOutcome` directly and the app ran a
+ * longer sequence.
  *
- * ## Why this file exists
+ * The first attempt at closing that was a duplicated copy of the app's decision
+ * order. Better than nothing, still wrong: a duplicated sequence drifts silently
+ * and proves little.
  *
- * Stage 7 changed what the app matches on, and three call sites in `App.tsx` were
- * left passing the RAW latest utterance instead of the effective transcript:
+ * So this file now calls `decideCall()` — **the same function `App.tsx` calls**.
+ * There is no second copy. If the app's decision order changes, these assertions
+ * change with it, which is the only version of this test that means anything.
  *
- *   - `routeTranscript(text)`  — so a withdrawn emergency still routed as one
- *   - `speakableGuidanceScript(text)`
- *   - `refineWithMoss(text)`   — so Moss re-derived a protocol from withdrawn words
- *
- * Every existing test passed with those bugs present, because they all called
- * `resolveTriageOutcome` directly. A corpus can only catch what it is wired to
- * see, so this file wires the same decision sequence the app runs.
- *
- * It duplicates the call order rather than importing it. Extracting the decision
- * into one shared function is the durable fix and is still open — this is the
- * test that would prove such a refactor changed nothing.
+ * `multiTurnCorpus.test.ts` still exercises the timeline and the local gate
+ * directly; this file checks the composition the operator actually sees.
  */
 
-interface Composed {
-  matchText: string;
-  routeKind: string;
-  protocol: string;
-  dispatchable: boolean;
-  guidanceInput: string;
-}
-
-export function compose(turns: string[]): Composed {
-  const utterances: Utterance[] = turns.map((text, seq) => ({ seq, text, source: 'mic' }));
-  const matchText = buildTimeline(utterances).effectiveText;
-
-  // 1. Routing — the app routes the EFFECTIVE transcript.
-  const route = routeTranscript(matchText);
-
-  // 2. Outcome — mossEngine.query() delegates straight to this.
-  const outcome = resolveTriageOutcome(matchText, EMERGENCY_PROTOCOLS);
-
-  // 3. What gets presented.
-  const protocol = matchedProtocol(outcome);
-
-  return {
-    matchText,
-    routeKind: route.kind,
-    protocol: protocol ? protocol.id : 'abstain',
-    dispatchable: canDispatch(outcome),
-    // Guidance is spoken to the caller, so it must come from the same text.
-    guidanceInput: matchText,
-  };
-}
+const asUtterances = (turns: string[]): Utterance[] =>
+  turns.map((text, seq) => ({ seq, text, source: 'mic' }));
 
 describe('the composed decision is the corpus decision', () => {
   it('agrees with the corpus for every conversation', () => {
     const failures: string[] = [];
     for (const c of MULTI_TURN_CORPUS) {
-      const r = compose(c.turns);
-      if (r.protocol !== c.expect) {
+      const d = decideCall(asUtterances(c.turns));
+      if (d.verdict !== c.expect) {
         failures.push(
-          `  ${c.id}: corpus expects ${c.expect}, composition produced ${r.protocol}\n` +
-            `     routed on: "${r.matchText}"`
+          `  ${c.id}: corpus expects ${c.expect}, decision produced ${d.verdict}\n` +
+            `     decided on: "${d.matchText}"`
         );
       }
     }
@@ -87,42 +50,85 @@ describe('the composed decision is the corpus decision', () => {
     // The specific bug this file was written for. "Actually that was my cat"
     // carries no clinical words of its own, so routing on the raw turn found an
     // emergency where the effective transcript has none.
-    const r = compose([
-      'my father collapsed and is not breathing',
-      'actually that was my cat he is fine',
-    ]);
-    expect(r.protocol).toBe('abstain');
-    expect(r.dispatchable).toBe(false);
+    const d = decideCall(
+      asUtterances(['my father collapsed and is not breathing', 'actually that was my cat he is fine'])
+    );
+    expect(d.verdict).toBe('abstain');
+    expect(d.canDispatch).toBe(false);
   });
 
   it('keeps the emergency routed when only the subject was corrected', () => {
-    const r = compose([
-      'my father collapsed and is not breathing',
-      'sorry i misspoke that is my mother not my father',
-    ]);
-    expect(r.protocol).toBe('CARD-01');
+    const d = decideCall(
+      asUtterances([
+        'my father collapsed and is not breathing',
+        'sorry i misspoke that is my mother not my father',
+      ])
+    );
+    expect(d.verdict).toBe('CARD-01');
   });
 
-  it('never speaks guidance drawn from a withdrawn finding', () => {
+  it('never decides on a withdrawn finding', () => {
+    /**
+     * The invariant is about the DECISION INPUT, not about spoken strings.
+     *
+     * This first asserted that no spoken line may contain the withdrawn words,
+     * which was wrong: the safety floor says "If they are unresponsive and not
+     * breathing normally, start chest compressions right now" — a conditional, not
+     * a claim about this patient. Failing that would have meant deleting the
+     * zero-risk floor, which is the one thing that must never be removed.
+     */
     for (const c of MULTI_TURN_CORPUS) {
-      const r = compose(c.turns);
-      if (c.mustNotSurvive) {
-        expect(r.guidanceInput.toLowerCase(), c.id).not.toContain(c.mustNotSurvive.toLowerCase());
+      if (!c.mustNotSurvive) continue;
+      const d = decideCall(asUtterances(c.turns));
+      expect(d.matchText.toLowerCase(), c.id).not.toContain(c.mustNotSurvive.toLowerCase());
+      for (const g of d.guidance) {
+        expect(
+          `${g.category} ${g.anchors.join(' ')}`.toLowerCase(),
+          c.id
+        ).not.toContain(c.mustNotSurvive.toLowerCase());
       }
     }
   });
 
   it('never permits dispatch on a conversation that should abstain', () => {
     for (const c of MULTI_TURN_CORPUS.filter((x) => x.expect === 'abstain')) {
-      const r = compose(c.turns);
-      expect(r.dispatchable, `${c.id} dispatched as ${r.protocol}`).toBe(false);
+      const d = decideCall(asUtterances(c.turns));
+      expect(d.canDispatch, `${c.id} dispatched as ${d.verdict}`).toBe(false);
     }
   });
 
-  it('routes every conversation the same way every time', () => {
+  it('presents exactly one protocol, and only when there is one', () => {
     for (const c of MULTI_TURN_CORPUS) {
-      expect(compose(c.turns).routeKind, c.id).toBe(compose(c.turns).routeKind);
-      expect(compose(c.turns).protocol, c.id).toBe(compose(c.turns).protocol);
+      const d = decideCall(asUtterances(c.turns));
+      expect(d.protocol === null, c.id).toBe(d.verdict === 'abstain');
+    }
+  });
+
+  it('reports the same withdrawal notes the console shows', () => {
+    // The console used to compute notes in its own useMemo, so the audit line
+    // and the decision could disagree. Both now come from decideCall().
+    const d = decideCall(
+      asUtterances(['my father collapsed and is not breathing', 'actually he is breathing normally i was wrong'])
+    );
+    expect(d.notes.length).toBeGreaterThan(0);
+    expect(d.notes.join(' ')).toMatch(/withdrawn|corrected|changed/i);
+  });
+
+  it('is deterministic across repeated calls', () => {
+    for (const c of MULTI_TURN_CORPUS) {
+      const a = decideCall(asUtterances(c.turns));
+      const b = decideCall(asUtterances(c.turns));
+      expect(a.verdict, c.id).toBe(b.verdict);
+      expect(a.matchText, c.id).toBe(b.matchText);
+      expect(a.route.kind, c.id).toBe(b.route.kind);
+    }
+  });
+
+  it('does not depend on typed vs spoken input', () => {
+    for (const c of MULTI_TURN_CORPUS) {
+      const spoken = decideCall(c.turns.map((text, seq) => ({ seq, text, source: 'mic' as const })));
+      const typed = decideCall(c.turns.map((text, seq) => ({ seq, text, source: 'typed' as const })));
+      expect(typed.verdict, c.id).toBe(spoken.verdict);
     }
   });
 });

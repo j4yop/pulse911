@@ -76,6 +76,10 @@ flip that happened is a historical fact whether or not we still act on it.
   out of scope for this stage.
 - **The predicate list needs a clinician.** Five predicates is a starting point
   chosen for blast radius, not a clinical instrument.
+- **"Breathing but struggling" currently points at IMMUNO-04 (anaphylaxis)**
+  via "struggling to breathe, wheezing, gasping". A caller answering that
+  question truthfully lands on anaphylaxis. Flagged, not changed: what that
+  answer should map to is a clinical decision.
 
 ## Verification
 
@@ -160,6 +164,56 @@ reading):
 conversation — route, resolve, present, permit — so this class of bug fails the
 suite. It duplicates the call order rather than importing it; extracting the
 decision into one shared function is the durable fix and is still open.
+
+## Resolved since: items 3, 4 and 5 from the open list
+
+**3 — the duplicated decision order.** Gone. `src/engine/callDecision.ts` exports
+`decideCall()`; `App.tsx` calls it and the composition tests call the same
+function. No second copy exists to drift. `routeTranscript` and
+`speakableGuidanceScript` imports were removed from `App.tsx` deliberately — leaving
+them invites a new call site to reach for the raw path, which is how the original
+three bugs happened. The console's withdrawal notes are now written by the
+decision instead of a parallel `useMemo`.
+
+One new assertion failed on arrival and was **my** error, not the code's: it
+forbade spoken lines from containing a withdrawn phrase, which would have meant
+deleting the safety floor ("If they are unresponsive and not breathing normally,
+start chest compressions") — a conditional, not a claim about this patient. The
+assertion now targets the decision input, which is the real invariant.
+
+**4 — the 141s Moss cold start.** It began on the operator's *first query*, so the
+first call of every session was answered by the local engine alone. `prewarm()`
+now runs on idle after first paint (`requestIdleCallback`, 4s timeout, `setTimeout`
+fallback for Safari), so it never competes with the critical path. Idempotent, and
+best-effort by design: a failure is silent because the operator must not see an
+error for something they did not ask for.
+
+Measured headed: page loads, Moss starts at 4s, runtime ready 11s, **warm at 98s**,
+first call at 100s finds it warm with no warming chip.
+
+**5a — "clarify negatives don't feed the ranker": this was wrong.** An audit of
+every option shows the design is deliberate and correct:
+
+| negative answer | contributes | why |
+|---|---|---|
+| "No, not breathing normally" | `not breathing normally, gasping, agonal` → CARD-01 | critical finding, must count |
+| "No, unresponsive" | `unconscious, unresponsive, not responding` → CARD-01 | critical finding, must count |
+| "No bleeding" | *(nothing)* | "no bleeding" must not trigger HEM-09 |
+| "No" (pregnancy), "Not sure" | *(nothing)* | no clinical content |
+
+Critical negatives **do** reach the ranker. Only the ones that would manufacture a
+false match are suppressed. No change was needed and none was made.
+
+**5b — DROW-13 outranking CARD-01.** Real, and now guarded. Moss embeds document
+*text*, and drowning presents as "collapsed, not breathing, blue", so DROW-13
+scores 0.99 on that phrasing against CARD-01's 0.95 with no water mentioned
+anywhere. Presentation similarity is not diagnosis.
+
+`refineWithMoss` now requires at least one of the winning protocol's own keywords
+to appear in the transcript before accepting the hit, so a drowning protocol
+cannot corroborate a call with no water in it. Note the practical blast radius
+was already limited: refinement only ever *corroborates* a protocol the local gate
+chose, and never overrides it.
 
 ## Next, in order
 
