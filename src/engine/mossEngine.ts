@@ -428,6 +428,23 @@ class Pulse911RetrievalEngine {
         return null;
       }
 
+      /**
+       * Require the protocol's own distinguishing context to be present.
+       *
+       * Moss embeds document TEXT, and drowning presents as "collapsed, not
+       * breathing, blue" — so DROW-13 scores 0.99 on exactly that phrasing and
+       * beats CARD-01 at 0.95, with no water mentioned anywhere.
+       *
+       * Presentation similarity is not diagnosis. A drowning protocol must not
+       * be treated as corroborating a call with no water in it, so at least one
+       * of its own keywords has to appear before we accept the hit.
+       */
+      const said = transcript.toLowerCase();
+      const hasOwnContext = (protocol.keywords ?? []).some((k) => said.includes(k.toLowerCase()));
+      if (!hasOwnContext) {
+        return null;
+      }
+
       if (confidence < MIN_CONFIDENCE) {
         return {
           outcome: this.abstain('low-confidence'),
